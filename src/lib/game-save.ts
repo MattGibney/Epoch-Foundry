@@ -13,6 +13,7 @@ import {
 } from '@/lib/game-engine'
 
 const SAVE_KEY = 'epochFoundry.save.main'
+const SAVE_BACKUP_KEY = 'epochFoundry.save.backup'
 const SAVE_FORMAT = 'epoch-foundry-save'
 const SAVE_SCHEMA_VERSION = 1
 
@@ -90,6 +91,8 @@ function parseModernState(value: unknown): GameState | null {
     return null
   }
 
+  const nowMs = Date.now()
+  const initial = createInitialGameState(nowMs)
   const candidate = value as Record<string, unknown>
   const credits = parseDecimalString(candidate.credits)
   const stats = candidate.stats as Record<string, unknown> | undefined
@@ -98,40 +101,31 @@ function parseModernState(value: unknown): GameState | null {
   const buyAmount = parseNonNegativeInt(candidate.buyAmount)
   const settings = parseSettings(candidate.settings)
 
-  if (!credits || !stats || !generators || !purchasedUpgrades) {
+  if (!credits) {
     return null
   }
 
-  const startedAtMs = parseNonNegativeInt(stats.startedAtMs)
-  const lastTickAtMs = parseNonNegativeInt(stats.lastTickAtMs)
-  const totalCredits = parseDecimalString(stats.totalCredits)
+  const startedAtMs = parseNonNegativeInt(stats?.startedAtMs) ?? nowMs
+  const lastTickAtMs = parseNonNegativeInt(stats?.lastTickAtMs) ?? startedAtMs
+  const totalCredits = parseDecimalString(stats?.totalCredits) ?? credits
 
-  if (startedAtMs === null || lastTickAtMs === null || !totalCredits) {
-    return null
-  }
+  const normalizedLastTickAtMs = Math.max(startedAtMs, lastTickAtMs)
 
   const parsedGenerators = {} as Record<GeneratorKey, number>
   for (const key of GENERATOR_ORDER) {
-    const parsed = parseNonNegativeInt(generators[key])
-    if (parsed === null) {
-      return null
-    }
-
-    parsedGenerators[key] = parsed
+    const parsed = parseNonNegativeInt(generators?.[key])
+    parsedGenerators[key] = parsed ?? initial.generators[key]
   }
 
   const parsedUpgrades = {} as Record<RunUpgradeKey, boolean>
   for (const key of UPGRADE_ORDER) {
-    const parsed = parseBool(purchasedUpgrades[key])
-    if (parsed === null) {
-      return null
-    }
-
-    parsedUpgrades[key] = parsed
+    const parsed = parseBool(purchasedUpgrades?.[key])
+    parsedUpgrades[key] = parsed ?? false
   }
 
   const normalizedBuyAmount =
-    buyAmount !== null && BUY_AMOUNT_OPTIONS.includes(buyAmount as 1 | 10 | 100)
+    buyAmount !== null &&
+    BUY_AMOUNT_OPTIONS.includes(buyAmount as (typeof BUY_AMOUNT_OPTIONS)[number])
       ? buyAmount
       : BUY_AMOUNT_OPTIONS[0]
 
@@ -166,7 +160,7 @@ function parseModernState(value: unknown): GameState | null {
     buyAmount: normalizedBuyAmount,
     stats: {
       startedAtMs,
-      lastTickAtMs,
+      lastTickAtMs: normalizedLastTickAtMs,
       totalCredits,
     },
     settings,
@@ -206,66 +200,111 @@ function parseState(value: unknown): GameState | null {
   return parseModernState(value) ?? parseLegacyState(value)
 }
 
+function parseStateFromEnvelope(raw: string): GameState | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return null
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    return null
+  }
+
+  const saveEnvelope = parsed as Partial<SaveEnvelopeV1>
+  if (
+    saveEnvelope.format !== SAVE_FORMAT ||
+    typeof saveEnvelope.schemaVersion !== 'number' ||
+    saveEnvelope.schemaVersion > SAVE_SCHEMA_VERSION ||
+    !Number.isFinite(saveEnvelope.savedAtMs)
+  ) {
+    return null
+  }
+
+  return parseState(saveEnvelope.state)
+}
+
+function createSaveEnvelope(state: GameState): SaveEnvelopeV1 {
+  return {
+    format: SAVE_FORMAT,
+    schemaVersion: SAVE_SCHEMA_VERSION,
+    savedAtMs: Date.now(),
+    state,
+  }
+}
+
+function writeSaveEnvelope(payload: SaveEnvelopeV1, backupRaw?: string | null): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    const nextRaw = JSON.stringify(payload)
+
+    if (backupRaw !== undefined) {
+      if (backupRaw) {
+        window.localStorage.setItem(SAVE_BACKUP_KEY, backupRaw)
+      } else {
+        window.localStorage.removeItem(SAVE_BACKUP_KEY)
+      }
+    } else {
+      const currentRaw = window.localStorage.getItem(SAVE_KEY)
+      if (currentRaw) {
+        window.localStorage.setItem(SAVE_BACKUP_KEY, currentRaw)
+      }
+    }
+
+    window.localStorage.setItem(SAVE_KEY, nextRaw)
+  } catch {
+    // Intentionally swallow storage exceptions for MVP stability.
+  }
+}
+
 export function loadGameStateWithSummary(): LoadGameStateResult {
   if (typeof window === 'undefined') {
     return createFreshLoadResult(Date.now())
   }
 
   try {
-    const raw = window.localStorage.getItem(SAVE_KEY)
-    if (!raw) {
-      return createFreshLoadResult(Date.now())
-    }
+    const mainRaw = window.localStorage.getItem(SAVE_KEY)
+    const backupRaw = window.localStorage.getItem(SAVE_BACKUP_KEY)
+    const mainState = mainRaw ? parseStateFromEnvelope(mainRaw) : null
+    const backupState = backupRaw ? parseStateFromEnvelope(backupRaw) : null
 
-    const parsed: unknown = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object') {
-      return createFreshLoadResult(Date.now())
-    }
+    const loadedState = mainState ?? backupState
+    const loadedSource = mainState ? 'main' : backupState ? 'backup' : null
+    const loadedRaw = mainState ? mainRaw : backupState ? backupRaw : null
 
-    const saveEnvelope = parsed as Partial<SaveEnvelopeV1>
-    if (
-      saveEnvelope.format !== SAVE_FORMAT ||
-      saveEnvelope.schemaVersion !== SAVE_SCHEMA_VERSION ||
-      !Number.isFinite(saveEnvelope.savedAtMs)
-    ) {
-      return createFreshLoadResult(Date.now())
-    }
-
-    const parsedState = parseState(saveEnvelope.state)
-    if (!parsedState) {
+    if (!loadedState || !loadedSource || loadedRaw === null) {
       return createFreshLoadResult(Date.now())
     }
 
     const nowMs = Date.now()
     const elapsedSeconds = Math.max(
       0,
-      (Math.max(nowMs, parsedState.stats.lastTickAtMs) - parsedState.stats.lastTickAtMs) /
+      (Math.max(nowMs, loadedState.stats.lastTickAtMs) - loadedState.stats.lastTickAtMs) /
         1_000,
     )
     const cappedSeconds = Math.min(
       elapsedSeconds,
-      getOfflineProgressCapSeconds(parsedState),
+      getOfflineProgressCapSeconds(loadedState),
     )
-    const hydratedState = applyOfflineProgress(parsedState, nowMs)
-    const producedCredits = new Decimal(hydratedState.credits).minus(parsedState.credits)
+    const hydratedState = applyOfflineProgress(loadedState, nowMs)
+    const producedCredits = new Decimal(hydratedState.credits).minus(loadedState.credits)
 
-    if (
-      hydratedState.credits !== parsedState.credits ||
-      hydratedState.stats.totalCredits !== parsedState.stats.totalCredits ||
-      hydratedState.stats.lastTickAtMs !== parsedState.stats.lastTickAtMs
-    ) {
-      const payload: SaveEnvelopeV1 = {
-        format: SAVE_FORMAT,
-        schemaVersion: SAVE_SCHEMA_VERSION,
-        savedAtMs: Date.now(),
-        state: hydratedState,
-      }
+    const didStateChangeFromHydration =
+      hydratedState.credits !== loadedState.credits ||
+      hydratedState.stats.totalCredits !== loadedState.stats.totalCredits ||
+      hydratedState.stats.lastTickAtMs !== loadedState.stats.lastTickAtMs
+    const shouldRewriteMain =
+      loadedSource === 'backup' || didStateChangeFromHydration
 
-      try {
-        window.localStorage.setItem(SAVE_KEY, JSON.stringify(payload))
-      } catch {
-        // Intentionally swallow storage exceptions for MVP stability.
-      }
+    if (shouldRewriteMain) {
+      writeSaveEnvelope(
+        createSaveEnvelope(hydratedState),
+        loadedSource === 'backup' ? loadedRaw : undefined,
+      )
     }
 
     return {
@@ -288,22 +327,7 @@ export function loadGameState(): GameState {
 }
 
 export function saveGameState(state: GameState): void {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  const payload: SaveEnvelopeV1 = {
-    format: SAVE_FORMAT,
-    schemaVersion: SAVE_SCHEMA_VERSION,
-    savedAtMs: Date.now(),
-    state,
-  }
-
-  try {
-    window.localStorage.setItem(SAVE_KEY, JSON.stringify(payload))
-  } catch {
-    // Intentionally swallow storage exceptions for MVP stability.
-  }
+  writeSaveEnvelope(createSaveEnvelope(state))
 }
 
 export function clearGameSave(): void {
@@ -313,6 +337,7 @@ export function clearGameSave(): void {
 
   try {
     window.localStorage.removeItem(SAVE_KEY)
+    window.localStorage.removeItem(SAVE_BACKUP_KEY)
   } catch {
     // Intentionally swallow storage exceptions for MVP stability.
   }

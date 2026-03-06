@@ -28,3 +28,4 @@
 - In iOS home-screen standalone mode, treat the top safe-area/status region as translucent and provide a persistent blur veil so scrolled content behind the clock/Dynamic Island remains legible.
 - For mobile navigation scalability, keep the most-used sections as direct bottom icon actions and route less-frequent sections through an overflow drawer.
 - Apply offline progress immediately on load with an explicit cap; use late-game upgrades to extend that cap rather than removing it outright.
+- Treat save-data evolution as backward-compatible: when adding new state fields, default missing values during hydration and keep at least one rolling local backup snapshot to reduce accidental progress loss.
