@@ -113,13 +113,18 @@ function formatCompactTimeUnit(value: number): string {
   return rounded.endsWith('.0') ? rounded.slice(0, -2) : rounded
 }
 
+const yearEtaFormatter = new Intl.NumberFormat('en-GB', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1,
+})
+
 function formatAffordabilityEta(totalSeconds: number): string {
   const daySeconds = 24 * 60 * 60
   const yearSeconds = 365 * daySeconds
   const twoDaySeconds = 48 * 60 * 60
 
   if (totalSeconds > yearSeconds) {
-    return `${formatCompactTimeUnit(totalSeconds / yearSeconds)}y`
+    return `${yearEtaFormatter.format(totalSeconds / yearSeconds)}y`
   }
 
   if (totalSeconds > twoDaySeconds) {
