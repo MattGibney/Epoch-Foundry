@@ -34,3 +34,4 @@
 - Apply offline progress immediately on load with an explicit cap; use late-game upgrades to extend that cap rather than removing it outright.
 - Treat save-data evolution as backward-compatible: when adding new state fields, default missing values during hydration and keep at least one rolling local backup snapshot to reduce accidental progress loss.
 - Keep credit progression calculations in decimal precision internally; apply whole-number rounding only when rendering credit values in the UI.
+- Prefer data-driven achievement definitions so the system scales cleanly to hundreds of achievements without UI/engine rewrites.

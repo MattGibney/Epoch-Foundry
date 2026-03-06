@@ -51,6 +51,61 @@ export type RunUpgradeKey =
   | 'deepArchive'
   | 'chronoReserves'
 
+export const ACHIEVEMENT_ORDER = [
+  'allCredits5m',
+  'allCredits25m',
+  'allCredits100m',
+  'allCredits500m',
+  'allCredits2b',
+  'allCredits10b',
+  'allCredits50b',
+  'allCredits250b',
+  'allCredits1t',
+  'allCredits10t',
+  'allCredits100t',
+  'allCredits1qa',
+  'runCredits1m',
+  'runCredits5m',
+  'runCredits25m',
+  'runCredits100m',
+  'runCredits500m',
+  'runCredits2b',
+  'runCredits10b',
+  'runCredits50b',
+  'miners100',
+  'miners1000',
+  'drills75',
+  'drills750',
+  'extractors50',
+  'extractors500',
+  'refineries40',
+  'refineries400',
+  'megaRigs30',
+  'megaRigs300',
+  'orbitalPlatforms20',
+  'orbitalPlatforms200',
+  'stellarForges15',
+  'stellarForges150',
+  'dysonArrays10',
+  'dysonArrays100',
+  'singularityWells8',
+  'singularityWells80',
+  'continuumEngines5',
+  'continuumEngines50',
+  'firstPrestige',
+  'prestige10',
+  'prestige50',
+  'essence50',
+  'essence500',
+  'essence5000',
+  'upgrades20',
+  'upgrades35',
+  'offlineCap4h',
+  'offlineCap24h',
+] as const
+
+export type AchievementKey = (typeof ACHIEVEMENT_ORDER)[number]
+
 export const BUY_AMOUNT_OPTIONS = [1, 10, 100] as const
 
 export interface GeneratorsState {
@@ -67,6 +122,7 @@ export interface GeneratorsState {
 }
 
 export type PurchasedUpgradesState = Record<RunUpgradeKey, boolean>
+export type AchievementsState = Record<AchievementKey, boolean>
 
 export interface StatsState {
   startedAtMs: number
@@ -88,6 +144,7 @@ export interface GameState {
   credits: string
   generators: GeneratorsState
   purchasedUpgrades: PurchasedUpgradesState
+  achievements: AchievementsState
   buyAmount: number
   stats: StatsState
   settings: GameSettingsState
@@ -112,6 +169,13 @@ interface UpgradeBaseDef {
     generator: GeneratorKey
     count: number
   }
+}
+
+interface AchievementDef {
+  key: AchievementKey
+  label: string
+  description: string
+  isUnlocked: (state: GameState) => boolean
 }
 
 type GlobalUpgradeDef = UpgradeBaseDef & {
@@ -651,6 +715,328 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
   },
 }
 
+function getPurchasedUpgradeCount(state: GameState): number {
+  return UPGRADE_ORDER.reduce(
+    (count, key) => count + (state.purchasedUpgrades[key] ? 1 : 0),
+    0,
+  )
+}
+
+function hasAllResetCredits(state: GameState, threshold: Decimal.Value): boolean {
+  return toDecimal(state.stats.totalCreditsAllResets).greaterThanOrEqualTo(threshold)
+}
+
+function hasRunCredits(state: GameState, threshold: Decimal.Value): boolean {
+  return toDecimal(state.stats.totalCredits).greaterThanOrEqualTo(threshold)
+}
+
+function hasOwned(state: GameState, generator: GeneratorKey, count: number): boolean {
+  return state.generators[generator] >= count
+}
+
+export const ACHIEVEMENT_DEFS: Record<AchievementKey, AchievementDef> = {
+  allCredits5m: {
+    key: 'allCredits5m',
+    label: 'Foundation',
+    description: 'Produce 5 million credits across all resets.',
+    isUnlocked: (state) => hasAllResetCredits(state, '5000000'),
+  },
+  allCredits25m: {
+    key: 'allCredits25m',
+    label: 'Flow Established',
+    description: 'Produce 25 million credits across all resets.',
+    isUnlocked: (state) => hasAllResetCredits(state, '25000000'),
+  },
+  allCredits100m: {
+    key: 'allCredits100m',
+    label: 'Credit Engine',
+    description: 'Produce 100 million credits across all resets.',
+    isUnlocked: (state) => hasAllResetCredits(state, '100000000'),
+  },
+  allCredits500m: {
+    key: 'allCredits500m',
+    label: 'Large Throughput',
+    description: 'Produce 500 million credits across all resets.',
+    isUnlocked: (state) => hasAllResetCredits(state, '500000000'),
+  },
+  allCredits2b: {
+    key: 'allCredits2b',
+    label: 'Industrial Flow',
+    description: 'Produce 2 billion credits across all resets.',
+    isUnlocked: (state) => hasAllResetCredits(state, '2000000000'),
+  },
+  allCredits10b: {
+    key: 'allCredits10b',
+    label: 'Mass Production',
+    description: 'Produce 10 billion credits across all resets.',
+    isUnlocked: (state) => hasAllResetCredits(state, '10000000000'),
+  },
+  allCredits50b: {
+    key: 'allCredits50b',
+    label: 'Billion Builder',
+    description: 'Produce 50 billion credits across all resets.',
+    isUnlocked: (state) => hasAllResetCredits(state, '50000000000'),
+  },
+  allCredits250b: {
+    key: 'allCredits250b',
+    label: 'Macro Economy',
+    description: 'Produce 250 billion credits across all resets.',
+    isUnlocked: (state) => hasAllResetCredits(state, '250000000000'),
+  },
+  allCredits1t: {
+    key: 'allCredits1t',
+    label: 'Titan Ledger',
+    description: 'Produce 1 trillion credits across all resets.',
+    isUnlocked: (state) => hasAllResetCredits(state, '1000000000000'),
+  },
+  allCredits10t: {
+    key: 'allCredits10t',
+    label: 'Trillion Track',
+    description: 'Produce 10 trillion credits across all resets.',
+    isUnlocked: (state) => hasAllResetCredits(state, '10000000000000'),
+  },
+  allCredits100t: {
+    key: 'allCredits100t',
+    label: 'Quadrillion Lift',
+    description: 'Produce 100 trillion credits across all resets.',
+    isUnlocked: (state) => hasAllResetCredits(state, '100000000000000'),
+  },
+  allCredits1qa: {
+    key: 'allCredits1qa',
+    label: 'Quintillion Lift',
+    description: 'Produce 1 quadrillion credits across all resets.',
+    isUnlocked: (state) => hasAllResetCredits(state, '1000000000000000'),
+  },
+  runCredits1m: {
+    key: 'runCredits1m',
+    label: 'Run Warmup',
+    description: 'Produce 1 million credits in a single run.',
+    isUnlocked: (state) => hasRunCredits(state, '1000000'),
+  },
+  runCredits5m: {
+    key: 'runCredits5m',
+    label: 'Run Momentum',
+    description: 'Produce 5 million credits in a single run.',
+    isUnlocked: (state) => hasRunCredits(state, '5000000'),
+  },
+  runCredits25m: {
+    key: 'runCredits25m',
+    label: 'Run Engine',
+    description: 'Produce 25 million credits in a single run.',
+    isUnlocked: (state) => hasRunCredits(state, '25000000'),
+  },
+  runCredits100m: {
+    key: 'runCredits100m',
+    label: 'Run Breakthrough',
+    description: 'Produce 100 million credits in a single run.',
+    isUnlocked: (state) => hasRunCredits(state, '100000000'),
+  },
+  runCredits500m: {
+    key: 'runCredits500m',
+    label: 'Run Hyperflow',
+    description: 'Produce 500 million credits in a single run.',
+    isUnlocked: (state) => hasRunCredits(state, '500000000'),
+  },
+  runCredits2b: {
+    key: 'runCredits2b',
+    label: 'Run Industrialized',
+    description: 'Produce 2 billion credits in a single run.',
+    isUnlocked: (state) => hasRunCredits(state, '2000000000'),
+  },
+  runCredits10b: {
+    key: 'runCredits10b',
+    label: 'Run at Scale',
+    description: 'Produce 10 billion credits in a single run.',
+    isUnlocked: (state) => hasRunCredits(state, '10000000000'),
+  },
+  runCredits50b: {
+    key: 'runCredits50b',
+    label: 'Run Megascale',
+    description: 'Produce 50 billion credits in a single run.',
+    isUnlocked: (state) => hasRunCredits(state, '50000000000'),
+  },
+  miners100: {
+    key: 'miners100',
+    label: 'Miner Team',
+    description: 'Own 100 Miners.',
+    isUnlocked: (state) => hasOwned(state, 'miners', 100),
+  },
+  miners1000: {
+    key: 'miners1000',
+    label: 'Miner Fleet',
+    description: 'Own 1,000 Miners.',
+    isUnlocked: (state) => hasOwned(state, 'miners', 1000),
+  },
+  drills75: {
+    key: 'drills75',
+    label: 'Drill Team',
+    description: 'Own 75 Drills.',
+    isUnlocked: (state) => hasOwned(state, 'drills', 75),
+  },
+  drills750: {
+    key: 'drills750',
+    label: 'Drill Fleet',
+    description: 'Own 750 Drills.',
+    isUnlocked: (state) => hasOwned(state, 'drills', 750),
+  },
+  extractors50: {
+    key: 'extractors50',
+    label: 'Extractor Team',
+    description: 'Own 50 Extractors.',
+    isUnlocked: (state) => hasOwned(state, 'extractors', 50),
+  },
+  extractors500: {
+    key: 'extractors500',
+    label: 'Extractor Fleet',
+    description: 'Own 500 Extractors.',
+    isUnlocked: (state) => hasOwned(state, 'extractors', 500),
+  },
+  refineries40: {
+    key: 'refineries40',
+    label: 'Refinery Team',
+    description: 'Own 40 Refineries.',
+    isUnlocked: (state) => hasOwned(state, 'refineries', 40),
+  },
+  refineries400: {
+    key: 'refineries400',
+    label: 'Refinery Fleet',
+    description: 'Own 400 Refineries.',
+    isUnlocked: (state) => hasOwned(state, 'refineries', 400),
+  },
+  megaRigs30: {
+    key: 'megaRigs30',
+    label: 'Mega Rig Team',
+    description: 'Own 30 Mega Rigs.',
+    isUnlocked: (state) => hasOwned(state, 'megaRigs', 30),
+  },
+  megaRigs300: {
+    key: 'megaRigs300',
+    label: 'Mega Rig Fleet',
+    description: 'Own 300 Mega Rigs.',
+    isUnlocked: (state) => hasOwned(state, 'megaRigs', 300),
+  },
+  orbitalPlatforms20: {
+    key: 'orbitalPlatforms20',
+    label: 'Orbital Team',
+    description: 'Own 20 Orbital Platforms.',
+    isUnlocked: (state) => hasOwned(state, 'orbitalPlatforms', 20),
+  },
+  orbitalPlatforms200: {
+    key: 'orbitalPlatforms200',
+    label: 'Orbital Fleet',
+    description: 'Own 200 Orbital Platforms.',
+    isUnlocked: (state) => hasOwned(state, 'orbitalPlatforms', 200),
+  },
+  stellarForges15: {
+    key: 'stellarForges15',
+    label: 'Stellar Team',
+    description: 'Own 15 Stellar Forges.',
+    isUnlocked: (state) => hasOwned(state, 'stellarForges', 15),
+  },
+  stellarForges150: {
+    key: 'stellarForges150',
+    label: 'Stellar Fleet',
+    description: 'Own 150 Stellar Forges.',
+    isUnlocked: (state) => hasOwned(state, 'stellarForges', 150),
+  },
+  dysonArrays10: {
+    key: 'dysonArrays10',
+    label: 'Dyson Team',
+    description: 'Own 10 Dyson Arrays.',
+    isUnlocked: (state) => hasOwned(state, 'dysonArrays', 10),
+  },
+  dysonArrays100: {
+    key: 'dysonArrays100',
+    label: 'Dyson Fleet',
+    description: 'Own 100 Dyson Arrays.',
+    isUnlocked: (state) => hasOwned(state, 'dysonArrays', 100),
+  },
+  singularityWells8: {
+    key: 'singularityWells8',
+    label: 'Singularity Team',
+    description: 'Own 8 Singularity Wells.',
+    isUnlocked: (state) => hasOwned(state, 'singularityWells', 8),
+  },
+  singularityWells80: {
+    key: 'singularityWells80',
+    label: 'Singularity Fleet',
+    description: 'Own 80 Singularity Wells.',
+    isUnlocked: (state) => hasOwned(state, 'singularityWells', 80),
+  },
+  continuumEngines5: {
+    key: 'continuumEngines5',
+    label: 'Continuum Team',
+    description: 'Own 5 Continuum Engines.',
+    isUnlocked: (state) => hasOwned(state, 'continuumEngines', 5),
+  },
+  continuumEngines50: {
+    key: 'continuumEngines50',
+    label: 'Continuum Fleet',
+    description: 'Own 50 Continuum Engines.',
+    isUnlocked: (state) => hasOwned(state, 'continuumEngines', 50),
+  },
+  firstPrestige: {
+    key: 'firstPrestige',
+    label: 'Reforged',
+    description: 'Complete your first prestige reset.',
+    isUnlocked: (state) => state.prestige.resets >= 1,
+  },
+  prestige10: {
+    key: 'prestige10',
+    label: 'Cycle Architect',
+    description: 'Complete 10 prestige resets.',
+    isUnlocked: (state) => state.prestige.resets >= 10,
+  },
+  prestige50: {
+    key: 'prestige50',
+    label: 'Epoch Master',
+    description: 'Complete 50 prestige resets.',
+    isUnlocked: (state) => state.prestige.resets >= 50,
+  },
+  essence50: {
+    key: 'essence50',
+    label: 'Essence Spark',
+    description: 'Reach 50 essence.',
+    isUnlocked: (state) => toDecimal(state.prestige.essence).greaterThanOrEqualTo(50),
+  },
+  essence500: {
+    key: 'essence500',
+    label: 'Essence Stream',
+    description: 'Reach 500 essence.',
+    isUnlocked: (state) => toDecimal(state.prestige.essence).greaterThanOrEqualTo(500),
+  },
+  essence5000: {
+    key: 'essence5000',
+    label: 'Essence Storm',
+    description: 'Reach 5,000 essence.',
+    isUnlocked: (state) => toDecimal(state.prestige.essence).greaterThanOrEqualTo(5000),
+  },
+  upgrades20: {
+    key: 'upgrades20',
+    label: 'Workshop Online',
+    description: 'Purchase 20 upgrades in one run.',
+    isUnlocked: (state) => getPurchasedUpgradeCount(state) >= 20,
+  },
+  upgrades35: {
+    key: 'upgrades35',
+    label: 'Workshop Expanded',
+    description: 'Purchase 35 upgrades in one run.',
+    isUnlocked: (state) => getPurchasedUpgradeCount(state) >= 35,
+  },
+  offlineCap4h: {
+    key: 'offlineCap4h',
+    label: 'Deep Shift',
+    description: 'Increase offline cap to at least 4 hours.',
+    isUnlocked: (state) => getOfflineProgressCapSeconds(state) >= 4 * 60 * 60,
+  },
+  offlineCap24h: {
+    key: 'offlineCap24h',
+    label: 'Night Shift',
+    description: 'Increase offline cap to at least 24 hours.',
+    isUnlocked: (state) => getOfflineProgressCapSeconds(state) >= 24 * 60 * 60,
+  },
+}
+
 function toDecimal(value: Decimal.Value): Decimal {
   return new Decimal(value)
 }
@@ -681,6 +1067,47 @@ function createInitialPurchasedUpgrades(): PurchasedUpgradesState {
   }, {} as PurchasedUpgradesState)
 }
 
+function createInitialAchievementsState(): AchievementsState {
+  return ACHIEVEMENT_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = false
+    return accumulator
+  }, {} as AchievementsState)
+}
+
+export function syncAchievements(state: GameState): GameState {
+  let didChange = false
+  const nextAchievements = { ...state.achievements }
+
+  for (const key of ACHIEVEMENT_ORDER) {
+    if (nextAchievements[key]) {
+      continue
+    }
+
+    if (!ACHIEVEMENT_DEFS[key].isUnlocked(state)) {
+      continue
+    }
+
+    nextAchievements[key] = true
+    didChange = true
+  }
+
+  if (!didChange) {
+    return state
+  }
+
+  return {
+    ...state,
+    achievements: nextAchievements,
+  }
+}
+
+export function getUnlockedAchievementCount(state: GameState): number {
+  return ACHIEVEMENT_ORDER.reduce(
+    (count, key) => count + (state.achievements[key] ? 1 : 0),
+    0,
+  )
+}
+
 function createInitialPrestigeState(): PrestigeState {
   return {
     resets: 0,
@@ -704,6 +1131,7 @@ export function createInitialGameState(nowMs = Date.now()): GameState {
       continuumEngines: 0,
     },
     purchasedUpgrades: createInitialPurchasedUpgrades(),
+    achievements: createInitialAchievementsState(),
     buyAmount: BUY_AMOUNT_OPTIONS[0],
     stats: {
       startedAtMs: nowMs,
@@ -743,7 +1171,7 @@ export function applyPrestigeReset(state: GameState, nowMs = Date.now()): GameSt
 
   const initialState = createInitialGameState(nowMs)
 
-  return {
+  return syncAchievements({
     ...initialState,
     settings: state.settings,
     stats: {
@@ -754,7 +1182,8 @@ export function applyPrestigeReset(state: GameState, nowMs = Date.now()): GameSt
       resets: state.prestige.resets + 1,
       essence: toDecimal(state.prestige.essence).plus(gainedEssence).toString(),
     },
-  }
+    achievements: state.achievements,
+  })
 }
 
 export function setBuyAmount(state: GameState, amount: number): GameState {
@@ -800,7 +1229,7 @@ function applyProducedCredits(
   produced: Decimal,
   nextLastTickAtMs: number,
 ): GameState {
-  return {
+  return syncAchievements({
     ...state,
     credits: toDecimal(state.credits).plus(produced).toString(),
     stats: {
@@ -811,7 +1240,7 @@ function applyProducedCredits(
         .plus(produced)
         .toString(),
     },
-  }
+  })
 }
 
 export function getGlobalProductionMultiplier(state: GameState): Decimal {
@@ -938,14 +1367,14 @@ export function buyGenerator(state: GameState, key: GeneratorKey): GameState {
     return state
   }
 
-  return {
+  return syncAchievements({
     ...state,
     credits: credits.minus(cost).toString(),
     generators: {
       ...state.generators,
       [key]: state.generators[key] + state.buyAmount,
     },
-  }
+  })
 }
 
 export function isUpgradeUnlocked(state: GameState, key: RunUpgradeKey): boolean {
@@ -985,12 +1414,12 @@ export function buyUpgrade(state: GameState, key: RunUpgradeKey): GameState {
     return state
   }
 
-  return {
+  return syncAchievements({
     ...state,
     credits: toDecimal(state.credits).minus(upgrade.cost).toString(),
     purchasedUpgrades: {
       ...state.purchasedUpgrades,
       [key]: true,
     },
-  }
+  })
 }

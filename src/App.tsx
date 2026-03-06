@@ -38,6 +38,8 @@ import {
   saveGameState,
 } from '@/lib/game-save'
 import {
+  ACHIEVEMENT_DEFS,
+  ACHIEVEMENT_ORDER,
   applyPrestigeReset,
   BUY_AMOUNT_OPTIONS,
   buyGenerator,
@@ -52,6 +54,7 @@ import {
   getOfflineProgressCapSeconds,
   getPrestigeGainForReset,
   getPrestigeMultiplier,
+  getUnlockedAchievementCount,
   getTotalProductionPerSecond,
   getUpgradeUnlockProgress,
   setBuyAmount,
@@ -60,6 +63,7 @@ import {
   UPGRADE_DEFS,
   UPGRADE_ORDER,
   type GameState,
+  type AchievementKey,
   type RunUpgradeKey,
 } from '@/lib/game-engine'
 import {
@@ -72,12 +76,13 @@ import {
 import { formatIdleNumber } from '@/lib/number-format'
 import { cn } from '@/lib/utils'
 
-type TabKey = 'production' | 'upgrades' | 'stats' | 'settings' | 'about'
+type TabKey = 'production' | 'upgrades' | 'stats' | 'achievements' | 'settings' | 'about'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'production', label: 'Production' },
   { key: 'upgrades', label: 'Upgrades' },
   { key: 'stats', label: 'Stats' },
+  { key: 'achievements', label: 'Achievements' },
   { key: 'settings', label: 'Settings' },
   { key: 'about', label: 'About' },
 ]
@@ -192,6 +197,7 @@ function App() {
   const gameRef = useRef(game)
   const creditsSummaryRef = useRef<HTMLElement | null>(null)
   const topSafeAreaBoundaryRef = useRef<HTMLDivElement | null>(null)
+  const knownUnlockedAchievementsRef = useRef<Set<AchievementKey>>(new Set())
 
   useEffect(() => {
     gameRef.current = game
@@ -210,6 +216,9 @@ function App() {
       setGame(loaded.state)
       setNowMs(Date.now())
       setIsHydrated(true)
+      knownUnlockedAchievementsRef.current = new Set(
+        ACHIEVEMENT_ORDER.filter((key) => loaded.state.achievements[key]),
+      )
 
       const offlineProgress = loaded.offlineProgress
       if (
@@ -237,6 +246,27 @@ function App() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return
+    }
+
+    const knownUnlocked = knownUnlockedAchievementsRef.current
+    const newlyUnlocked = ACHIEVEMENT_ORDER.filter(
+      (key) => game.achievements[key] && !knownUnlocked.has(key),
+    )
+
+    if (newlyUnlocked.length === 0) {
+      return
+    }
+
+    for (const key of newlyUnlocked) {
+      const achievement = ACHIEVEMENT_DEFS[key]
+      toast(`Achievement Unlocked: ${achievement.label}`)
+      knownUnlocked.add(key)
+    }
+  }, [game.achievements, isHydrated])
 
   const persistGame = useCallback(async () => {
     await saveGameState(gameRef.current)
@@ -386,6 +416,10 @@ function App() {
   const canPrestigeNow = useMemo(() => canPrestige(game), [game])
   const offlineProgressCapSeconds = useMemo(
     () => getOfflineProgressCapSeconds(game),
+    [game],
+  )
+  const unlockedAchievementCount = useMemo(
+    () => getUnlockedAchievementCount(game),
     [game],
   )
   const nextPrestigeMultiplier = useMemo(
@@ -711,6 +745,51 @@ function App() {
     </div>
   )
 
+  const renderAchievementsTab = () => (
+    <div className="space-y-6">
+      <section>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">Progress</p>
+        <p className="mt-2 flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Unlocked</span>
+          <span className="font-mono tabular-nums">
+            {unlockedAchievementCount}/{ACHIEVEMENT_ORDER.length}
+          </span>
+        </p>
+      </section>
+      <section className="border-t border-border/70 pt-4">
+        <div className="divide-y divide-border/70">
+          {ACHIEVEMENT_ORDER.map((key) => {
+            const definition = ACHIEVEMENT_DEFS[key]
+            const unlocked = game.achievements[key]
+
+            return (
+              <article key={key} className="py-3 first:pt-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold">{definition.label}</h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {definition.description}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      'shrink-0 rounded-full border px-2 py-0.5 text-[11px]',
+                      unlocked
+                        ? 'border-emerald-600/40 text-emerald-700'
+                        : 'border-border text-muted-foreground',
+                    )}
+                  >
+                    {unlocked ? 'Unlocked' : 'Locked'}
+                  </span>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      </section>
+    </div>
+  )
+
   const renderSettingsTab = () => (
     <div className="space-y-6">
       <section>
@@ -885,6 +964,7 @@ function App() {
         {activeTab === 'production' && renderProductionTab()}
         {activeTab === 'upgrades' && renderUpgradesTab()}
         {activeTab === 'stats' && renderStatsTab()}
+        {activeTab === 'achievements' && renderAchievementsTab()}
         {activeTab === 'settings' && renderSettingsTab()}
         {activeTab === 'about' && renderAboutTab()}
       </section>

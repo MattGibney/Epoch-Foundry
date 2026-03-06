@@ -1,13 +1,17 @@
 import Decimal from 'decimal.js'
 
 import {
+  ACHIEVEMENT_ORDER,
   applyOfflineProgress,
   BUY_AMOUNT_OPTIONS,
   createInitialGameState,
   GENERATOR_ORDER,
   getOfflineProgressCapSeconds,
+  getUnlockedAchievementCount,
   type GameState,
   type GeneratorKey,
+  syncAchievements,
+  type AchievementKey,
   UPGRADE_ORDER,
   type RunUpgradeKey,
 } from '@/lib/game-engine'
@@ -150,6 +154,13 @@ function parseModernState(value: unknown): GameState | null {
     parsedUpgrades[key] = parsed ?? false
   }
 
+  const parsedAchievements = {} as Record<AchievementKey, boolean>
+  const achievements = candidate.achievements as Record<string, unknown> | undefined
+  for (const key of ACHIEVEMENT_ORDER) {
+    const parsed = parseBool(achievements?.[key])
+    parsedAchievements[key] = parsed ?? false
+  }
+
   const normalizedBuyAmount =
     buyAmount !== null &&
     BUY_AMOUNT_OPTIONS.includes(buyAmount as (typeof BUY_AMOUNT_OPTIONS)[number])
@@ -163,6 +174,9 @@ function parseModernState(value: unknown): GameState | null {
     },
     purchasedUpgrades: {
       ...parsedUpgrades,
+    },
+    achievements: {
+      ...parsedAchievements,
     },
     buyAmount: normalizedBuyAmount,
     stats: {
@@ -295,7 +309,7 @@ export async function loadGameStateWithSummary(): Promise<LoadGameStateResult> {
       elapsedSeconds,
       getOfflineProgressCapSeconds(loadedState),
     )
-    const hydratedState = applyOfflineProgress(loadedState, nowMs)
+    const hydratedState = syncAchievements(applyOfflineProgress(loadedState, nowMs))
     const producedCredits = new Decimal(hydratedState.credits).minus(loadedState.credits)
 
     const didStateChangeFromHydration =
@@ -303,6 +317,8 @@ export async function loadGameStateWithSummary(): Promise<LoadGameStateResult> {
       hydratedState.stats.totalCredits !== loadedState.stats.totalCredits ||
       hydratedState.stats.totalCreditsAllResets !==
         loadedState.stats.totalCreditsAllResets ||
+      getUnlockedAchievementCount(hydratedState) !==
+        getUnlockedAchievementCount(loadedState) ||
       hydratedState.stats.lastTickAtMs !== loadedState.stats.lastTickAtMs
     const shouldRewriteMain =
       loadedSource === 'backup' || didStateChangeFromHydration
