@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Decimal from 'decimal.js'
+import { Coins } from 'lucide-react'
 
 import {
   AlertDialog,
@@ -68,9 +69,11 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('production')
   const [nowMs, setNowMs] = useState<number>(() => Date.now())
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null)
+  const [showFloatingSummary, setShowFloatingSummary] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const gameRef = useRef(game)
+  const creditsSummaryRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     gameRef.current = game
@@ -167,6 +170,38 @@ function App() {
     }
   }, [persistGame])
 
+  useEffect(() => {
+    const summaryElement = creditsSummaryRef.current
+    if (!summaryElement) {
+      return
+    }
+
+    if (typeof IntersectionObserver === 'undefined') {
+      const syncFloatingState = () => {
+        setShowFloatingSummary(summaryElement.getBoundingClientRect().bottom < 0)
+      }
+
+      syncFloatingState()
+      window.addEventListener('scroll', syncFloatingState, { passive: true })
+      window.addEventListener('resize', syncFloatingState)
+
+      return () => {
+        window.removeEventListener('scroll', syncFloatingState)
+        window.removeEventListener('resize', syncFloatingState)
+      }
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setShowFloatingSummary(!entry.isIntersecting)
+    })
+
+    observer.observe(summaryElement)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
   const creditsPerSecond = useMemo(() => getTotalProductionPerSecond(game), [game])
   const runDuration = Math.max(0, Math.floor((nowMs - game.stats.startedAtMs) / 1_000))
 
@@ -184,7 +219,7 @@ function App() {
               variant={game.buyAmount === amount ? 'default' : 'outline'}
               onClick={() => setGame((current) => setBuyAmount(current, amount))}
             >
-              {amount}x
+              <span className="font-mono tabular-nums">{amount}x</span>
             </Button>
           ))}
         </div>
@@ -215,11 +250,18 @@ function App() {
                 </Button>
               </div>
               <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
-                <p>Owned: {owned}</p>
-                <p>+{formatIdleNumber(contribution)} / sec</p>
+                <p>
+                  Owned:{' '}
+                  <span className="font-mono tabular-nums">{owned}</span>
+                </p>
+                <p>
+                  +<span className="font-mono tabular-nums">{formatIdleNumber(contribution)}</span> / sec
+                </p>
               </div>
               <div className="mt-1 text-sm text-muted-foreground">
-                Cost: {formatIdleNumber(cost)} credits
+                Cost:{' '}
+                <span className="font-mono tabular-nums">{formatIdleNumber(cost)}</span>{' '}
+                credits
               </div>
             </article>
           )
@@ -250,12 +292,27 @@ function App() {
                 <h3 className="text-base font-semibold">{definition.label}</h3>
                 <p className="text-sm text-muted-foreground">{definition.description}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Cost: {formatIdleNumber(definition.cost)} credits
+                  Cost:{' '}
+                  <span className="font-mono tabular-nums">
+                    {formatIdleNumber(definition.cost)}
+                  </span>{' '}
+                  credits
                 </p>
                 {!unlocked && unlockProgress && (
                   <p className="text-xs text-muted-foreground">
-                    Requires {unlockProgress.required} {GENERATOR_DEFS[unlockProgress.generator].label}{' '}
-                    ({unlockProgress.current}/{unlockProgress.required})
+                    Requires{' '}
+                    <span className="font-mono tabular-nums">
+                      {unlockProgress.required}
+                    </span>{' '}
+                    {GENERATOR_DEFS[unlockProgress.generator].label} (
+                    <span className="font-mono tabular-nums">
+                      {unlockProgress.current}
+                    </span>
+                    /
+                    <span className="font-mono tabular-nums">
+                      {unlockProgress.required}
+                    </span>
+                    )
                   </p>
                 )}
                 {purchased && <p className="text-xs text-emerald-600">Purchased</p>}
@@ -291,11 +348,11 @@ function App() {
         <div className="mt-2 space-y-1 text-sm">
           <p className="flex items-center justify-between">
             <span className="text-muted-foreground">Run Time</span>
-            <span>{formatDuration(runDuration)}</span>
+            <span className="font-mono tabular-nums">{formatDuration(runDuration)}</span>
           </p>
           <p className="flex items-center justify-between">
             <span className="text-muted-foreground">Credits / sec</span>
-            <span>{formatIdleNumber(creditsPerSecond)}</span>
+            <span className="font-mono tabular-nums">{formatIdleNumber(creditsPerSecond)}</span>
           </p>
         </div>
       </section>
@@ -303,7 +360,7 @@ function App() {
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Lifetime</p>
         <p className="mt-2 flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Total Credits Produced</span>
-          <span>{formatIdleNumber(game.stats.totalCredits)}</span>
+          <span className="font-mono tabular-nums">{formatIdleNumber(game.stats.totalCredits)}</span>
         </p>
       </section>
     </div>
@@ -390,6 +447,32 @@ function App() {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-lg px-4 pb-8 pt-6">
+      <div
+        className={cn(
+          'pointer-events-none fixed inset-x-0 z-40 transition-all duration-200',
+          showFloatingSummary ? 'translate-y-0 opacity-100' : '-translate-y-3 opacity-0',
+        )}
+        style={{ top: 'env(safe-area-inset-top)' }}
+      >
+        <div
+          className="w-full border-b border-border bg-background/95 py-2 text-sm backdrop-blur"
+          style={{
+            paddingLeft: 'calc(env(safe-area-inset-left) + 1rem)',
+            paddingRight: 'calc(env(safe-area-inset-right) + 1rem)',
+          }}
+        >
+          <div className="flex items-center justify-between gap-3 whitespace-nowrap">
+            <p className="flex items-center gap-1.5 font-mono tabular-nums font-semibold">
+              <Coins className="size-4 text-muted-foreground" aria-hidden />
+              <span>{formatIdleNumber(game.credits)}</span>
+            </p>
+            <p className="font-mono tabular-nums">
+              +{formatIdleNumber(creditsPerSecond)} / sec
+            </p>
+          </div>
+        </div>
+      </div>
+
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Epoch Foundry</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -397,18 +480,19 @@ function App() {
         </p>
       </header>
 
-      <section className="mt-5 border-b border-border/70 pb-4">
+      <section ref={creditsSummaryRef} className="mt-5 border-b border-border/70 pb-4">
         <article>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Credits
+          <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+            <Coins className="size-3.5 text-muted-foreground" aria-hidden />
+            <span>Credits</span>
           </p>
-          <p className="mt-1 text-3xl font-semibold tabular-nums">
+          <p className="mt-1 text-3xl font-mono font-semibold tabular-nums">
             {formatIdleNumber(game.credits)}
           </p>
         </article>
         <article className="mt-2">
           <p className="text-sm text-muted-foreground">
-            +{formatIdleNumber(creditsPerSecond)} / sec
+            +<span className="font-mono tabular-nums">{formatIdleNumber(creditsPerSecond)}</span> / sec
           </p>
         </article>
       </section>
@@ -434,8 +518,16 @@ function App() {
       </section>
 
       <footer className="mt-8 pb-2 text-xs text-muted-foreground">
-        Autosaves every 10s and on exit
-        {lastSavedAt ? ` • Last save ${new Date(lastSavedAt).toLocaleTimeString()}` : ''}
+        Autosaves every <span className="font-mono tabular-nums">10</span>s and on exit
+        {lastSavedAt && (
+          <>
+            {' '}
+            • Last save{' '}
+            <span className="font-mono tabular-nums">
+              {new Date(lastSavedAt).toLocaleTimeString()}
+            </span>
+          </>
+        )}
       </footer>
     </main>
   )

@@ -17,3 +17,4 @@
 - Prefer mobile-first UI decisions and avoid unnecessary nested card/chrome containers; use spacing and simple dividers when a full card is not needed.
 - Keep shadcn theme tokens/mappings in sync with the selected base theme so stateful component colors (for example `bg-input` on switches) render correctly.
 - Keep `@/*` path alias configuration available in the root TypeScript config so shadcn CLI resolves `@/...` aliases to `src/...` paths correctly.
+- Use monospace styling for all rendered numeric values in the game UI for readability and consistency.
