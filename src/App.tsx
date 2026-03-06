@@ -108,6 +108,27 @@ function formatDuration(totalSeconds: number): string {
   return `${seconds}s`
 }
 
+function formatCompactTimeUnit(value: number): string {
+  const rounded = value >= 100 ? value.toFixed(0) : value.toFixed(1)
+  return rounded.endsWith('.0') ? rounded.slice(0, -2) : rounded
+}
+
+function formatAffordabilityEta(totalSeconds: number): string {
+  const daySeconds = 24 * 60 * 60
+  const yearSeconds = 365 * daySeconds
+  const twoDaySeconds = 48 * 60 * 60
+
+  if (totalSeconds > yearSeconds) {
+    return `${formatCompactTimeUnit(totalSeconds / yearSeconds)}y`
+  }
+
+  if (totalSeconds > twoDaySeconds) {
+    return `${formatCompactTimeUnit(totalSeconds / daySeconds)}d`
+  }
+
+  return formatDuration(totalSeconds)
+}
+
 function getSecondsUntilAffordable(
   credits: Decimal,
   cost: Decimal,
@@ -440,7 +461,7 @@ function App() {
                         </span>{' '}
                         more
                         {secondsUntilAffordable !== null && secondsUntilAffordable > 0
-                          ? ` (${formatDuration(secondsUntilAffordable)})`
+                          ? ` (${formatAffordabilityEta(secondsUntilAffordable)})`
                           : ''}
                       </>
                     )}
