@@ -66,6 +66,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('production')
   const [nowMs, setNowMs] = useState<number>(() => Date.now())
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
   const gameRef = useRef(game)
 
   useEffect(() => {
@@ -89,6 +91,28 @@ function App() {
     setNowMs(now)
     setActiveTab('production')
     setLastSavedAt(now)
+  }, [])
+
+  const refreshApp = useCallback(async () => {
+    setIsRefreshing(true)
+    setRefreshError(null)
+
+    try {
+      if (window.__epochFoundryUpdateSW) {
+        await window.__epochFoundryUpdateSW(true)
+      } else if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration()
+        if (registration) {
+          await registration.update()
+        }
+      }
+
+      window.location.reload()
+    } catch (error) {
+      console.error('Failed to refresh app', error)
+      setRefreshError('Refresh failed. Close and reopen the app to retry.')
+      setIsRefreshing(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -267,6 +291,25 @@ function App() {
 
   const renderSettingsTab = () => (
     <div className="space-y-4">
+      <section className="rounded-lg border border-border bg-background p-4">
+        <h3 className="text-base font-semibold">App Updates</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Installed home-screen mode does not expose browser refresh controls.
+          Use this to fetch the latest deployed version and reload the app.
+        </p>
+        <Button
+          variant="secondary"
+          className="mt-4"
+          disabled={isRefreshing}
+          onClick={() => void refreshApp()}
+        >
+          {isRefreshing ? 'Refreshing...' : 'Refresh App'}
+        </Button>
+        {refreshError && (
+          <p className="mt-2 text-sm text-red-600">{refreshError}</p>
+        )}
+      </section>
+
       <section className="rounded-lg border border-border bg-background p-4">
         <h3 className="text-base font-semibold">Reset Game</h3>
         <p className="mt-1 text-sm text-muted-foreground">

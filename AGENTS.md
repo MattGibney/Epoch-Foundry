@@ -13,3 +13,4 @@
 - Production URL: `https://epoch-foundry.mattgibney.co.uk`.
 - Commits merged/pushed to `main` auto-deploy to production; treat `main` changes as release-impacting.
 - Preserve PWA/iOS home-screen support (manifest, service worker registration, iOS web-app meta tags, and touch icons) so installed app behavior remains stable.
+- Include an in-app refresh/update control for installed PWA mode, since iOS home-screen apps do not expose normal browser refresh UI.
