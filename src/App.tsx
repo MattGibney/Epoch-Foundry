@@ -57,6 +57,7 @@ import {
   UPGRADE_DEFS,
   UPGRADE_ORDER,
   type GameState,
+  type RunUpgradeKey,
 } from '@/lib/game-engine'
 import {
   SAFE_AREA_INSETS,
@@ -132,6 +133,69 @@ function getSecondsUntilAffordable(
   }
 
   return Math.max(1, eta.ceil().toNumber())
+}
+
+type UpgradeDefinition = (typeof UPGRADE_DEFS)[RunUpgradeKey]
+
+const UPGRADE_INDEX_BY_KEY = new Map<RunUpgradeKey, number>(
+  UPGRADE_ORDER.map((key, index) => [key, index]),
+)
+
+const UPGRADE_SECTIONS: {
+  effectType: UpgradeDefinition['effectType']
+  heading: string
+}[] = [
+  { effectType: 'generator', heading: 'Generator Upgrades' },
+  { effectType: 'global', heading: 'Global Upgrades' },
+  { effectType: 'offlineCap', heading: 'Offline Upgrades' },
+]
+
+function getUpgradeEffectSummary(definition: UpgradeDefinition): string {
+  if (definition.effectType === 'generator') {
+    return `${GENERATOR_DEFS[definition.target].label} x${definition.multiplier}`
+  }
+
+  if (definition.effectType === 'global') {
+    return `All production x${definition.multiplier}`
+  }
+
+  return `Offline cap +${formatDuration(definition.offlineCapSeconds)}`
+}
+
+function getUpgradeImpactPerSecond(state: GameState, key: RunUpgradeKey): Decimal {
+  const definition = UPGRADE_DEFS[key]
+
+  if (definition.effectType === 'generator') {
+    const current = getGeneratorProductionPerSecond(state, definition.target)
+    return current.times(definition.multiplier).minus(current)
+  }
+
+  if (definition.effectType === 'global') {
+    const current = getTotalProductionPerSecond(state)
+    return current.times(definition.multiplier).minus(current)
+  }
+
+  return new Decimal(0)
+}
+
+function getUpgradePaybackSeconds(state: GameState, key: RunUpgradeKey): number | null {
+  const impactPerSecond = getUpgradeImpactPerSecond(state, key)
+  if (impactPerSecond.lessThanOrEqualTo(0)) {
+    return null
+  }
+
+  const cost = new Decimal(UPGRADE_DEFS[key].cost)
+  const paybackSeconds = cost.div(impactPerSecond)
+
+  if (!paybackSeconds.isFinite()) {
+    return null
+  }
+
+  if (paybackSeconds.greaterThan(Number.MAX_SAFE_INTEGER)) {
+    return Number.MAX_SAFE_INTEGER
+  }
+
+  return Math.max(1, paybackSeconds.ceil().toNumber())
 }
 
 function App() {
@@ -451,36 +515,115 @@ function App() {
     </div>
   )
 
-  const renderUpgradesTab = () => (
-    <div className="space-y-4">
-      {UPGRADE_ORDER.filter((key) => {
-        if (game.settings.showPurchasedUpgrades) {
-          return true
+  const renderUpgradesTab = () => {
+    const visibleUpgradeKeys = UPGRADE_ORDER.filter((key) => {
+      if (game.settings.showPurchasedUpgrades) {
+        return true
+      }
+
+      return !game.purchasedUpgrades[key]
+    }).sort((first, second) => {
+      const getRank = (key: RunUpgradeKey) => {
+        if (game.purchasedUpgrades[key]) {
+          return 3
         }
 
-        return !game.purchasedUpgrades[key]
-      }).map((key) => {
-        const definition = UPGRADE_DEFS[key]
-        const purchased = game.purchasedUpgrades[key]
-        const unlocked = isUpgradeUnlocked(game, key)
-        const canBuy = canBuyUpgrade(game, key)
-        const unlockProgress = getUpgradeUnlockProgress(game, key)
+        if (!isUpgradeUnlocked(game, key)) {
+          return 2
+        }
 
-        return (
-          <article key={definition.key} className="border-b border-border/70 pb-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
+        return canBuyUpgrade(game, key) ? 0 : 1
+      }
+
+      const rankDelta = getRank(first) - getRank(second)
+      if (rankDelta !== 0) {
+        return rankDelta
+      }
+
+      return (
+        (UPGRADE_INDEX_BY_KEY.get(first) ?? 0) -
+        (UPGRADE_INDEX_BY_KEY.get(second) ?? 0)
+      )
+    })
+
+    const renderUpgradeItem = (key: RunUpgradeKey) => {
+      const definition = UPGRADE_DEFS[key]
+      const purchased = game.purchasedUpgrades[key]
+      const unlocked = isUpgradeUnlocked(game, key)
+      const canBuy = canBuyUpgrade(game, key)
+      const unlockProgress = getUpgradeUnlockProgress(game, key)
+      const credits = new Decimal(game.credits)
+      const cost = new Decimal(definition.cost)
+      const canAfford = credits.greaterThanOrEqualTo(cost)
+      const remainingCredits = canAfford ? new Decimal(0) : cost.minus(credits)
+      const secondsUntilAffordable = getSecondsUntilAffordable(
+        credits,
+        cost,
+        creditsPerSecond,
+      )
+      const affordabilityPercent = Decimal.min(
+        new Decimal(100),
+        credits.div(cost).times(100),
+      )
+        .toDecimalPlaces(0, Decimal.ROUND_FLOOR)
+        .toNumber()
+      const upgradeImpactPerSecond = getUpgradeImpactPerSecond(game, key)
+      const paybackSeconds = getUpgradePaybackSeconds(game, key)
+      const effectSummary = getUpgradeEffectSummary(definition)
+      const unlockPercent = unlockProgress
+        ? Math.max(
+            0,
+            Math.min(
+              100,
+              Math.floor((unlockProgress.current / unlockProgress.required) * 100),
+            ),
+          )
+        : 100
+
+      return (
+        <article key={definition.key} className="border-b border-border/70 py-4 first:pt-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-base font-semibold">{definition.label}</h3>
-                <p className="text-sm text-muted-foreground">{definition.description}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Cost:{' '}
+                <span className="rounded-full border border-border/70 px-2 py-0.5 font-mono text-[11px] tabular-nums text-muted-foreground">
+                  {effectSummary}
+                </span>
+                {purchased && (
+                  <span className="rounded-full border border-emerald-600/40 px-2 py-0.5 text-[11px] text-emerald-600">
+                    Owned
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">{definition.description}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Cost:{' '}
+                <span className="font-mono tabular-nums">
+                  {formatIdleNumber(cost)}
+                </span>{' '}
+                credits
+              </p>
+              {!purchased && upgradeImpactPerSecond.greaterThan(0) && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Impact +{' '}
                   <span className="font-mono tabular-nums">
-                    {formatIdleNumber(definition.cost)}
+                    {formatIdleNumber(upgradeImpactPerSecond)}
                   </span>{' '}
-                  credits
+                  / sec
+                  {paybackSeconds !== null && (
+                    <>
+                      {' '}
+                      • Payback{' '}
+                      <span className="font-mono tabular-nums">
+                        {formatDuration(paybackSeconds)}
+                      </span>
+                    </>
+                  )}
                 </p>
-                {!unlocked && unlockProgress && (
-                  <p className="text-xs text-muted-foreground">
+              )}
+              {!unlocked && unlockProgress && (
+                <>
+                  <p className="mt-2 text-xs text-muted-foreground">
                     Requires{' '}
                     <span className="font-mono tabular-nums">
                       {unlockProgress.required}
@@ -495,32 +638,93 @@ function App() {
                     </span>
                     )
                   </p>
-                )}
-                {purchased && <p className="text-xs text-emerald-600">Purchased</p>}
-              </div>
-              <Button
-                size="sm"
-                variant={purchased ? 'secondary' : 'default'}
-                disabled={purchased || !canBuy}
-                onClick={() => setGame((current) => buyUpgrade(current, key))}
-              >
-                {purchased ? 'Owned' : 'Buy Upgrade'}
-              </Button>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-muted-foreground/60 transition-all"
+                      style={{ width: `${unlockPercent}%` }}
+                    />
+                  </div>
+                </>
+              )}
+              {unlocked && !purchased && (
+                <>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn(
+                        'h-full rounded-full transition-all',
+                        canAfford ? 'bg-foreground/70' : 'bg-muted-foreground/60',
+                      )}
+                      style={{ width: `${Math.max(0, affordabilityPercent)}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {canAfford ? (
+                      'Ready to purchase'
+                    ) : (
+                      <>
+                        Need{' '}
+                        <span className="font-mono tabular-nums">
+                          {formatIdleNumber(remainingCredits)}
+                        </span>{' '}
+                        more
+                        {secondsUntilAffordable !== null &&
+                        secondsUntilAffordable > 0
+                          ? ` (${formatDuration(secondsUntilAffordable)})`
+                          : ''}
+                      </>
+                    )}
+                  </p>
+                </>
+              )}
             </div>
-          </article>
-        )
-      })}
-      {!game.settings.showPurchasedUpgrades &&
-        UPGRADE_ORDER.every((key) => game.purchasedUpgrades[key]) && (
-          <section className="py-3">
-            <p className="text-sm text-muted-foreground">
-              All upgrades are purchased. Enable "Show Purchased Upgrades" in
-              Settings to review completed upgrades.
-            </p>
-          </section>
-        )}
-    </div>
-  )
+            <Button
+              size="sm"
+              className="h-10 min-w-[5.5rem] shrink-0"
+              variant={purchased ? 'secondary' : 'default'}
+              disabled={purchased || !canBuy}
+              onClick={() => setGame((current) => buyUpgrade(current, key))}
+            >
+              {purchased ? 'Owned' : 'Buy'}
+            </Button>
+          </div>
+        </article>
+      )
+    }
+
+    return (
+      <div className="space-y-8">
+        {UPGRADE_SECTIONS.map((section) => {
+          const sectionUpgrades = visibleUpgradeKeys.filter(
+            (key) => UPGRADE_DEFS[key].effectType === section.effectType,
+          )
+
+          if (sectionUpgrades.length === 0) {
+            return null
+          }
+
+          return (
+            <section key={section.effectType} className="space-y-3 pt-2 first:pt-0">
+              <h3 className="border-b border-border/70 pb-2 text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
+                {section.heading}
+              </h3>
+              <div>
+                {sectionUpgrades.map((key) => renderUpgradeItem(key))}
+              </div>
+            </section>
+          )
+        })}
+        {!game.settings.showPurchasedUpgrades &&
+          UPGRADE_ORDER.every((key) => game.purchasedUpgrades[key]) && (
+            <section className="py-3">
+              <p className="text-sm text-muted-foreground">
+                All upgrades are purchased. Enable "Show Purchased Upgrades" in
+                Settings to review completed upgrades.
+              </p>
+            </section>
+          )}
+      </div>
+    )
+  }
 
   const renderStatsTab = () => (
     <div className="space-y-6">
