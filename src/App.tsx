@@ -83,6 +83,7 @@ function App() {
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const gameRef = useRef(game)
   const creditsSummaryRef = useRef<HTMLElement | null>(null)
+  const topSafeAreaBlurRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     gameRef.current = game
@@ -185,29 +186,36 @@ function App() {
       return
     }
 
-    if (typeof IntersectionObserver === 'undefined') {
-      const syncFloatingState = () => {
-        setShowFloatingSummary(summaryElement.getBoundingClientRect().bottom < 0)
-      }
+    let frameId: number | null = null
 
-      syncFloatingState()
-      window.addEventListener('scroll', syncFloatingState, { passive: true })
-      window.addEventListener('resize', syncFloatingState)
-
-      return () => {
-        window.removeEventListener('scroll', syncFloatingState)
-        window.removeEventListener('resize', syncFloatingState)
-      }
+    const syncFloatingState = () => {
+      const blurBoundary =
+        topSafeAreaBlurRef.current?.getBoundingClientRect().bottom ?? 0
+      const summaryTop = summaryElement.getBoundingClientRect().top
+      setShowFloatingSummary(summaryTop <= blurBoundary)
     }
 
-    const observer = new IntersectionObserver(([entry]) => {
-      setShowFloatingSummary(!entry.isIntersecting)
-    })
+    const syncOnNextFrame = () => {
+      if (frameId !== null) {
+        return
+      }
 
-    observer.observe(summaryElement)
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null
+        syncFloatingState()
+      })
+    }
+
+    syncFloatingState()
+    window.addEventListener('scroll', syncOnNextFrame, { passive: true })
+    window.addEventListener('resize', syncOnNextFrame)
 
     return () => {
-      observer.disconnect()
+      window.removeEventListener('scroll', syncOnNextFrame)
+      window.removeEventListener('resize', syncOnNextFrame)
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId)
+      }
     }
   }, [])
 
@@ -460,6 +468,12 @@ function App() {
       className="mx-auto min-h-screen w-full max-w-lg px-4 pt-6"
       style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 7rem)' }}
     >
+      <div
+        ref={topSafeAreaBlurRef}
+        className="pointer-events-none fixed inset-x-0 top-0 z-30 bg-background/70 backdrop-blur-xl"
+        style={{ height: 'env(safe-area-inset-top)' }}
+      />
+
       <div
         className={cn(
           'pointer-events-none fixed inset-x-0 z-40 transition-all duration-200',
