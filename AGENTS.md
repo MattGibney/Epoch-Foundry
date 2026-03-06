@@ -19,6 +19,7 @@
 - Prefer mobile-first UI decisions and avoid unnecessary nested card/chrome containers; use spacing and simple dividers when a full card is not needed.
 - Keep shadcn theme tokens/mappings in sync with the selected base theme so stateful component colors (for example `bg-input` on switches) render correctly.
 - Keep `@/*` path alias configuration available in the root TypeScript config so shadcn CLI resolves `@/...` aliases to `src/...` paths correctly.
+- Centralize cross-cutting/tunable constants in `src/lib/consts.ts`; add new constants there instead of scattering them across feature files.
 - Use monospace styling for all rendered numeric values in the game UI for readability and consistency.
 - Avoid fixed-column navigation layouts on mobile; prefer patterns that scale with additional sections (for example a section switcher sheet/menu instead of dense tab rows).
 - Keep primary navigation thumb-reachable on mobile (prefer bottom-anchored access patterns over top-only triggers).

@@ -59,9 +59,9 @@ import {
   type GameState,
 } from '@/lib/game-engine'
 import {
-  OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS,
   SAFE_AREA_INSETS,
 } from '@/lib/game-config'
+import { OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS } from '@/lib/consts'
 import { formatIdleNumber } from '@/lib/number-format'
 import { cn } from '@/lib/utils'
 
