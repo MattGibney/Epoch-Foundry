@@ -22,6 +22,8 @@ export type RunUpgradeKey =
   | 'orbitalCommand'
   | 'automationLoops'
   | 'quantumForecasts'
+  | 'archiveBatteries'
+  | 'temporalVaults'
 
 export const BUY_AMOUNT_OPTIONS = [1, 10, 100] as const
 
@@ -49,6 +51,8 @@ export interface PurchasedUpgradesState {
   orbitalCommand: boolean
   automationLoops: boolean
   quantumForecasts: boolean
+  archiveBatteries: boolean
+  temporalVaults: boolean
 }
 
 export interface StatsState {
@@ -79,25 +83,39 @@ interface GeneratorDef {
   baseProduction: string
 }
 
-type UpgradeEffectType = 'global' | 'generator'
-
-interface UpgradeDef {
+interface UpgradeBaseDef {
   key: RunUpgradeKey
   label: string
   description: string
   cost: string
-  effectType: UpgradeEffectType
-  target?: GeneratorKey
-  multiplier: string
   requiresOwned?: {
     generator: GeneratorKey
     count: number
   }
 }
 
+type GlobalUpgradeDef = UpgradeBaseDef & {
+  effectType: 'global'
+  multiplier: string
+}
+
+type GeneratorUpgradeDef = UpgradeBaseDef & {
+  effectType: 'generator'
+  target: GeneratorKey
+  multiplier: string
+}
+
+type OfflineCapUpgradeDef = UpgradeBaseDef & {
+  effectType: 'offlineCap'
+  offlineCapSeconds: number
+}
+
+type UpgradeDef = GlobalUpgradeDef | GeneratorUpgradeDef | OfflineCapUpgradeDef
+
 const ONE = new Decimal(1)
 const ZERO = new Decimal(0)
 const MAX_TICK_SECONDS = 5
+const BASE_OFFLINE_PROGRESS_CAP_SECONDS = 30 * 60
 
 export const GENERATOR_ORDER: GeneratorKey[] = [
   'miners',
@@ -174,6 +192,8 @@ export const UPGRADE_ORDER: RunUpgradeKey[] = [
   'orbitalCommand',
   'automationLoops',
   'quantumForecasts',
+  'archiveBatteries',
+  'temporalVaults',
 ]
 
 export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
@@ -315,6 +335,24 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     multiplier: '2',
     requiresOwned: { generator: 'megaRigs', count: 25 },
   },
+  archiveBatteries: {
+    key: 'archiveBatteries',
+    label: 'Archive Batteries',
+    description: 'Increase offline progress cap by +30 minutes.',
+    cost: '7500000000000',
+    effectType: 'offlineCap',
+    offlineCapSeconds: 30 * 60,
+    requiresOwned: { generator: 'orbitalPlatforms', count: 75 },
+  },
+  temporalVaults: {
+    key: 'temporalVaults',
+    label: 'Temporal Vaults',
+    description: 'Increase offline progress cap by +3 hours.',
+    cost: '2500000000000000',
+    effectType: 'offlineCap',
+    offlineCapSeconds: 3 * 60 * 60,
+    requiresOwned: { generator: 'orbitalPlatforms', count: 180 },
+  },
 }
 
 function toDecimal(value: Decimal.Value): Decimal {
@@ -356,6 +394,8 @@ function createInitialPurchasedUpgrades(): PurchasedUpgradesState {
     orbitalCommand: false,
     automationLoops: false,
     quantumForecasts: false,
+    archiveBatteries: false,
+    temporalVaults: false,
   }
 }
 
@@ -480,6 +520,55 @@ export function getTotalProductionPerSecond(state: GameState): Decimal {
     (total, key) => total.plus(getGeneratorProductionPerSecond(state, key)),
     ZERO,
   )
+}
+
+export function getOfflineProgressCapSeconds(state: GameState): number {
+  let capSeconds = BASE_OFFLINE_PROGRESS_CAP_SECONDS
+
+  for (const key of UPGRADE_ORDER) {
+    const upgrade = UPGRADE_DEFS[key]
+    if (!upgrade || !state.purchasedUpgrades[key]) {
+      continue
+    }
+
+    if (upgrade.effectType === 'offlineCap') {
+      capSeconds += upgrade.offlineCapSeconds
+    }
+  }
+
+  return capSeconds
+}
+
+export function applyOfflineProgress(state: GameState, nowMs = Date.now()): GameState {
+  const effectiveNowMs = Math.max(nowMs, state.stats.lastTickAtMs)
+  const elapsedSeconds = Math.max(0, (effectiveNowMs - state.stats.lastTickAtMs) / 1_000)
+  const cappedSeconds = Math.min(elapsedSeconds, getOfflineProgressCapSeconds(state))
+
+  if (cappedSeconds <= 0) {
+    if (effectiveNowMs === state.stats.lastTickAtMs) {
+      return state
+    }
+
+    return {
+      ...state,
+      stats: {
+        ...state.stats,
+        lastTickAtMs: effectiveNowMs,
+      },
+    }
+  }
+
+  const produced = getTotalProductionPerSecond(state).times(cappedSeconds)
+
+  return {
+    ...state,
+    credits: toDecimal(state.credits).plus(produced).toString(),
+    stats: {
+      ...state.stats,
+      lastTickAtMs: effectiveNowMs,
+      totalCredits: toDecimal(state.stats.totalCredits).plus(produced).toString(),
+    },
+  }
 }
 
 export function tickGame(state: GameState, nowMs: number): GameState {

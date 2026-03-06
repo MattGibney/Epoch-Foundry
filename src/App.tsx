@@ -8,6 +8,7 @@ import {
   type LucideIcon,
   Wrench,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import {
   AlertDialog,
@@ -29,8 +30,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { Toaster } from '@/components/ui/sonner'
 import { Switch } from '@/components/ui/switch'
-import { clearGameSave, loadGameState, saveGameState } from '@/lib/game-save'
+import {
+  clearGameSave,
+  loadGameStateWithSummary,
+  saveGameState,
+} from '@/lib/game-save'
 import {
   BUY_AMOUNT_OPTIONS,
   buyGenerator,
@@ -41,6 +47,7 @@ import {
   GENERATOR_ORDER,
   getGeneratorCost,
   getGeneratorProductionPerSecond,
+  getOfflineProgressCapSeconds,
   getTotalProductionPerSecond,
   getUpgradeUnlockProgress,
   isUpgradeUnlocked,
@@ -55,6 +62,8 @@ import { formatIdleNumber } from '@/lib/number-format'
 import { cn } from '@/lib/utils'
 
 type TabKey = 'production' | 'upgrades' | 'stats' | 'settings'
+const OFFLINE_TOAST_THRESHOLD_SECONDS = 5 * 60
+const CREDITS_SYMBOL = '¤'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'production', label: 'Production' },
@@ -94,7 +103,8 @@ function formatDuration(totalSeconds: number): string {
 }
 
 function App() {
-  const [game, setGame] = useState<GameState>(() => loadGameState())
+  const [initialLoad] = useState(() => loadGameStateWithSummary())
+  const [game, setGame] = useState<GameState>(initialLoad.state)
   const [activeTab, setActiveTab] = useState<TabKey>('production')
   const [isSectionsOpen, setIsSectionsOpen] = useState(false)
   const [nowMs, setNowMs] = useState<number>(() => Date.now())
@@ -108,6 +118,23 @@ function App() {
   useEffect(() => {
     gameRef.current = game
   }, [game])
+
+  useEffect(() => {
+    const offlineProgress = initialLoad.offlineProgress
+    if (
+      !offlineProgress ||
+      offlineProgress.appliedSeconds <= OFFLINE_TOAST_THRESHOLD_SECONDS
+    ) {
+      return
+    }
+
+    toast(
+      `Offline Production ${CREDITS_SYMBOL} ${formatIdleNumber(
+        offlineProgress.producedCredits,
+      )}`,
+      { id: 'offline-production' },
+    )
+  }, [initialLoad])
 
   const persistGame = useCallback(() => {
     saveGameState(gameRef.current)
@@ -238,6 +265,10 @@ function App() {
   }, [])
 
   const creditsPerSecond = useMemo(() => getTotalProductionPerSecond(game), [game])
+  const offlineProgressCapSeconds = useMemo(
+    () => getOfflineProgressCapSeconds(game),
+    [game],
+  )
   const runDuration = Math.max(0, Math.floor((nowMs - game.stats.startedAtMs) / 1_000))
   const overflowTabs = TABS.filter((tab) => !isPrimaryTab(tab.key))
   const isOtherActive = !isPrimaryTab(activeTab)
@@ -391,6 +422,12 @@ function App() {
             <span className="text-muted-foreground">Credits / sec</span>
             <span className="font-mono tabular-nums">{formatIdleNumber(creditsPerSecond)}</span>
           </p>
+          <p className="flex items-center justify-between">
+            <span className="text-muted-foreground">Offline Cap</span>
+            <span className="font-mono tabular-nums">
+              {formatDuration(offlineProgressCapSeconds)}
+            </span>
+          </p>
         </div>
       </section>
       <section className="border-t border-border/70 pt-4">
@@ -483,10 +520,11 @@ function App() {
   )
 
   return (
-    <main
-      className="mx-auto min-h-screen w-full max-w-lg px-4 pt-6"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.25rem)' }}
-    >
+    <>
+      <main
+        className="mx-auto min-h-screen w-full max-w-lg px-4 pt-6"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.25rem)' }}
+      >
       <div
         ref={topSafeAreaBlurRef}
         className="pointer-events-none fixed inset-x-0 top-0 z-30 bg-background/70 backdrop-blur-md"
@@ -627,7 +665,15 @@ function App() {
           </div>
         </div>
       </div>
-    </main>
+      </main>
+      <Toaster
+        position="top-right"
+        offset={{
+          top: 'calc(env(safe-area-inset-top) + 0.75rem)',
+          right: '1rem',
+        }}
+      />
+    </>
   )
 }
 

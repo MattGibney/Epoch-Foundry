@@ -1,9 +1,11 @@
 import Decimal from 'decimal.js'
 
 import {
+  applyOfflineProgress,
   BUY_AMOUNT_OPTIONS,
   createInitialGameState,
   GENERATOR_ORDER,
+  getOfflineProgressCapSeconds,
   type GameState,
   type GeneratorKey,
   UPGRADE_ORDER,
@@ -19,6 +21,23 @@ interface SaveEnvelopeV1 {
   schemaVersion: number
   savedAtMs: number
   state: GameState
+}
+
+export interface OfflineProgressLoadSummary {
+  appliedSeconds: number
+  producedCredits: string
+}
+
+export interface LoadGameStateResult {
+  state: GameState
+  offlineProgress: OfflineProgressLoadSummary | null
+}
+
+function createFreshLoadResult(nowMs = Date.now()): LoadGameStateResult {
+  return {
+    state: createInitialGameState(nowMs),
+    offlineProgress: null,
+  }
 }
 
 function parseDecimalString(value: unknown): string | null {
@@ -141,6 +160,8 @@ function parseModernState(value: unknown): GameState | null {
       orbitalCommand: parsedUpgrades.orbitalCommand,
       automationLoops: parsedUpgrades.automationLoops,
       quantumForecasts: parsedUpgrades.quantumForecasts,
+      archiveBatteries: parsedUpgrades.archiveBatteries,
+      temporalVaults: parsedUpgrades.temporalVaults,
     },
     buyAmount: normalizedBuyAmount,
     stats: {
@@ -185,20 +206,20 @@ function parseState(value: unknown): GameState | null {
   return parseModernState(value) ?? parseLegacyState(value)
 }
 
-export function loadGameState(): GameState {
+export function loadGameStateWithSummary(): LoadGameStateResult {
   if (typeof window === 'undefined') {
-    return createInitialGameState(Date.now())
+    return createFreshLoadResult(Date.now())
   }
 
   try {
     const raw = window.localStorage.getItem(SAVE_KEY)
     if (!raw) {
-      return createInitialGameState(Date.now())
+      return createFreshLoadResult(Date.now())
     }
 
     const parsed: unknown = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object') {
-      return createInitialGameState(Date.now())
+      return createFreshLoadResult(Date.now())
     }
 
     const saveEnvelope = parsed as Partial<SaveEnvelopeV1>
@@ -207,13 +228,63 @@ export function loadGameState(): GameState {
       saveEnvelope.schemaVersion !== SAVE_SCHEMA_VERSION ||
       !Number.isFinite(saveEnvelope.savedAtMs)
     ) {
-      return createInitialGameState(Date.now())
+      return createFreshLoadResult(Date.now())
     }
 
-    return parseState(saveEnvelope.state) ?? createInitialGameState(Date.now())
+    const parsedState = parseState(saveEnvelope.state)
+    if (!parsedState) {
+      return createFreshLoadResult(Date.now())
+    }
+
+    const nowMs = Date.now()
+    const elapsedSeconds = Math.max(
+      0,
+      (Math.max(nowMs, parsedState.stats.lastTickAtMs) - parsedState.stats.lastTickAtMs) /
+        1_000,
+    )
+    const cappedSeconds = Math.min(
+      elapsedSeconds,
+      getOfflineProgressCapSeconds(parsedState),
+    )
+    const hydratedState = applyOfflineProgress(parsedState, nowMs)
+    const producedCredits = new Decimal(hydratedState.credits).minus(parsedState.credits)
+
+    if (
+      hydratedState.credits !== parsedState.credits ||
+      hydratedState.stats.totalCredits !== parsedState.stats.totalCredits ||
+      hydratedState.stats.lastTickAtMs !== parsedState.stats.lastTickAtMs
+    ) {
+      const payload: SaveEnvelopeV1 = {
+        format: SAVE_FORMAT,
+        schemaVersion: SAVE_SCHEMA_VERSION,
+        savedAtMs: Date.now(),
+        state: hydratedState,
+      }
+
+      try {
+        window.localStorage.setItem(SAVE_KEY, JSON.stringify(payload))
+      } catch {
+        // Intentionally swallow storage exceptions for MVP stability.
+      }
+    }
+
+    return {
+      state: hydratedState,
+      offlineProgress:
+        cappedSeconds > 0 && producedCredits.greaterThan(0)
+          ? {
+              appliedSeconds: cappedSeconds,
+              producedCredits: producedCredits.toString(),
+            }
+          : null,
+    }
   } catch {
-    return createInitialGameState(Date.now())
+    return createFreshLoadResult(Date.now())
   }
+}
+
+export function loadGameState(): GameState {
+  return loadGameStateWithSummary().state
 }
 
 export function saveGameState(state: GameState): void {
