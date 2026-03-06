@@ -17,47 +17,30 @@ import { clearGameSave, loadGameState, saveGameState } from '@/lib/game-save'
 import {
   BUY_AMOUNT_OPTIONS,
   buyGenerator,
-  buyRunUpgrade,
-  canTriggerOverclock,
-  claimContract,
-  CONTRACT_DEFS,
+  buyUpgrade,
+  canBuyUpgrade,
   createInitialGameState,
   GENERATOR_DEFS,
-  getActiveContract,
-  getContractProgress,
+  GENERATOR_ORDER,
   getGeneratorCost,
-  getOverclockTime,
-  getPotentialInfluence,
-  getProductionRates,
-  getRunUpgradeCost,
-  reboot,
-  RUN_UPGRADE_DEFS,
+  getGeneratorProductionPerSecond,
+  getTotalProductionPerSecond,
+  getUpgradeUnlockProgress,
+  isUpgradeUnlocked,
   setBuyAmount,
   tickGame,
-  TREE_NODE_DEFS,
-  triggerOverclock,
+  UPGRADE_DEFS,
+  UPGRADE_ORDER,
   type GameState,
-  type GeneratorKey,
-  type RunUpgradeKey,
-  type TreeNodeKey,
-  unlockTreeNode,
 } from '@/lib/mvp-engine'
 import { formatIdleNumber } from '@/lib/number-format'
 import { cn } from '@/lib/utils'
 
-type TabKey =
-  | 'production'
-  | 'upgrades'
-  | 'trees'
-  | 'prestige'
-  | 'stats'
-  | 'settings'
+type TabKey = 'production' | 'upgrades' | 'stats' | 'settings'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'production', label: 'Production' },
   { key: 'upgrades', label: 'Upgrades' },
-  { key: 'trees', label: 'Trees' },
-  { key: 'prestige', label: 'Prestige' },
   { key: 'stats', label: 'Stats' },
   { key: 'settings', label: 'Settings' },
 ]
@@ -152,89 +135,11 @@ function App() {
     }
   }, [persistGame])
 
-  const rates = useMemo(() => getProductionRates(game, nowMs), [game, nowMs])
-  const overclock = useMemo(() => getOverclockTime(game, nowMs), [game, nowMs])
-  const activeContract = useMemo(() => getActiveContract(game), [game])
-  const contractProgress = useMemo(() => getContractProgress(game), [game])
-  const potentialInfluence = useMemo(() => getPotentialInfluence(game), [game])
-
-  const contractRatio = contractProgress.target.lessThanOrEqualTo(0)
-    ? 0
-    : Number(
-        Decimal.min(
-          new Decimal(1),
-          Decimal.max(
-            new Decimal(0),
-            contractProgress.current.div(contractProgress.target),
-          ),
-        ).toString(),
-      )
-
+  const creditsPerSecond = useMemo(() => getTotalProductionPerSecond(game), [game])
   const runDuration = Math.max(0, Math.floor((nowMs - game.stats.startedAtMs) / 1_000))
 
   const renderProductionTab = () => (
     <div className="space-y-4">
-      <section className="rounded-lg border border-border bg-background p-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Overclock
-            </p>
-            <p className="text-sm text-muted-foreground">
-              3x global production for 20s, 180s cooldown
-            </p>
-            <p className="mt-1 text-sm font-medium">
-              {overclock.activeSecondsRemaining > 0
-                ? `Active: ${overclock.activeSecondsRemaining.toFixed(1)}s remaining`
-                : overclock.cooldownSecondsRemaining > 0
-                  ? `Cooldown: ${overclock.cooldownSecondsRemaining.toFixed(1)}s`
-                  : 'Ready'}
-            </p>
-          </div>
-          <Button
-            className="h-11 px-6"
-            disabled={!canTriggerOverclock(game, nowMs)}
-            onClick={() => {
-              const now = Date.now()
-              setNowMs(now)
-              setGame((current) => triggerOverclock(current, now))
-            }}
-          >
-            Trigger Overclock
-          </Button>
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-border bg-background p-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          Contract
-        </p>
-        <p className="mt-1 text-base font-medium">{activeContract.label}</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {formatIdleNumber(contractProgress.current)} /{' '}
-          {formatIdleNumber(contractProgress.target)}
-        </p>
-        <div className="mt-3 h-2 w-full rounded-full bg-muted">
-          <div
-            className="h-2 rounded-full bg-primary transition-all"
-            style={{ width: `${contractRatio * 100}%` }}
-          />
-        </div>
-        <div className="mt-3 flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            Reward: +{formatIdleNumber(activeContract.rewardAmount)}{' '}
-            {activeContract.rewardResource}
-          </p>
-          <Button
-            size="sm"
-            disabled={!contractProgress.isComplete}
-            onClick={() => setGame((current) => claimContract(current))}
-          >
-            Claim
-          </Button>
-        </div>
-      </section>
-
       <section className="rounded-lg border border-border bg-background p-4">
         <div className="flex items-center justify-between">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -256,18 +161,13 @@ function App() {
       </section>
 
       <section className="space-y-3">
-        {(Object.keys(GENERATOR_DEFS) as GeneratorKey[]).map((key) => {
+        {GENERATOR_ORDER.map((key) => {
           const definition = GENERATOR_DEFS[key]
           const cost = getGeneratorCost(game, key)
           const owned = game.generators[key]
-          const available = new Decimal(game.resources[definition.currency])
-          const canBuy = available.greaterThanOrEqualTo(cost)
-          const rate =
-            key === 'miners'
-              ? rates.creditsPerSecond
-              : key === 'refiners'
-                ? rates.componentsPerSecond
-                : rates.researchPerSecond
+          const credits = new Decimal(game.credits)
+          const canBuy = credits.greaterThanOrEqualTo(cost)
+          const contribution = getGeneratorProductionPerSecond(game, key)
 
           return (
             <article
@@ -280,12 +180,12 @@ function App() {
                   <p className="text-sm text-muted-foreground">{definition.description}</p>
                   <p className="mt-1 text-sm">Owned: {owned}</p>
                   <p className="text-xs text-muted-foreground">
-                    Throughput: +{formatIdleNumber(rate)} / sec
+                    +{formatIdleNumber(contribution)} / sec
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
                   <p className="text-right text-sm">
-                    Cost: {formatIdleNumber(cost)} {definition.currency}
+                    Cost: {formatIdleNumber(cost)} credits
                   </p>
                   <Button
                     disabled={!canBuy}
@@ -304,50 +204,12 @@ function App() {
 
   const renderUpgradesTab = () => (
     <div className="space-y-3">
-      {(Object.keys(RUN_UPGRADE_DEFS) as RunUpgradeKey[]).map((key) => {
-        const definition = RUN_UPGRADE_DEFS[key]
-        const level = game.runUpgrades[key]
-        const cost = getRunUpgradeCost(game, key)
-        const available = new Decimal(game.resources[definition.currency])
-        const canBuy = available.greaterThanOrEqualTo(cost)
-
-        return (
-          <article
-            key={definition.key}
-            className="rounded-lg border border-border bg-background p-4"
-          >
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h3 className="text-base font-semibold">{definition.label}</h3>
-                <p className="text-sm text-muted-foreground">{definition.description}</p>
-                <p className="mt-1 text-sm">Level: {level}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <p className="text-right text-sm">
-                  Cost: {formatIdleNumber(cost)} {definition.currency}
-                </p>
-                <Button
-                  disabled={!canBuy}
-                  onClick={() => setGame((current) => buyRunUpgrade(current, key))}
-                >
-                  Upgrade
-                </Button>
-              </div>
-            </div>
-          </article>
-        )
-      })}
-    </div>
-  )
-
-  const renderTreesTab = () => (
-    <div className="space-y-3">
-      {(Object.keys(TREE_NODE_DEFS) as TreeNodeKey[]).map((key) => {
-        const definition = TREE_NODE_DEFS[key]
-        const unlocked = game.treeNodes[key]
-        const influence = new Decimal(game.resources.influence)
-        const cost = new Decimal(definition.costInfluence)
-        const canUnlock = !unlocked && influence.greaterThanOrEqualTo(cost)
+      {UPGRADE_ORDER.map((key) => {
+        const definition = UPGRADE_DEFS[key]
+        const purchased = game.purchasedUpgrades[key]
+        const unlocked = isUpgradeUnlocked(game, key)
+        const canBuy = canBuyUpgrade(game, key)
+        const unlockProgress = getUpgradeUnlockProgress(game, key)
 
         return (
           <article
@@ -359,15 +221,22 @@ function App() {
                 <h3 className="text-base font-semibold">{definition.label}</h3>
                 <p className="text-sm text-muted-foreground">{definition.description}</p>
                 <p className="mt-1 text-sm">
-                  Cost: {formatIdleNumber(cost)} influence
+                  Cost: {formatIdleNumber(definition.cost)} credits
                 </p>
+                {!unlocked && unlockProgress && (
+                  <p className="text-xs text-muted-foreground">
+                    Requires {unlockProgress.required} {GENERATOR_DEFS[unlockProgress.generator].label}{' '}
+                    ({unlockProgress.current}/{unlockProgress.required})
+                  </p>
+                )}
+                {purchased && <p className="text-xs text-emerald-600">Purchased</p>}
               </div>
               <Button
-                disabled={!canUnlock}
-                variant={unlocked ? 'secondary' : 'default'}
-                onClick={() => setGame((current) => unlockTreeNode(current, key))}
+                variant={purchased ? 'secondary' : 'default'}
+                disabled={purchased || !canBuy}
+                onClick={() => setGame((current) => buyUpgrade(current, key))}
               >
-                {unlocked ? 'Unlocked' : 'Unlock'}
+                {purchased ? 'Owned' : 'Buy Upgrade'}
               </Button>
             </div>
           </article>
@@ -376,65 +245,21 @@ function App() {
     </div>
   )
 
-  const renderPrestigeTab = () => (
-    <div className="space-y-4">
-      <section className="rounded-lg border border-border bg-background p-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          Current Run Credits
-        </p>
-        <p className="mt-1 text-3xl font-semibold tabular-nums">
-          {formatIdleNumber(game.stats.runCredits)}
-        </p>
-      </section>
-
-      <section className="rounded-lg border border-border bg-background p-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          Potential Reboot Gain
-        </p>
-        <p className="mt-1 text-3xl font-semibold tabular-nums">
-          +{formatIdleNumber(potentialInfluence)} influence
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Reboot resets run resources, generators, and run upgrades.
-        </p>
-        <Button
-          className="mt-4 h-11 w-full"
-          disabled={potentialInfluence.lessThanOrEqualTo(0)}
-          onClick={() => {
-            const now = Date.now()
-            setNowMs(now)
-            setGame((current) => reboot(current, now))
-          }}
-        >
-          Reboot Timeline
-        </Button>
-      </section>
-    </div>
-  )
-
   const renderStatsTab = () => (
     <div className="space-y-3">
       <section className="rounded-lg border border-border bg-background p-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          Session
-        </p>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">Session</p>
         <p className="mt-1 text-sm">Run Time: {formatDuration(runDuration)}</p>
-        <p className="text-sm">Reboots: {game.stats.reboots}</p>
-        <p className="text-sm">Contracts Completed: {game.contract.completedCount}</p>
+        <p className="text-sm">
+          Credits / sec: {formatIdleNumber(creditsPerSecond)}
+        </p>
       </section>
-
       <section className="rounded-lg border border-border bg-background p-4">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          Lifetime Production
+          Lifetime
         </p>
         <p className="mt-1 text-sm">
-          Credits: {formatIdleNumber(game.stats.totalCredits)}
-        </p>
-        <p className="text-sm">
-          Components: {formatIdleNumber(game.stats.totalComponents)}
-        </p>
-        <p className="text-sm">
-          Research: {formatIdleNumber(game.stats.totalResearch)}
+          Total Credits Produced: {formatIdleNumber(game.stats.totalCredits)}
         </p>
       </section>
     </div>
@@ -460,8 +285,8 @@ function App() {
             <AlertDialogHeader>
               <AlertDialogTitle>Reset your game?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently erase your current run and lifetime progress.
-                This action cannot be undone.
+                This will permanently erase your current progress. This action
+                cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -484,59 +309,30 @@ function App() {
       <header className="rounded-xl border border-border bg-card p-4">
         <h1 className="text-2xl font-semibold tracking-tight">Epoch Foundry</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          MVP Slice: production ladder, upgrades, trees, contracts, and reboot
-          prestige.
+          Early-game foundation: credits, generators, and upgrade acceleration.
         </p>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <article className="rounded-lg border border-border bg-background p-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Credits
           </p>
-          <p className="mt-1 text-lg font-semibold tabular-nums">
-            {formatIdleNumber(game.resources.credits)}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            +{formatIdleNumber(rates.creditsPerSecond)}/s
+          <p className="mt-1 text-2xl font-semibold tabular-nums">
+            {formatIdleNumber(game.credits)}
           </p>
         </article>
         <article className="rounded-lg border border-border bg-background p-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Components
+            Credits / second
           </p>
-          <p className="mt-1 text-lg font-semibold tabular-nums">
-            {formatIdleNumber(game.resources.components)}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            +{formatIdleNumber(rates.componentsPerSecond)}/s
-          </p>
-        </article>
-        <article className="rounded-lg border border-border bg-background p-3">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Research
-          </p>
-          <p className="mt-1 text-lg font-semibold tabular-nums">
-            {formatIdleNumber(game.resources.research)}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            +{formatIdleNumber(rates.researchPerSecond)}/s
-          </p>
-        </article>
-        <article className="rounded-lg border border-border bg-background p-3">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Influence
-          </p>
-          <p className="mt-1 text-lg font-semibold tabular-nums">
-            {formatIdleNumber(game.resources.influence)}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Potential +{formatIdleNumber(potentialInfluence)}
+          <p className="mt-1 text-2xl font-semibold tabular-nums">
+            +{formatIdleNumber(creditsPerSecond)}
           </p>
         </article>
       </section>
 
-      <nav className="grid grid-cols-3 gap-2 rounded-lg border border-border bg-card p-2 md:grid-cols-6">
+      <nav className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-card p-2 md:grid-cols-4">
         {TABS.map((tab) => (
           <Button
             key={tab.key}
@@ -552,8 +348,6 @@ function App() {
       <section className="rounded-xl border border-border bg-card p-4">
         {activeTab === 'production' && renderProductionTab()}
         {activeTab === 'upgrades' && renderUpgradesTab()}
-        {activeTab === 'trees' && renderTreesTab()}
-        {activeTab === 'prestige' && renderPrestigeTab()}
         {activeTab === 'stats' && renderStatsTab()}
         {activeTab === 'settings' && renderSettingsTab()}
       </section>
@@ -561,7 +355,6 @@ function App() {
       <footer className="pb-2 text-xs text-muted-foreground">
         Autosaves every 10s and on exit
         {lastSavedAt ? ` • Last save ${new Date(lastSavedAt).toLocaleTimeString()}` : ''}
-        {` • Contracts: ${CONTRACT_DEFS.length} templates`}
       </footer>
     </main>
   )

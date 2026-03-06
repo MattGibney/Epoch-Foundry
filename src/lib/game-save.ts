@@ -3,7 +3,11 @@ import Decimal from 'decimal.js'
 import {
   BUY_AMOUNT_OPTIONS,
   createInitialGameState,
+  GENERATOR_ORDER,
   type GameState,
+  type GeneratorKey,
+  UPGRADE_ORDER,
+  type RunUpgradeKey,
 } from '@/lib/mvp-engine'
 
 const SAVE_KEY = 'epochFoundry.save.main'
@@ -28,11 +32,7 @@ function parseDecimalString(value: unknown): string | null {
 
   try {
     const parsed = new Decimal(value)
-    if (!parsed.isFinite()) {
-      return null
-    }
-
-    return parsed.toString()
+    return parsed.isFinite() ? parsed.toString() : null
   } catch {
     return null
   }
@@ -51,163 +51,117 @@ function parseBool(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null
 }
 
-function parseLegacyState(value: unknown): GameState | null {
-  if (!value || typeof value !== 'object') {
-    return null
-  }
-
-  const candidate = value as Record<string, unknown>
-  if (!('total' in candidate) || !('selectedMultiplier' in candidate)) {
-    return null
-  }
-
-  const credits = parseDecimalString(candidate.total)
-  if (!credits) {
-    return null
-  }
-
-  const migrated = createInitialGameState(Date.now())
-  migrated.resources.credits = credits
-  migrated.stats.totalCredits = credits
-  migrated.stats.runCredits = credits
-
-  return migrated
-}
-
 function parseModernState(value: unknown): GameState | null {
   if (!value || typeof value !== 'object') {
     return null
   }
 
   const candidate = value as Record<string, unknown>
-  const resources = candidate.resources as Record<string, unknown> | undefined
-  const generators = candidate.generators as Record<string, unknown> | undefined
-  const runUpgrades = candidate.runUpgrades as Record<string, unknown> | undefined
-  const treeNodes = candidate.treeNodes as Record<string, unknown> | undefined
-  const overclock = candidate.overclock as Record<string, unknown> | undefined
-  const contract = candidate.contract as Record<string, unknown> | undefined
+  const credits = parseDecimalString(candidate.credits)
   const stats = candidate.stats as Record<string, unknown> | undefined
-  const buyAmount = candidate.buyAmount
+  const generators = candidate.generators as Record<string, unknown> | undefined
+  const purchasedUpgrades = candidate.purchasedUpgrades as Record<string, unknown> | undefined
+  const buyAmount = parseNonNegativeInt(candidate.buyAmount)
 
-  if (
-    !resources ||
-    !generators ||
-    !runUpgrades ||
-    !treeNodes ||
-    !overclock ||
-    !contract ||
-    !stats
-  ) {
+  if (!credits || !stats || !generators || !purchasedUpgrades) {
     return null
   }
-
-  const credits = parseDecimalString(resources.credits)
-  const components = parseDecimalString(resources.components)
-  const research = parseDecimalString(resources.research)
-  const influence = parseDecimalString(resources.influence)
-
-  const miners = parseNonNegativeInt(generators.miners)
-  const refiners = parseNonNegativeInt(generators.refiners)
-  const labs = parseNonNegativeInt(generators.labs)
-
-  const drills = parseNonNegativeInt(runUpgrades.drills)
-  const refining = parseNonNegativeInt(runUpgrades.refining)
-  const labTech = parseNonNegativeInt(runUpgrades.labTech)
-
-  const industry = parseBool(treeNodes.industry)
-  const automation = parseBool(treeNodes.automation)
-  const chronotech = parseBool(treeNodes.chronotech)
-
-  const activeUntilMs = parseNonNegativeInt(overclock.activeUntilMs)
-  const cooldownUntilMs = parseNonNegativeInt(overclock.cooldownUntilMs)
-
-  const contractIndex = parseNonNegativeInt(contract.index)
-  const completedCount = parseNonNegativeInt(contract.completedCount)
 
   const startedAtMs = parseNonNegativeInt(stats.startedAtMs)
   const lastTickAtMs = parseNonNegativeInt(stats.lastTickAtMs)
-  const reboots = parseNonNegativeInt(stats.reboots)
-  const runCredits = parseDecimalString(stats.runCredits)
   const totalCredits = parseDecimalString(stats.totalCredits)
-  const totalComponents = parseDecimalString(stats.totalComponents)
-  const totalResearch = parseDecimalString(stats.totalResearch)
 
-  if (
-    !credits ||
-    !components ||
-    !research ||
-    !influence ||
-    miners === null ||
-    refiners === null ||
-    labs === null ||
-    drills === null ||
-    refining === null ||
-    labTech === null ||
-    industry === null ||
-    automation === null ||
-    chronotech === null ||
-    activeUntilMs === null ||
-    cooldownUntilMs === null ||
-    contractIndex === null ||
-    completedCount === null ||
-    startedAtMs === null ||
-    lastTickAtMs === null ||
-    reboots === null ||
-    !runCredits ||
-    !totalCredits ||
-    !totalComponents ||
-    !totalResearch
-  ) {
+  if (startedAtMs === null || lastTickAtMs === null || !totalCredits) {
     return null
   }
 
-  const buy = parseNonNegativeInt(buyAmount)
+  const parsedGenerators = {} as Record<GeneratorKey, number>
+  for (const key of GENERATOR_ORDER) {
+    const parsed = parseNonNegativeInt(generators[key])
+    if (parsed === null) {
+      return null
+    }
+
+    parsedGenerators[key] = parsed
+  }
+
+  const parsedUpgrades = {} as Record<RunUpgradeKey, boolean>
+  for (const key of UPGRADE_ORDER) {
+    const parsed = parseBool(purchasedUpgrades[key])
+    if (parsed === null) {
+      return null
+    }
+
+    parsedUpgrades[key] = parsed
+  }
+
   const normalizedBuyAmount =
-    buy !== null && BUY_AMOUNT_OPTIONS.includes(buy as 1 | 10 | 100)
-      ? buy
+    buyAmount !== null && BUY_AMOUNT_OPTIONS.includes(buyAmount as 1 | 10 | 100)
+      ? buyAmount
       : BUY_AMOUNT_OPTIONS[0]
 
   return {
-    resources: {
-      credits,
-      components,
-      research,
-      influence,
-    },
+    credits,
     generators: {
-      miners,
-      refiners,
-      labs,
+      miners: parsedGenerators.miners,
+      drills: parsedGenerators.drills,
+      extractors: parsedGenerators.extractors,
+      refineries: parsedGenerators.refineries,
+      megaRigs: parsedGenerators.megaRigs,
+      orbitalPlatforms: parsedGenerators.orbitalPlatforms,
     },
-    runUpgrades: {
-      drills,
-      refining,
-      labTech,
+    purchasedUpgrades: {
+      minerTuning: parsedUpgrades.minerTuning,
+      minerSwarm: parsedUpgrades.minerSwarm,
+      drillGrease: parsedUpgrades.drillGrease,
+      drillAI: parsedUpgrades.drillAI,
+      extractorCooling: parsedUpgrades.extractorCooling,
+      extractorClusters: parsedUpgrades.extractorClusters,
+      refineryCatalysts: parsedUpgrades.refineryCatalysts,
+      refineryOverdrive: parsedUpgrades.refineryOverdrive,
+      megaRigServos: parsedUpgrades.megaRigServos,
+      megaRigNanites: parsedUpgrades.megaRigNanites,
+      orbitalDrones: parsedUpgrades.orbitalDrones,
+      orbitalCommand: parsedUpgrades.orbitalCommand,
+      automationLoops: parsedUpgrades.automationLoops,
+      quantumForecasts: parsedUpgrades.quantumForecasts,
     },
-    treeNodes: {
-      industry,
-      automation,
-      chronotech,
-    },
-    overclock: {
-      activeUntilMs,
-      cooldownUntilMs,
-    },
-    contract: {
-      index: contractIndex,
-      completedCount,
-    },
+    buyAmount: normalizedBuyAmount,
     stats: {
       startedAtMs,
       lastTickAtMs,
-      reboots,
-      runCredits,
       totalCredits,
-      totalComponents,
-      totalResearch,
     },
-    buyAmount: normalizedBuyAmount,
   }
+}
+
+function parseLegacyState(value: unknown): GameState | null {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const candidate = value as Record<string, unknown>
+  const initial = createInitialGameState(Date.now())
+
+  const directCredits = parseDecimalString(candidate.total)
+  const resources = candidate.resources as Record<string, unknown> | undefined
+  const resourceCredits = parseDecimalString(resources?.credits)
+  const recoveredCredits = resourceCredits ?? directCredits
+
+  if (!recoveredCredits) {
+    return null
+  }
+
+  initial.credits = recoveredCredits
+  initial.stats.totalCredits = recoveredCredits
+
+  const legacyGenerators = candidate.generators as Record<string, unknown> | undefined
+  const legacyMiners = parseNonNegativeInt(legacyGenerators?.miners)
+  if (legacyMiners !== null) {
+    initial.generators.miners = Math.max(initial.generators.miners, legacyMiners)
+  }
+
+  return initial
 }
 
 function parseState(value: unknown): GameState | null {

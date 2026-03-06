@@ -21,19 +21,22 @@ npm run dev
 
 ## Current MVP Slice
 
-- Resource loop with `Credits`, `Components`, `Research`, and `Influence`.
-- Generator ladder with 3 tiers: `Miners`, `Refiners`, `Labs`.
+- Single-currency loop focused only on `Credits`.
+- Generator ladder with 6 credit-producing tiers:
+  - `Miners`
+  - `Drills`
+  - `Extractors`
+  - `Refineries`
+  - `Mega Rigs`
+  - `Orbital Platforms`
 - Bulk-buy controls (`1x`, `10x`, `100x`) and geometric generator pricing.
-- Run upgrades panel (`Improved Drills`, `Precision Refining`, `Neural Lab Cores`).
-- Tree panel (`Industry`, `Automation`, `Chronotech`) purchased with Influence.
-- Overclock ability (3x production burst with cooldown).
-- Contract system with rotating goals and rewards.
-- Reboot prestige panel with Influence projection and reset flow.
-- Stats panel with run/lifetime metrics and contract completion count.
+- Large upgrade list with unlock requirements and multiplicative production boosts.
+- Stats panel with run/lifetime credit metrics.
+- Settings panel with shadcn confirmation dialog for reset.
 - Number formatting with suffix/scientific fallback for large values.
 - Autosave every 10 seconds.
 - Save on tab/page exit.
-- Restore previous state on load from `localStorage`, including migration from legacy save shape.
+- Restore previous state on load from `localStorage`, including migration from legacy save shapes.
 
 ## Save Format
 
