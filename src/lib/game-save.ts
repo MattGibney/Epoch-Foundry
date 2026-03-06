@@ -92,6 +92,24 @@ function parseSettings(value: unknown): GameState['settings'] {
   }
 }
 
+function parsePrestige(value: unknown): GameState['prestige'] {
+  if (!value || typeof value !== 'object') {
+    return {
+      resets: 0,
+      essence: '0',
+    }
+  }
+
+  const candidate = value as Record<string, unknown>
+  const resets = parseNonNegativeInt(candidate.resets) ?? 0
+  const essence = parseDecimalString(candidate.essence) ?? '0'
+
+  return {
+    resets,
+    essence,
+  }
+}
+
 function parseModernState(value: unknown): GameState | null {
   if (!value || typeof value !== 'object') {
     return null
@@ -106,6 +124,7 @@ function parseModernState(value: unknown): GameState | null {
   const purchasedUpgrades = candidate.purchasedUpgrades as Record<string, unknown> | undefined
   const buyAmount = parseNonNegativeInt(candidate.buyAmount)
   const settings = parseSettings(candidate.settings)
+  const prestige = parsePrestige(candidate.prestige)
 
   if (!credits) {
     return null
@@ -150,6 +169,7 @@ function parseModernState(value: unknown): GameState | null {
       totalCredits,
     },
     settings,
+    prestige,
   }
 }
 

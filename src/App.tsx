@@ -38,9 +38,11 @@ import {
   saveGameState,
 } from '@/lib/game-save'
 import {
+  applyPrestigeReset,
   BUY_AMOUNT_OPTIONS,
   buyGenerator,
   buyUpgrade,
+  canPrestige,
   canBuyUpgrade,
   createInitialGameState,
   GENERATOR_DEFS,
@@ -48,6 +50,8 @@ import {
   getGeneratorCost,
   getGeneratorProductionPerSecond,
   getOfflineProgressCapSeconds,
+  getPrestigeGainForReset,
+  getPrestigeMultiplier,
   getTotalProductionPerSecond,
   getUpgradeUnlockProgress,
   setBuyAmount,
@@ -372,13 +376,35 @@ function App() {
   }, [])
 
   const creditsPerSecond = useMemo(() => getTotalProductionPerSecond(game), [game])
+  const prestigeGain = useMemo(() => getPrestigeGainForReset(game), [game])
+  const prestigeMultiplier = useMemo(() => getPrestigeMultiplier(game), [game])
+  const canPrestigeNow = useMemo(() => canPrestige(game), [game])
   const offlineProgressCapSeconds = useMemo(
     () => getOfflineProgressCapSeconds(game),
     [game],
   )
+  const nextPrestigeMultiplier = useMemo(
+    () => new Decimal(1).plus(new Decimal(game.prestige.essence).plus(prestigeGain).times('0.1')),
+    [game.prestige.essence, prestigeGain],
+  )
   const runDuration = Math.max(0, Math.floor((nowMs - game.stats.startedAtMs) / 1_000))
   const overflowTabs = TABS.filter((tab) => !isPrimaryTab(tab.key))
   const isOtherActive = !isPrimaryTab(activeTab)
+
+  const prestigeReset = useCallback(() => {
+    const now = Date.now()
+    const nextState = applyPrestigeReset(gameRef.current, now)
+    if (nextState === gameRef.current) {
+      return
+    }
+
+    gameRef.current = nextState
+    setGame(nextState)
+    setNowMs(now)
+    setActiveTab('production')
+
+    void saveGameState(nextState)
+  }, [])
 
   const renderProductionTab = () => (
     <div className="space-y-6">
@@ -619,6 +645,63 @@ function App() {
           <span className="text-muted-foreground">Total Credits Produced</span>
           <span className="font-mono tabular-nums">{formatIdleNumber(game.stats.totalCredits)}</span>
         </p>
+      </section>
+      <section className="border-t border-border/70 pt-4">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">Prestige</p>
+        <div className="mt-2 space-y-1 text-sm">
+          <p className="flex items-center justify-between">
+            <span className="text-muted-foreground">Essence</span>
+            <span className="font-mono tabular-nums">
+              {formatIdleNumber(game.prestige.essence)}
+            </span>
+          </p>
+          <p className="flex items-center justify-between">
+            <span className="text-muted-foreground">Permanent Multiplier</span>
+            <span className="font-mono tabular-nums">
+              x{formatIdleNumber(prestigeMultiplier)}
+            </span>
+          </p>
+          <p className="flex items-center justify-between">
+            <span className="text-muted-foreground">Reset Gain</span>
+            <span className="font-mono tabular-nums">
+              +{formatIdleNumber(prestigeGain)}
+            </span>
+          </p>
+          <p className="flex items-center justify-between">
+            <span className="text-muted-foreground">Total Resets</span>
+            <span className="font-mono tabular-nums">{game.prestige.resets}</span>
+          </p>
+        </div>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button className="mt-4" disabled={!canPrestigeNow}>
+              Prestige Reset
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Prestige this run?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This resets credits, generators, and upgrades for this run.
+                You gain{' '}
+                <span className="font-mono tabular-nums">
+                  +{formatIdleNumber(prestigeGain)}
+                </span>{' '}
+                essence and your multiplier becomes{' '}
+                <span className="font-mono tabular-nums">
+                  x{formatIdleNumber(nextPrestigeMultiplier)}
+                </span>
+                .
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={prestigeReset}>
+                Confirm Prestige
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </section>
     </div>
   )

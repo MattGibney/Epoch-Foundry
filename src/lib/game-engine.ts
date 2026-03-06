@@ -78,6 +78,11 @@ export interface GameSettingsState {
   showPurchasedUpgrades: boolean
 }
 
+export interface PrestigeState {
+  resets: number
+  essence: string
+}
+
 export interface GameState {
   credits: string
   generators: GeneratorsState
@@ -85,6 +90,7 @@ export interface GameState {
   buyAmount: number
   stats: StatsState
   settings: GameSettingsState
+  prestige: PrestigeState
 }
 
 interface GeneratorDef {
@@ -129,6 +135,8 @@ const ONE = new Decimal(1)
 const ZERO = new Decimal(0)
 const MAX_TICK_SECONDS = 5
 const BASE_OFFLINE_PROGRESS_CAP_SECONDS = 30 * 60
+const PRESTIGE_UNLOCK_CREDITS = new Decimal('1000000')
+const PRESTIGE_ESSENCE_MULTIPLIER_STEP = new Decimal('0.1')
 
 export const GENERATOR_ORDER: GeneratorKey[] = [
   'miners',
@@ -672,6 +680,13 @@ function createInitialPurchasedUpgrades(): PurchasedUpgradesState {
   }, {} as PurchasedUpgradesState)
 }
 
+function createInitialPrestigeState(): PrestigeState {
+  return {
+    resets: 0,
+    essence: '0',
+  }
+}
+
 export function createInitialGameState(nowMs = Date.now()): GameState {
   return {
     credits: '0',
@@ -696,6 +711,42 @@ export function createInitialGameState(nowMs = Date.now()): GameState {
     },
     settings: {
       showPurchasedUpgrades: false,
+    },
+    prestige: createInitialPrestigeState(),
+  }
+}
+
+export function getPrestigeGainForReset(state: GameState): Decimal {
+  const runTotalCredits = toDecimal(state.stats.totalCredits)
+  if (runTotalCredits.lessThan(PRESTIGE_UNLOCK_CREDITS)) {
+    return ZERO
+  }
+
+  return runTotalCredits.div(PRESTIGE_UNLOCK_CREDITS).sqrt().floor()
+}
+
+export function canPrestige(state: GameState): boolean {
+  return getPrestigeGainForReset(state).greaterThan(0)
+}
+
+export function getPrestigeMultiplier(state: GameState): Decimal {
+  return ONE.plus(toDecimal(state.prestige.essence).times(PRESTIGE_ESSENCE_MULTIPLIER_STEP))
+}
+
+export function applyPrestigeReset(state: GameState, nowMs = Date.now()): GameState {
+  const gainedEssence = getPrestigeGainForReset(state)
+  if (gainedEssence.lessThanOrEqualTo(0)) {
+    return state
+  }
+
+  const initialState = createInitialGameState(nowMs)
+
+  return {
+    ...initialState,
+    settings: state.settings,
+    prestige: {
+      resets: state.prestige.resets + 1,
+      essence: toDecimal(state.prestige.essence).plus(gainedEssence).toString(),
     },
   }
 }
@@ -790,6 +841,7 @@ export function getGeneratorProductionPerSecond(
     .times(owned)
     .times(getGeneratorProductionMultiplier(state, generatorKey))
     .times(getGlobalProductionMultiplier(state))
+    .times(getPrestigeMultiplier(state))
 }
 
 export function getTotalProductionPerSecond(state: GameState): Decimal {
