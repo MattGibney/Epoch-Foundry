@@ -8,6 +8,7 @@
 - When debugging, first evaluate whether the issue is a symptom introduced by current changes before treating the immediate symptom directly.
 - Use TypeScript as the default language for JavaScript-runtime code; avoid plain JavaScript source unless there is a specific exception.
 - Prefer React over Preact for this project; minimizing bundle size is not a primary objective.
+- Prefer shadcn/ui components wherever possible for UI patterns (for example dialogs, forms, and actions) instead of ad-hoc custom elements.
 - All gameplay numeric values must support magnitudes beyond JavaScript `number` limits; use one shared big-number library consistently across engine, UI formatting, and persistence.
 - Production URL: `https://epoch-foundry.mattgibney.co.uk`.
 - Commits merged/pushed to `main` auto-deploy to production; treat `main` changes as release-impacting.

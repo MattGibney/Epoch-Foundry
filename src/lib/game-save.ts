@@ -263,3 +263,15 @@ export function saveGameState(state: GameState): void {
     // Intentionally swallow storage exceptions for MVP stability.
   }
 }
+
+export function clearGameSave(): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    window.localStorage.removeItem(SAVE_KEY)
+  } catch {
+    // Intentionally swallow storage exceptions for MVP stability.
+  }
+}

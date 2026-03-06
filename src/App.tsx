@@ -1,8 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Decimal from 'decimal.js'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { loadGameState, saveGameState } from '@/lib/game-save'
+import { clearGameSave, loadGameState, saveGameState } from '@/lib/game-save'
 import {
   BUY_AMOUNT_OPTIONS,
   buyGenerator,
@@ -10,6 +21,7 @@ import {
   canTriggerOverclock,
   claimContract,
   CONTRACT_DEFS,
+  createInitialGameState,
   GENERATOR_DEFS,
   getActiveContract,
   getContractProgress,
@@ -33,7 +45,13 @@ import {
 import { formatIdleNumber } from '@/lib/number-format'
 import { cn } from '@/lib/utils'
 
-type TabKey = 'production' | 'upgrades' | 'trees' | 'prestige' | 'stats'
+type TabKey =
+  | 'production'
+  | 'upgrades'
+  | 'trees'
+  | 'prestige'
+  | 'stats'
+  | 'settings'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'production', label: 'Production' },
@@ -41,6 +59,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'trees', label: 'Trees' },
   { key: 'prestige', label: 'Prestige' },
   { key: 'stats', label: 'Stats' },
+  { key: 'settings', label: 'Settings' },
 ]
 
 function formatDuration(totalSeconds: number): string {
@@ -73,6 +92,20 @@ function App() {
   const persistGame = useCallback(() => {
     saveGameState(gameRef.current)
     setLastSavedAt(Date.now())
+  }, [])
+
+  const resetGame = useCallback(() => {
+    const now = Date.now()
+    const initialState = createInitialGameState(now)
+
+    clearGameSave()
+    saveGameState(initialState)
+
+    gameRef.current = initialState
+    setGame(initialState)
+    setNowMs(now)
+    setActiveTab('production')
+    setLastSavedAt(now)
   }, [])
 
   useEffect(() => {
@@ -407,6 +440,45 @@ function App() {
     </div>
   )
 
+  const renderSettingsTab = () => (
+    <div className="space-y-4">
+      <section className="rounded-lg border border-border bg-background p-4">
+        <h3 className="text-base font-semibold">Reset Game</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          This clears all progress and starts a fresh run.
+        </p>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="outline"
+              className="mt-4 border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              Reset Game
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reset your game?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently erase your current run and lifetime progress.
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-600 text-white hover:bg-red-700"
+                onClick={resetGame}
+              >
+                Yes, reset game
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </section>
+    </div>
+  )
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-4 px-4 py-6 md:px-6">
       <header className="rounded-xl border border-border bg-card p-4">
@@ -464,7 +536,7 @@ function App() {
         </article>
       </section>
 
-      <nav className="grid grid-cols-3 gap-2 rounded-lg border border-border bg-card p-2 md:grid-cols-5">
+      <nav className="grid grid-cols-3 gap-2 rounded-lg border border-border bg-card p-2 md:grid-cols-6">
         {TABS.map((tab) => (
           <Button
             key={tab.key}
@@ -483,6 +555,7 @@ function App() {
         {activeTab === 'trees' && renderTreesTab()}
         {activeTab === 'prestige' && renderPrestigeTab()}
         {activeTab === 'stats' && renderStatsTab()}
+        {activeTab === 'settings' && renderSettingsTab()}
       </section>
 
       <footer className="pb-2 text-xs text-muted-foreground">
