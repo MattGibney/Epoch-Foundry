@@ -21,3 +21,4 @@
 - Avoid fixed-column navigation layouts on mobile; prefer patterns that scale with additional sections (for example a section switcher sheet/menu instead of dense tab rows).
 - Keep primary navigation thumb-reachable on mobile (prefer bottom-anchored access patterns over top-only triggers).
 - In iOS home-screen standalone mode, treat the top safe-area/status region as translucent and provide a persistent blur veil so scrolled content behind the clock/Dynamic Island remains legible.
+- For mobile navigation scalability, keep the most-used sections as direct bottom icon actions and route less-frequent sections through an overflow drawer.

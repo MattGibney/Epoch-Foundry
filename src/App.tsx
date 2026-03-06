@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Decimal from 'decimal.js'
-import { Coins, MenuIcon } from 'lucide-react'
+import {
+  BarChart3,
+  Coins,
+  Factory,
+  MoreHorizontal,
+  type LucideIcon,
+  Wrench,
+} from 'lucide-react'
 
 import {
   AlertDialog,
@@ -56,6 +63,20 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'settings', label: 'Settings' },
 ]
 
+const PRIMARY_NAV_ITEMS: {
+  key: 'production' | 'upgrades' | 'stats'
+  label: string
+  icon: LucideIcon
+}[] = [
+  { key: 'production', label: 'Production', icon: Factory },
+  { key: 'upgrades', label: 'Upgrades', icon: Wrench },
+  { key: 'stats', label: 'Stats', icon: BarChart3 },
+]
+
+function isPrimaryTab(tab: TabKey): tab is 'production' | 'upgrades' | 'stats' {
+  return tab === 'production' || tab === 'upgrades' || tab === 'stats'
+}
+
 function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)
@@ -77,7 +98,6 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('production')
   const [isSectionsOpen, setIsSectionsOpen] = useState(false)
   const [nowMs, setNowMs] = useState<number>(() => Date.now())
-  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null)
   const [showFloatingSummary, setShowFloatingSummary] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState<string | null>(null)
@@ -91,7 +111,6 @@ function App() {
 
   const persistGame = useCallback(() => {
     saveGameState(gameRef.current)
-    setLastSavedAt(Date.now())
   }, [])
 
   const resetGame = useCallback(() => {
@@ -111,7 +130,6 @@ function App() {
     setGame(nextState)
     setNowMs(now)
     setActiveTab('production')
-    setLastSavedAt(now)
   }, [])
 
   const refreshApp = useCallback(async () => {
@@ -221,7 +239,8 @@ function App() {
 
   const creditsPerSecond = useMemo(() => getTotalProductionPerSecond(game), [game])
   const runDuration = Math.max(0, Math.floor((nowMs - game.stats.startedAtMs) / 1_000))
-  const activeTabLabel = TABS.find((tab) => tab.key === activeTab)?.label ?? 'Section'
+  const overflowTabs = TABS.filter((tab) => !isPrimaryTab(tab.key))
+  const isOtherActive = !isPrimaryTab(activeTab)
 
   const renderProductionTab = () => (
     <div className="space-y-6">
@@ -466,11 +485,11 @@ function App() {
   return (
     <main
       className="mx-auto min-h-screen w-full max-w-lg px-4 pt-6"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 7rem)' }}
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.25rem)' }}
     >
       <div
         ref={topSafeAreaBlurRef}
-        className="pointer-events-none fixed inset-x-0 top-0 z-30 bg-background/70 backdrop-blur-xl"
+        className="pointer-events-none fixed inset-x-0 top-0 z-30 bg-background/70 backdrop-blur-md"
         style={{ height: 'env(safe-area-inset-top)' }}
       />
 
@@ -531,19 +550,6 @@ function App() {
         {activeTab === 'settings' && renderSettingsTab()}
       </section>
 
-      <footer className="mt-8 text-xs text-muted-foreground">
-        Autosaves every <span className="font-mono tabular-nums">10</span>s and on exit
-        {lastSavedAt && (
-          <>
-            {' '}
-            • Last save{' '}
-            <span className="font-mono tabular-nums">
-              {new Date(lastSavedAt).toLocaleTimeString()}
-            </span>
-          </>
-        )}
-      </footer>
-
       <div
         className="fixed inset-x-0 bottom-0 z-40"
         style={{
@@ -554,29 +560,49 @@ function App() {
       >
         <div className="mx-auto w-full max-w-lg">
           <div className="rounded-xl border border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Section
-                </p>
-                <p className="text-sm font-medium">{activeTabLabel}</p>
-              </div>
+            <div className="grid grid-cols-4 gap-1">
+              {PRIMARY_NAV_ITEMS.map((item) => {
+                const Icon = item.icon
+
+                return (
+                  <Button
+                    key={item.key}
+                    size="sm"
+                    variant="ghost"
+                    className={cn(
+                      'h-11 rounded-lg bg-transparent px-0.5 shadow-none hover:bg-transparent active:bg-transparent',
+                      activeTab === item.key ? 'text-foreground' : 'text-muted-foreground/70',
+                    )}
+                    onClick={() => setActiveTab(item.key)}
+                    aria-label={item.label}
+                  >
+                    <Icon className="size-6" />
+                  </Button>
+                )
+              })}
               <Sheet open={isSectionsOpen} onOpenChange={setIsSectionsOpen}>
                 <SheetTrigger asChild>
-                  <Button size="sm" variant="outline" className="gap-2">
-                    <MenuIcon className="size-4" />
-                    Sections
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={cn(
+                      'h-11 rounded-lg bg-transparent px-0.5 shadow-none hover:bg-transparent active:bg-transparent',
+                      isOtherActive ? 'text-foreground' : 'text-muted-foreground/70',
+                    )}
+                    aria-label="Other sections"
+                  >
+                    <MoreHorizontal className="size-6" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="bottom" className="max-h-[80vh] rounded-t-xl px-0 pb-6">
                   <SheetHeader className="px-4 pb-1">
-                    <SheetTitle>Sections</SheetTitle>
+                    <SheetTitle>Other Sections</SheetTitle>
                     <SheetDescription>
-                      Navigate between game screens.
+                      Additional navigation options.
                     </SheetDescription>
                   </SheetHeader>
                   <div className="mt-2 space-y-1 px-4">
-                    {TABS.map((tab) => (
+                    {overflowTabs.map((tab) => (
                       <Button
                         key={tab.key}
                         variant={activeTab === tab.key ? 'default' : 'ghost'}
@@ -589,6 +615,11 @@ function App() {
                         {tab.label}
                       </Button>
                     ))}
+                    {overflowTabs.length === 0 && (
+                      <p className="px-2 py-1 text-sm text-muted-foreground">
+                        No additional sections yet.
+                      </p>
+                    )}
                   </div>
                 </SheetContent>
               </Sheet>
