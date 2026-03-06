@@ -7,23 +7,49 @@ export type GeneratorKey =
   | 'refineries'
   | 'megaRigs'
   | 'orbitalPlatforms'
+  | 'stellarForges'
+  | 'dysonArrays'
+  | 'singularityWells'
+  | 'continuumEngines'
 export type RunUpgradeKey =
   | 'minerTuning'
   | 'minerSwarm'
+  | 'minerFoundries'
   | 'drillGrease'
   | 'drillAI'
+  | 'drillHypercut'
   | 'extractorCooling'
   | 'extractorClusters'
+  | 'extractorMatrices'
   | 'refineryCatalysts'
   | 'refineryOverdrive'
+  | 'refinerySingularities'
   | 'megaRigServos'
   | 'megaRigNanites'
+  | 'megaRigSentience'
   | 'orbitalDrones'
   | 'orbitalCommand'
+  | 'orbitalAnchors'
+  | 'stellarFlux'
+  | 'stellarLattices'
+  | 'stellarAscension'
+  | 'dysonPhasing'
+  | 'dysonHarmonics'
+  | 'dysonDominion'
+  | 'singularityContainment'
+  | 'singularityLensing'
+  | 'singularityTranscendence'
+  | 'continuumStabilizers'
+  | 'continuumRecursion'
+  | 'continuumParadoxCore'
   | 'automationLoops'
   | 'quantumForecasts'
+  | 'fractalEconomies'
+  | 'causalOverclock'
   | 'archiveBatteries'
   | 'temporalVaults'
+  | 'deepArchive'
+  | 'chronoReserves'
 
 export const BUY_AMOUNT_OPTIONS = [1, 10, 100] as const
 
@@ -34,26 +60,13 @@ export interface GeneratorsState {
   refineries: number
   megaRigs: number
   orbitalPlatforms: number
+  stellarForges: number
+  dysonArrays: number
+  singularityWells: number
+  continuumEngines: number
 }
 
-export interface PurchasedUpgradesState {
-  minerTuning: boolean
-  minerSwarm: boolean
-  drillGrease: boolean
-  drillAI: boolean
-  extractorCooling: boolean
-  extractorClusters: boolean
-  refineryCatalysts: boolean
-  refineryOverdrive: boolean
-  megaRigServos: boolean
-  megaRigNanites: boolean
-  orbitalDrones: boolean
-  orbitalCommand: boolean
-  automationLoops: boolean
-  quantumForecasts: boolean
-  archiveBatteries: boolean
-  temporalVaults: boolean
-}
+export type PurchasedUpgradesState = Record<RunUpgradeKey, boolean>
 
 export interface StatsState {
   startedAtMs: number
@@ -124,6 +137,10 @@ export const GENERATOR_ORDER: GeneratorKey[] = [
   'refineries',
   'megaRigs',
   'orbitalPlatforms',
+  'stellarForges',
+  'dysonArrays',
+  'singularityWells',
+  'continuumEngines',
 ]
 
 export const GENERATOR_DEFS: Record<GeneratorKey, GeneratorDef> = {
@@ -175,25 +192,79 @@ export const GENERATOR_DEFS: Record<GeneratorKey, GeneratorDef> = {
     growth: '1.2',
     baseProduction: '9000',
   },
+  stellarForges: {
+    key: 'stellarForges',
+    label: 'Stellar Forges',
+    description: 'Star-fed foundries for massive credit throughput.',
+    baseCost: '20000000',
+    growth: '1.21',
+    baseProduction: '55000',
+  },
+  dysonArrays: {
+    key: 'dysonArrays',
+    label: 'Dyson Arrays',
+    description: 'System-scale collectors that flood the ledger.',
+    baseCost: '260000000',
+    growth: '1.22',
+    baseProduction: '320000',
+  },
+  singularityWells: {
+    key: 'singularityWells',
+    label: 'Singularity Wells',
+    description: 'Gravity-compressed extraction beyond conventional limits.',
+    baseCost: '3300000000',
+    growth: '1.23',
+    baseProduction: '1900000',
+  },
+  continuumEngines: {
+    key: 'continuumEngines',
+    label: 'Continuum Engines',
+    description: 'Temporal-scale engines for extreme credit acceleration.',
+    baseCost: '42000000000',
+    growth: '1.24',
+    baseProduction: '11000000',
+  },
 }
 
 export const UPGRADE_ORDER: RunUpgradeKey[] = [
   'minerTuning',
   'minerSwarm',
+  'minerFoundries',
   'drillGrease',
   'drillAI',
+  'drillHypercut',
   'extractorCooling',
   'extractorClusters',
+  'extractorMatrices',
   'refineryCatalysts',
   'refineryOverdrive',
+  'refinerySingularities',
   'megaRigServos',
   'megaRigNanites',
+  'megaRigSentience',
   'orbitalDrones',
   'orbitalCommand',
+  'orbitalAnchors',
+  'stellarFlux',
+  'stellarLattices',
+  'stellarAscension',
+  'dysonPhasing',
+  'dysonHarmonics',
+  'dysonDominion',
+  'singularityContainment',
+  'singularityLensing',
+  'singularityTranscendence',
+  'continuumStabilizers',
+  'continuumRecursion',
+  'continuumParadoxCore',
   'automationLoops',
   'quantumForecasts',
+  'fractalEconomies',
+  'causalOverclock',
   'archiveBatteries',
   'temporalVaults',
+  'deepArchive',
+  'chronoReserves',
 ]
 
 export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
@@ -217,6 +288,16 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     multiplier: '3',
     requiresOwned: { generator: 'miners', count: 50 },
   },
+  minerFoundries: {
+    key: 'minerFoundries',
+    label: 'Miner Foundries',
+    description: 'Quadruple Miner output.',
+    cost: '25000',
+    effectType: 'generator',
+    target: 'miners',
+    multiplier: '4',
+    requiresOwned: { generator: 'miners', count: 120 },
+  },
   drillGrease: {
     key: 'drillGrease',
     label: 'Drill Grease',
@@ -236,6 +317,16 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'drills',
     multiplier: '3',
     requiresOwned: { generator: 'drills', count: 60 },
+  },
+  drillHypercut: {
+    key: 'drillHypercut',
+    label: 'Drill Hypercut',
+    description: 'Quadruple Drill output.',
+    cost: '450000',
+    effectType: 'generator',
+    target: 'drills',
+    multiplier: '4',
+    requiresOwned: { generator: 'drills', count: 120 },
   },
   extractorCooling: {
     key: 'extractorCooling',
@@ -257,6 +348,16 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     multiplier: '3',
     requiresOwned: { generator: 'extractors', count: 60 },
   },
+  extractorMatrices: {
+    key: 'extractorMatrices',
+    label: 'Extractor Matrices',
+    description: 'Quadruple Extractor output.',
+    cost: '9000000',
+    effectType: 'generator',
+    target: 'extractors',
+    multiplier: '4',
+    requiresOwned: { generator: 'extractors', count: 120 },
+  },
   refineryCatalysts: {
     key: 'refineryCatalysts',
     label: 'Refinery Catalysts',
@@ -276,6 +377,16 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'refineries',
     multiplier: '3',
     requiresOwned: { generator: 'refineries', count: 60 },
+  },
+  refinerySingularities: {
+    key: 'refinerySingularities',
+    label: 'Refinery Singularities',
+    description: 'Quadruple Refinery output.',
+    cost: '180000000',
+    effectType: 'generator',
+    target: 'refineries',
+    multiplier: '4',
+    requiresOwned: { generator: 'refineries', count: 120 },
   },
   megaRigServos: {
     key: 'megaRigServos',
@@ -297,6 +408,16 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     multiplier: '3',
     requiresOwned: { generator: 'megaRigs', count: 60 },
   },
+  megaRigSentience: {
+    key: 'megaRigSentience',
+    label: 'Mega Rig Sentience',
+    description: 'Quadruple Mega Rig output.',
+    cost: '2700000000',
+    effectType: 'generator',
+    target: 'megaRigs',
+    multiplier: '4',
+    requiresOwned: { generator: 'megaRigs', count: 120 },
+  },
   orbitalDrones: {
     key: 'orbitalDrones',
     label: 'Orbital Drone Nets',
@@ -317,6 +438,136 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     multiplier: '3',
     requiresOwned: { generator: 'orbitalPlatforms', count: 40 },
   },
+  orbitalAnchors: {
+    key: 'orbitalAnchors',
+    label: 'Orbital Anchors',
+    description: 'Quadruple Orbital Platform output.',
+    cost: '42000000000',
+    effectType: 'generator',
+    target: 'orbitalPlatforms',
+    multiplier: '4',
+    requiresOwned: { generator: 'orbitalPlatforms', count: 100 },
+  },
+  stellarFlux: {
+    key: 'stellarFlux',
+    label: 'Stellar Flux Weaves',
+    description: 'Double Stellar Forge output.',
+    cost: '80000000000',
+    effectType: 'generator',
+    target: 'stellarForges',
+    multiplier: '2',
+    requiresOwned: { generator: 'stellarForges', count: 12 },
+  },
+  stellarLattices: {
+    key: 'stellarLattices',
+    label: 'Stellar Lattices',
+    description: 'Triple Stellar Forge output.',
+    cost: '620000000000',
+    effectType: 'generator',
+    target: 'stellarForges',
+    multiplier: '3',
+    requiresOwned: { generator: 'stellarForges', count: 45 },
+  },
+  stellarAscension: {
+    key: 'stellarAscension',
+    label: 'Stellar Ascension',
+    description: 'Quadruple Stellar Forge output.',
+    cost: '4300000000000',
+    effectType: 'generator',
+    target: 'stellarForges',
+    multiplier: '4',
+    requiresOwned: { generator: 'stellarForges', count: 110 },
+  },
+  dysonPhasing: {
+    key: 'dysonPhasing',
+    label: 'Dyson Phasing',
+    description: 'Double Dyson Array output.',
+    cost: '11000000000000',
+    effectType: 'generator',
+    target: 'dysonArrays',
+    multiplier: '2',
+    requiresOwned: { generator: 'dysonArrays', count: 12 },
+  },
+  dysonHarmonics: {
+    key: 'dysonHarmonics',
+    label: 'Dyson Harmonics',
+    description: 'Triple Dyson Array output.',
+    cost: '78000000000000',
+    effectType: 'generator',
+    target: 'dysonArrays',
+    multiplier: '3',
+    requiresOwned: { generator: 'dysonArrays', count: 45 },
+  },
+  dysonDominion: {
+    key: 'dysonDominion',
+    label: 'Dyson Dominion',
+    description: 'Quadruple Dyson Array output.',
+    cost: '520000000000000',
+    effectType: 'generator',
+    target: 'dysonArrays',
+    multiplier: '4',
+    requiresOwned: { generator: 'dysonArrays', count: 110 },
+  },
+  singularityContainment: {
+    key: 'singularityContainment',
+    label: 'Singularity Containment',
+    description: 'Double Singularity Well output.',
+    cost: '1400000000000000',
+    effectType: 'generator',
+    target: 'singularityWells',
+    multiplier: '2',
+    requiresOwned: { generator: 'singularityWells', count: 12 },
+  },
+  singularityLensing: {
+    key: 'singularityLensing',
+    label: 'Singularity Lensing',
+    description: 'Triple Singularity Well output.',
+    cost: '9500000000000000',
+    effectType: 'generator',
+    target: 'singularityWells',
+    multiplier: '3',
+    requiresOwned: { generator: 'singularityWells', count: 45 },
+  },
+  singularityTranscendence: {
+    key: 'singularityTranscendence',
+    label: 'Singularity Transcendence',
+    description: 'Quadruple Singularity Well output.',
+    cost: '70000000000000000',
+    effectType: 'generator',
+    target: 'singularityWells',
+    multiplier: '4',
+    requiresOwned: { generator: 'singularityWells', count: 110 },
+  },
+  continuumStabilizers: {
+    key: 'continuumStabilizers',
+    label: 'Continuum Stabilizers',
+    description: 'Double Continuum Engine output.',
+    cost: '190000000000000000',
+    effectType: 'generator',
+    target: 'continuumEngines',
+    multiplier: '2',
+    requiresOwned: { generator: 'continuumEngines', count: 12 },
+  },
+  continuumRecursion: {
+    key: 'continuumRecursion',
+    label: 'Continuum Recursion',
+    description: 'Triple Continuum Engine output.',
+    cost: '1250000000000000000',
+    effectType: 'generator',
+    target: 'continuumEngines',
+    multiplier: '3',
+    requiresOwned: { generator: 'continuumEngines', count: 45 },
+  },
+  continuumParadoxCore: {
+    key: 'continuumParadoxCore',
+    label: 'Continuum Paradox Core',
+    description: 'Quadruple Continuum Engine output.',
+    cost: '9000000000000000000',
+    effectType: 'generator',
+    target: 'continuumEngines',
+    multiplier: '4',
+    requiresOwned: { generator: 'continuumEngines', count: 110 },
+  },
   automationLoops: {
     key: 'automationLoops',
     label: 'Automation Loops',
@@ -335,6 +586,24 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     multiplier: '2',
     requiresOwned: { generator: 'megaRigs', count: 25 },
   },
+  fractalEconomies: {
+    key: 'fractalEconomies',
+    label: 'Fractal Economies',
+    description: 'Global production x2.5.',
+    cost: '5000000000000',
+    effectType: 'global',
+    multiplier: '2.5',
+    requiresOwned: { generator: 'stellarForges', count: 30 },
+  },
+  causalOverclock: {
+    key: 'causalOverclock',
+    label: 'Causal Overclock',
+    description: 'Global production x3.',
+    cost: '150000000000000000',
+    effectType: 'global',
+    multiplier: '3',
+    requiresOwned: { generator: 'singularityWells', count: 30 },
+  },
   archiveBatteries: {
     key: 'archiveBatteries',
     label: 'Archive Batteries',
@@ -352,6 +621,24 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     effectType: 'offlineCap',
     offlineCapSeconds: 3 * 60 * 60,
     requiresOwned: { generator: 'orbitalPlatforms', count: 180 },
+  },
+  deepArchive: {
+    key: 'deepArchive',
+    label: 'Deep Archive Vaults',
+    description: 'Increase offline progress cap by +8 hours.',
+    cost: '4000000000000000000',
+    effectType: 'offlineCap',
+    offlineCapSeconds: 8 * 60 * 60,
+    requiresOwned: { generator: 'dysonArrays', count: 80 },
+  },
+  chronoReserves: {
+    key: 'chronoReserves',
+    label: 'Chrono Reserves',
+    description: 'Increase offline progress cap by +24 hours.',
+    cost: '95000000000000000000',
+    effectType: 'offlineCap',
+    offlineCapSeconds: 24 * 60 * 60,
+    requiresOwned: { generator: 'continuumEngines', count: 60 },
   },
 }
 
@@ -379,24 +666,10 @@ function calculateBulkCost(
 }
 
 function createInitialPurchasedUpgrades(): PurchasedUpgradesState {
-  return {
-    minerTuning: false,
-    minerSwarm: false,
-    drillGrease: false,
-    drillAI: false,
-    extractorCooling: false,
-    extractorClusters: false,
-    refineryCatalysts: false,
-    refineryOverdrive: false,
-    megaRigServos: false,
-    megaRigNanites: false,
-    orbitalDrones: false,
-    orbitalCommand: false,
-    automationLoops: false,
-    quantumForecasts: false,
-    archiveBatteries: false,
-    temporalVaults: false,
-  }
+  return UPGRADE_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = false
+    return accumulator
+  }, {} as PurchasedUpgradesState)
 }
 
 export function createInitialGameState(nowMs = Date.now()): GameState {
@@ -409,6 +682,10 @@ export function createInitialGameState(nowMs = Date.now()): GameState {
       refineries: 0,
       megaRigs: 0,
       orbitalPlatforms: 0,
+      stellarForges: 0,
+      dysonArrays: 0,
+      singularityWells: 0,
+      continuumEngines: 0,
     },
     purchasedUpgrades: createInitialPurchasedUpgrades(),
     buyAmount: BUY_AMOUNT_OPTIONS[0],
