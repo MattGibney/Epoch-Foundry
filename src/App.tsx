@@ -61,7 +61,10 @@ import {
 import {
   SAFE_AREA_INSETS,
 } from '@/lib/game-config'
-import { OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS } from '@/lib/consts'
+import {
+  GAME_TICK_INTERVAL_MS,
+  OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS,
+} from '@/lib/consts'
 import { formatIdleNumber } from '@/lib/number-format'
 import { cn } from '@/lib/utils'
 
@@ -245,7 +248,7 @@ function App() {
       const now = Date.now()
       setNowMs(now)
       setGame((current) => tickGame(current, now))
-    }, 200)
+    }, GAME_TICK_INTERVAL_MS)
 
     return () => {
       window.clearInterval(tickId)
