@@ -11,3 +11,4 @@
 - All gameplay numeric values must support magnitudes beyond JavaScript `number` limits; use one shared big-number library consistently across engine, UI formatting, and persistence.
 - Production URL: `https://epoch-foundry.mattgibney.co.uk`.
 - Commits merged/pushed to `main` auto-deploy to production; treat `main` changes as release-impacting.
+- Preserve PWA/iOS home-screen support (manifest, service worker registration, iOS web-app meta tags, and touch icons) so installed app behavior remains stable.

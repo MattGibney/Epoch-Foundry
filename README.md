@@ -13,6 +13,12 @@ npm install
 npm run dev
 ```
 
+## iPhone Home Screen
+
+- PWA manifest and service worker are configured.
+- iOS web-app meta tags and `apple-touch-icon` are configured.
+- For production behavior, test from the deployed URL and use Safari -> Share -> Add to Home Screen.
+
 ## Current MVP Slice
 
 - A single total value that increases automatically over time.
