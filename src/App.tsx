@@ -61,7 +61,7 @@ import {
 import { formatIdleNumber } from '@/lib/number-format'
 import { cn } from '@/lib/utils'
 
-type TabKey = 'production' | 'upgrades' | 'stats' | 'settings'
+type TabKey = 'production' | 'upgrades' | 'stats' | 'settings' | 'about'
 const OFFLINE_TOAST_THRESHOLD_SECONDS = 5 * 60
 const CREDITS_SYMBOL = '¤'
 
@@ -70,6 +70,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'upgrades', label: 'Upgrades' },
   { key: 'stats', label: 'Stats' },
   { key: 'settings', label: 'Settings' },
+  { key: 'about', label: 'About' },
 ]
 
 const PRIMARY_NAV_ITEMS: {
@@ -113,7 +114,7 @@ function App() {
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const gameRef = useRef(game)
   const creditsSummaryRef = useRef<HTMLElement | null>(null)
-  const topSafeAreaBlurRef = useRef<HTMLDivElement | null>(null)
+  const topSafeAreaBoundaryRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     gameRef.current = game
@@ -235,7 +236,7 @@ function App() {
 
     const syncFloatingState = () => {
       const blurBoundary =
-        topSafeAreaBlurRef.current?.getBoundingClientRect().bottom ?? 0
+        topSafeAreaBoundaryRef.current?.getBoundingClientRect().bottom ?? 0
       const summaryTop = summaryElement.getBoundingClientRect().top
       setShowFloatingSummary(summaryTop <= blurBoundary)
     }
@@ -519,6 +520,34 @@ function App() {
     </div>
   )
 
+  const renderAboutTab = () => (
+    <div className="space-y-6">
+      <section>
+        <h3 className="text-base font-semibold">About</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Epoch Foundry is a mobile-first idle game built around long-term
+          credit production growth.
+        </p>
+      </section>
+      <section className="border-t border-border/70 pt-4">
+        <h3 className="text-base font-semibold">Current Focus</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Early progression centers on credits, generators, and upgrades that
+          speed up credit production. Additional systems are planned for later
+          phases.
+        </p>
+      </section>
+      <section className="border-t border-border/70 pt-4">
+        <h3 className="text-base font-semibold">Technical Notes</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Progress is stored locally with automatic saves and offline
+          production, including a capped offline window that can be expanded by
+          late-game upgrades.
+        </p>
+      </section>
+    </div>
+  )
+
   return (
     <>
       <main
@@ -526,24 +555,27 @@ function App() {
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.25rem)' }}
       >
       <div
-        ref={topSafeAreaBlurRef}
-        className="pointer-events-none fixed inset-x-0 top-0 z-30 bg-background/70 backdrop-blur-md"
-        style={{ height: 'env(safe-area-inset-top)' }}
-      />
-
-      <div
         className={cn(
-          'pointer-events-none fixed inset-x-0 z-40 transition-all duration-200',
-          showFloatingSummary ? 'translate-y-0 opacity-100' : '-translate-y-3 opacity-0',
+          'pointer-events-none fixed inset-x-0 top-0 z-40 overflow-hidden bg-background/70 backdrop-blur-md transition-[height,border-color] duration-200',
+          showFloatingSummary ? 'border-b border-border' : 'border-b border-transparent',
         )}
-        style={{ top: 'env(safe-area-inset-top)' }}
+        style={{
+          height: showFloatingSummary
+            ? 'calc(env(safe-area-inset-top) + 3rem)'
+            : 'env(safe-area-inset-top)',
+          paddingLeft: 'calc(env(safe-area-inset-left) + 1rem)',
+          paddingRight: 'calc(env(safe-area-inset-right) + 1rem)',
+        }}
       >
         <div
-          className="w-full border-b border-border bg-background/95 py-2 text-sm backdrop-blur"
-          style={{
-            paddingLeft: 'calc(env(safe-area-inset-left) + 1rem)',
-            paddingRight: 'calc(env(safe-area-inset-right) + 1rem)',
-          }}
+          ref={topSafeAreaBoundaryRef}
+          style={{ height: 'env(safe-area-inset-top)' }}
+        />
+        <div
+          className={cn(
+            'w-full py-2 text-sm transition-all duration-200',
+            showFloatingSummary ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0',
+          )}
         >
           <div className="flex items-center justify-between gap-3 whitespace-nowrap">
             <p className="flex items-center gap-1.5 font-mono tabular-nums font-semibold">
@@ -557,14 +589,7 @@ function App() {
         </div>
       </div>
 
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Epoch Foundry</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Early-game foundation: credits, generators, and upgrade acceleration.
-        </p>
-      </header>
-
-      <section ref={creditsSummaryRef} className="mt-5 border-b border-border/70 pb-4">
+      <section ref={creditsSummaryRef} className="mt-2 border-b border-border/70 pb-4">
         <article>
           <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
             <Coins className="size-3.5 text-muted-foreground" aria-hidden />
@@ -586,6 +611,7 @@ function App() {
         {activeTab === 'upgrades' && renderUpgradesTab()}
         {activeTab === 'stats' && renderStatsTab()}
         {activeTab === 'settings' && renderSettingsTab()}
+        {activeTab === 'about' && renderAboutTab()}
       </section>
 
       <div
@@ -608,13 +634,14 @@ function App() {
                     size="sm"
                     variant="ghost"
                     className={cn(
-                      'h-11 rounded-lg bg-transparent px-0.5 shadow-none hover:bg-transparent active:bg-transparent',
+                      'h-12 flex-col gap-1.5 rounded-lg bg-transparent px-0.5 shadow-none hover:bg-transparent active:bg-transparent',
                       activeTab === item.key ? 'text-foreground' : 'text-muted-foreground/70',
                     )}
                     onClick={() => setActiveTab(item.key)}
                     aria-label={item.label}
                   >
-                    <Icon className="size-6" />
+                    <Icon className="size-7" />
+                    <span className="text-[10px] leading-none">{item.label}</span>
                   </Button>
                 )
               })}
@@ -624,12 +651,13 @@ function App() {
                     size="sm"
                     variant="ghost"
                     className={cn(
-                      'h-11 rounded-lg bg-transparent px-0.5 shadow-none hover:bg-transparent active:bg-transparent',
+                      'h-12 flex-col gap-1.5 rounded-lg bg-transparent px-0.5 shadow-none hover:bg-transparent active:bg-transparent',
                       isOtherActive ? 'text-foreground' : 'text-muted-foreground/70',
                     )}
                     aria-label="Other sections"
                   >
-                    <MoreHorizontal className="size-6" />
+                    <MoreHorizontal className="size-7" />
+                    <span className="text-[10px] leading-none">Other</span>
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="bottom" className="max-h-[80vh] rounded-t-xl px-0 pb-6">
