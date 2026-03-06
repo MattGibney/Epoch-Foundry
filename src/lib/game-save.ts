@@ -11,9 +11,15 @@ import {
   UPGRADE_ORDER,
   type RunUpgradeKey,
 } from '@/lib/game-engine'
+import {
+  readSaveSlotRecord,
+  removeSaveSlot,
+  writeSaveSlotRecord,
+  type SaveSlotPayload,
+} from '@/lib/save-db'
 
-const SAVE_KEY = 'epochFoundry.save.main'
-const SAVE_BACKUP_KEY = 'epochFoundry.save.backup'
+const MAIN_SAVE_SLOT = 'main'
+const BACKUP_SAVE_SLOT = 'backup'
 const SAVE_FORMAT = 'epoch-foundry-save'
 const SAVE_SCHEMA_VERSION = 1
 
@@ -200,19 +206,12 @@ function parseState(value: unknown): GameState | null {
   return parseModernState(value) ?? parseLegacyState(value)
 }
 
-function parseStateFromEnvelope(raw: string): GameState | null {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
+function parseStateFromEnvelope(envelope: SaveSlotPayload | null): GameState | null {
+  if (!envelope) {
     return null
   }
 
-  if (!parsed || typeof parsed !== 'object') {
-    return null
-  }
-
-  const saveEnvelope = parsed as Partial<SaveEnvelopeV1>
+  const saveEnvelope = envelope as Partial<SaveEnvelopeV1>
   if (
     saveEnvelope.format !== SAVE_FORMAT ||
     typeof saveEnvelope.schemaVersion !== 'number' ||
@@ -234,49 +233,51 @@ function createSaveEnvelope(state: GameState): SaveEnvelopeV1 {
   }
 }
 
-function writeSaveEnvelope(payload: SaveEnvelopeV1, backupRaw?: string | null): void {
+async function writeSaveEnvelope(
+  payload: SaveEnvelopeV1,
+  backupPayload?: SaveEnvelopeV1 | null,
+): Promise<void> {
   if (typeof window === 'undefined') {
     return
   }
 
   try {
-    const nextRaw = JSON.stringify(payload)
-
-    if (backupRaw !== undefined) {
-      if (backupRaw) {
-        window.localStorage.setItem(SAVE_BACKUP_KEY, backupRaw)
+    if (backupPayload !== undefined) {
+      if (backupPayload) {
+        await writeSaveSlotRecord(BACKUP_SAVE_SLOT, backupPayload)
       } else {
-        window.localStorage.removeItem(SAVE_BACKUP_KEY)
+        await removeSaveSlot(BACKUP_SAVE_SLOT)
       }
     } else {
-      const currentRaw = window.localStorage.getItem(SAVE_KEY)
-      if (currentRaw) {
-        window.localStorage.setItem(SAVE_BACKUP_KEY, currentRaw)
+      const current = await readSaveSlotRecord(MAIN_SAVE_SLOT)
+      if (current) {
+        await writeSaveSlotRecord(BACKUP_SAVE_SLOT, current)
       }
     }
 
-    window.localStorage.setItem(SAVE_KEY, nextRaw)
+    await writeSaveSlotRecord(MAIN_SAVE_SLOT, payload)
   } catch {
     // Intentionally swallow storage exceptions for MVP stability.
   }
 }
 
-export function loadGameStateWithSummary(): LoadGameStateResult {
+export async function loadGameStateWithSummary(): Promise<LoadGameStateResult> {
   if (typeof window === 'undefined') {
     return createFreshLoadResult(Date.now())
   }
 
   try {
-    const mainRaw = window.localStorage.getItem(SAVE_KEY)
-    const backupRaw = window.localStorage.getItem(SAVE_BACKUP_KEY)
-    const mainState = mainRaw ? parseStateFromEnvelope(mainRaw) : null
-    const backupState = backupRaw ? parseStateFromEnvelope(backupRaw) : null
+    const mainEnvelope = await readSaveSlotRecord(MAIN_SAVE_SLOT)
+    const backupEnvelope = await readSaveSlotRecord(BACKUP_SAVE_SLOT)
+    const mainState = parseStateFromEnvelope(mainEnvelope)
+    const backupState = parseStateFromEnvelope(backupEnvelope)
 
     const loadedState = mainState ?? backupState
     const loadedSource = mainState ? 'main' : backupState ? 'backup' : null
-    const loadedRaw = mainState ? mainRaw : backupState ? backupRaw : null
+    const loadedEnvelope =
+      mainState ? mainEnvelope : backupState ? backupEnvelope : null
 
-    if (!loadedState || !loadedSource || loadedRaw === null) {
+    if (!loadedState || !loadedSource || !loadedEnvelope) {
       return createFreshLoadResult(Date.now())
     }
 
@@ -301,9 +302,9 @@ export function loadGameStateWithSummary(): LoadGameStateResult {
       loadedSource === 'backup' || didStateChangeFromHydration
 
     if (shouldRewriteMain) {
-      writeSaveEnvelope(
+      await writeSaveEnvelope(
         createSaveEnvelope(hydratedState),
-        loadedSource === 'backup' ? loadedRaw : undefined,
+        loadedSource === 'backup' ? createSaveEnvelope(loadedState) : undefined,
       )
     }
 
@@ -322,22 +323,23 @@ export function loadGameStateWithSummary(): LoadGameStateResult {
   }
 }
 
-export function loadGameState(): GameState {
-  return loadGameStateWithSummary().state
+export async function loadGameState(): Promise<GameState> {
+  const result = await loadGameStateWithSummary()
+  return result.state
 }
 
-export function saveGameState(state: GameState): void {
-  writeSaveEnvelope(createSaveEnvelope(state))
+export async function saveGameState(state: GameState): Promise<void> {
+  await writeSaveEnvelope(createSaveEnvelope(state))
 }
 
-export function clearGameSave(): void {
+export async function clearGameSave(): Promise<void> {
   if (typeof window === 'undefined') {
     return
   }
 
   try {
-    window.localStorage.removeItem(SAVE_KEY)
-    window.localStorage.removeItem(SAVE_BACKUP_KEY)
+    await removeSaveSlot(MAIN_SAVE_SLOT)
+    await removeSaveSlot(BACKUP_SAVE_SLOT)
   } catch {
     // Intentionally swallow storage exceptions for MVP stability.
   }

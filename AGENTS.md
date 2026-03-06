@@ -20,6 +20,9 @@
 - Keep shadcn theme tokens/mappings in sync with the selected base theme so stateful component colors (for example `bg-input` on switches) render correctly.
 - Keep `@/*` path alias configuration available in the root TypeScript config so shadcn CLI resolves `@/...` aliases to `src/...` paths correctly.
 - Centralize cross-cutting/tunable constants in `src/lib/consts.ts`; add new constants there instead of scattering them across feature files.
+- Route all save/load persistence I/O through `src/lib/save-db.ts` so storage behavior is maintained in one place.
+- For IndexedDB schema changes, always bump DB version and add an explicit forward migration in `src/lib/save-db.ts` `MIGRATIONS`.
+- Persist save records as structured IndexedDB fields (e.g. `format`, `schemaVersion`, `savedAtMs`, `state`) rather than opaque raw JSON blobs.
 - Use monospace styling for all rendered numeric values in the game UI for readability and consistency.
 - Avoid fixed-column navigation layouts on mobile; prefer patterns that scale with additional sections (for example a section switcher sheet/menu instead of dense tab rows).
 - Keep primary navigation thumb-reachable on mobile (prefer bottom-anchored access patterns over top-only triggers).

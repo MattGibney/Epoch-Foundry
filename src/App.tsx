@@ -106,8 +106,8 @@ function formatDuration(totalSeconds: number): string {
 }
 
 function App() {
-  const [initialLoad] = useState(() => loadGameStateWithSummary())
-  const [game, setGame] = useState<GameState>(initialLoad.state)
+  const [game, setGame] = useState<GameState>(() => createInitialGameState(Date.now()))
+  const [isHydrated, setIsHydrated] = useState(false)
   const [activeTab, setActiveTab] = useState<TabKey>('production')
   const [isSectionsOpen, setIsSectionsOpen] = useState(false)
   const [nowMs, setNowMs] = useState<number>(() => Date.now())
@@ -123,28 +123,48 @@ function App() {
   }, [game])
 
   useEffect(() => {
-    const offlineProgress = initialLoad.offlineProgress
-    if (
-      !offlineProgress ||
-      offlineProgress.appliedSeconds <= OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS
-    ) {
-      return
+    let cancelled = false
+
+    const hydrate = async () => {
+      const loaded = await loadGameStateWithSummary()
+      if (cancelled) {
+        return
+      }
+
+      gameRef.current = loaded.state
+      setGame(loaded.state)
+      setNowMs(Date.now())
+      setIsHydrated(true)
+
+      const offlineProgress = loaded.offlineProgress
+      if (
+        !offlineProgress ||
+        offlineProgress.appliedSeconds <= OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS
+      ) {
+        return
+      }
+
+      toast(
+        <span className="inline-flex items-center gap-1.5">
+          <span>Offline Production</span>
+          <Coins className="size-4 text-muted-foreground" aria-hidden />
+          <span className="font-mono tabular-nums">
+            {formatIdleNumber(offlineProgress.producedCredits)}
+          </span>
+        </span>,
+        { id: 'offline-production' },
+      )
     }
 
-    toast(
-      <span className="inline-flex items-center gap-1.5">
-        <span>Offline Production</span>
-        <Coins className="size-4 text-muted-foreground" aria-hidden />
-        <span className="font-mono tabular-nums">
-          {formatIdleNumber(offlineProgress.producedCredits)}
-        </span>
-      </span>,
-      { id: 'offline-production' },
-    )
-  }, [initialLoad])
+    void hydrate()
 
-  const persistGame = useCallback(() => {
-    saveGameState(gameRef.current)
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const persistGame = useCallback(async () => {
+    await saveGameState(gameRef.current)
   }, [])
 
   const resetGame = useCallback(() => {
@@ -152,18 +172,20 @@ function App() {
     const initialState = createInitialGameState(now)
     const currentSettings = gameRef.current.settings
 
-    clearGameSave()
     const nextState = {
       ...initialState,
       settings: currentSettings,
     }
 
-    saveGameState(nextState)
-
     gameRef.current = nextState
     setGame(nextState)
     setNowMs(now)
     setActiveTab('production')
+
+    void (async () => {
+      await clearGameSave()
+      await saveGameState(nextState)
+    })()
   }, [])
 
   const refreshApp = useCallback(async () => {
@@ -189,6 +211,10 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (!isHydrated) {
+      return
+    }
+
     const tickId = window.setInterval(() => {
       const now = Date.now()
       setNowMs(now)
@@ -198,27 +224,35 @@ function App() {
     return () => {
       window.clearInterval(tickId)
     }
-  }, [])
+  }, [isHydrated])
 
   useEffect(() => {
+    if (!isHydrated) {
+      return
+    }
+
     const autosaveId = window.setInterval(() => {
-      persistGame()
+      void persistGame()
     }, 10_000)
 
     return () => {
       window.clearInterval(autosaveId)
     }
-  }, [persistGame])
+  }, [isHydrated, persistGame])
 
   useEffect(() => {
+    if (!isHydrated) {
+      return
+    }
+
     const saveOnVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        persistGame()
+        void persistGame()
       }
     }
 
     const saveOnPageExit = () => {
-      persistGame()
+      void persistGame()
     }
 
     document.addEventListener('visibilitychange', saveOnVisibilityChange)
@@ -230,7 +264,7 @@ function App() {
       window.removeEventListener('pagehide', saveOnPageExit)
       window.removeEventListener('beforeunload', saveOnPageExit)
     }
-  }, [persistGame])
+  }, [isHydrated, persistGame])
 
   useEffect(() => {
     const summaryElement = creditsSummaryRef.current
