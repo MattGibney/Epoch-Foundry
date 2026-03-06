@@ -105,6 +105,32 @@ function formatDuration(totalSeconds: number): string {
   return `${seconds}s`
 }
 
+function getSecondsUntilAffordable(
+  credits: Decimal,
+  cost: Decimal,
+  creditsPerSecond: Decimal,
+): number | null {
+  if (credits.greaterThanOrEqualTo(cost)) {
+    return 0
+  }
+
+  if (creditsPerSecond.lessThanOrEqualTo(0)) {
+    return null
+  }
+
+  const remaining = cost.minus(credits)
+  const eta = remaining.div(creditsPerSecond)
+  if (!eta.isFinite()) {
+    return null
+  }
+
+  if (eta.greaterThan(Number.MAX_SAFE_INTEGER)) {
+    return Number.MAX_SAFE_INTEGER
+  }
+
+  return Math.max(1, eta.ceil().toNumber())
+}
+
 function App() {
   const [game, setGame] = useState<GameState>(() => createInitialGameState(Date.now()))
   const [isHydrated, setIsHydrated] = useState(false)
@@ -342,35 +368,78 @@ function App() {
           const credits = new Decimal(game.credits)
           const canBuy = credits.greaterThanOrEqualTo(cost)
           const contribution = getGeneratorProductionPerSecond(game, key)
+          const remainingCredits = canBuy ? new Decimal(0) : cost.minus(credits)
+          const secondsUntilAffordable = getSecondsUntilAffordable(
+            credits,
+            cost,
+            creditsPerSecond,
+          )
+          const affordabilityPercent = Decimal.min(
+            new Decimal(100),
+            credits.div(cost).times(100),
+          )
+            .toDecimalPlaces(0, Decimal.ROUND_FLOOR)
+            .toNumber()
 
           return (
             <article key={definition.key} className="py-4 first:pt-0">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="text-base font-semibold">{definition.label}</h3>
-                  <p className="text-sm text-muted-foreground">{definition.description}</p>
+              <div className="min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex items-center gap-2">
+                    <h3 className="truncate text-base font-semibold">{definition.label}</h3>
+                    <span className="shrink-0 rounded-full border border-border/70 px-2 py-0.5 font-mono text-xs tabular-nums text-muted-foreground">
+                      {owned}
+                    </span>
+                  </div>
+                  <p className="shrink-0 text-sm text-muted-foreground">
+                    +<span className="font-mono tabular-nums">{formatIdleNumber(contribution)}</span> / sec
+                  </p>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {definition.description}
+                </p>
+              </div>
+              <div className="mt-2 flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm text-muted-foreground">
+                    Cost:{' '}
+                    <span className="font-mono tabular-nums">{formatIdleNumber(cost)}</span>{' '}
+                    credits
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn(
+                        'h-full rounded-full transition-all',
+                        canBuy ? 'bg-foreground/70' : 'bg-muted-foreground/60',
+                      )}
+                      style={{ width: `${Math.max(0, affordabilityPercent)}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {canBuy ? (
+                      'Ready to purchase'
+                    ) : (
+                      <>
+                        Need{' '}
+                        <span className="font-mono tabular-nums">
+                          {formatIdleNumber(remainingCredits)}
+                        </span>{' '}
+                        more
+                        {secondsUntilAffordable !== null && secondsUntilAffordable > 0
+                          ? ` (${formatDuration(secondsUntilAffordable)})`
+                          : ''}
+                      </>
+                    )}
+                  </p>
                 </div>
                 <Button
                   size="sm"
+                  className="h-10 min-w-[5.5rem] shrink-0 font-mono tabular-nums"
                   disabled={!canBuy}
                   onClick={() => setGame((current) => buyGenerator(current, key))}
                 >
                   Buy
                 </Button>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
-                <p>
-                  Owned:{' '}
-                  <span className="font-mono tabular-nums">{owned}</span>
-                </p>
-                <p>
-                  +<span className="font-mono tabular-nums">{formatIdleNumber(contribution)}</span> / sec
-                </p>
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Cost:{' '}
-                <span className="font-mono tabular-nums">{formatIdleNumber(cost)}</span>{' '}
-                credits
               </div>
             </article>
           )
