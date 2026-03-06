@@ -655,10 +655,6 @@ function toDecimal(value: Decimal.Value): Decimal {
   return new Decimal(value)
 }
 
-function roundToWhole(value: Decimal.Value): Decimal {
-  return toDecimal(value).toDecimalPlaces(0, Decimal.ROUND_HALF_UP)
-}
-
 function calculateBulkCost(
   baseCost: Decimal,
   growth: Decimal,
@@ -791,17 +787,34 @@ export function getGeneratorCost(
   amount = state.buyAmount,
 ): Decimal {
   const definition = GENERATOR_DEFS[key]
-  return roundToWhole(
-    calculateBulkCost(
-      toDecimal(definition.baseCost),
-      toDecimal(definition.growth),
-      state.generators[key],
-      amount,
-    ),
+  return calculateBulkCost(
+    toDecimal(definition.baseCost),
+    toDecimal(definition.growth),
+    state.generators[key],
+    amount,
   )
 }
 
-function getGlobalProductionMultiplier(state: GameState): Decimal {
+function applyProducedCredits(
+  state: GameState,
+  produced: Decimal,
+  nextLastTickAtMs: number,
+): GameState {
+  return {
+    ...state,
+    credits: toDecimal(state.credits).plus(produced).toString(),
+    stats: {
+      ...state.stats,
+      lastTickAtMs: nextLastTickAtMs,
+      totalCredits: toDecimal(state.stats.totalCredits).plus(produced).toString(),
+      totalCreditsAllResets: toDecimal(state.stats.totalCreditsAllResets)
+        .plus(produced)
+        .toString(),
+    },
+  }
+}
+
+export function getGlobalProductionMultiplier(state: GameState): Decimal {
   let multiplier = ONE
 
   for (const key of UPGRADE_ORDER) {
@@ -900,19 +913,7 @@ export function applyOfflineProgress(state: GameState, nowMs = Date.now()): Game
   }
 
   const produced = getTotalProductionPerSecond(state).times(cappedSeconds)
-
-  return {
-    ...state,
-    credits: roundToWhole(toDecimal(state.credits).plus(produced)).toString(),
-    stats: {
-      ...state.stats,
-      lastTickAtMs: effectiveNowMs,
-      totalCredits: roundToWhole(toDecimal(state.stats.totalCredits).plus(produced)).toString(),
-      totalCreditsAllResets: roundToWhole(
-        toDecimal(state.stats.totalCreditsAllResets).plus(produced),
-      ).toString(),
-    },
-  }
+  return applyProducedCredits(state, produced, effectiveNowMs)
 }
 
 export function tickGame(state: GameState, nowMs: number): GameState {
@@ -926,19 +927,7 @@ export function tickGame(state: GameState, nowMs: number): GameState {
   }
 
   const produced = getTotalProductionPerSecond(state).times(elapsedSeconds)
-
-  return {
-    ...state,
-    credits: roundToWhole(toDecimal(state.credits).plus(produced)).toString(),
-    stats: {
-      ...state.stats,
-      lastTickAtMs: nowMs,
-      totalCredits: roundToWhole(toDecimal(state.stats.totalCredits).plus(produced)).toString(),
-      totalCreditsAllResets: roundToWhole(
-        toDecimal(state.stats.totalCreditsAllResets).plus(produced),
-      ).toString(),
-    },
-  }
+  return applyProducedCredits(state, produced, nowMs)
 }
 
 export function buyGenerator(state: GameState, key: GeneratorKey): GameState {
@@ -951,7 +940,7 @@ export function buyGenerator(state: GameState, key: GeneratorKey): GameState {
 
   return {
     ...state,
-    credits: roundToWhole(credits.minus(cost)).toString(),
+    credits: credits.minus(cost).toString(),
     generators: {
       ...state.generators,
       [key]: state.generators[key] + state.buyAmount,
@@ -998,7 +987,7 @@ export function buyUpgrade(state: GameState, key: RunUpgradeKey): GameState {
 
   return {
     ...state,
-    credits: roundToWhole(toDecimal(state.credits).minus(upgrade.cost)).toString(),
+    credits: toDecimal(state.credits).minus(upgrade.cost).toString(),
     purchasedUpgrades: {
       ...state.purchasedUpgrades,
       [key]: true,

@@ -1,7 +1,7 @@
 import Decimal from 'decimal.js'
 
 const NOTATION_THRESHOLD = new Decimal(100_000_000)
-const DECIMAL_DISABLED_THRESHOLD = new Decimal(1_000_000)
+const ALWAYS_TWO_DECIMAL_THRESHOLD = new Decimal(10_000)
 const TEN = new Decimal(10)
 
 const SHORT_SUFFIXES = [
@@ -85,11 +85,7 @@ export function formatIdleNumber(value: Decimal.Value): string {
   }
 
   const absValue = decimalValue.abs()
-  if (absValue.lessThanOrEqualTo(DECIMAL_DISABLED_THRESHOLD)) {
-    if (decimalValue.isInteger()) {
-      return integerNumberFormatter.format(decimalValue.toNumber())
-    }
-
+  if (absValue.lessThan(ALWAYS_TWO_DECIMAL_THRESHOLD)) {
     return fixedTwoDecimalFormatter.format(decimalValue.toNumber())
   }
 

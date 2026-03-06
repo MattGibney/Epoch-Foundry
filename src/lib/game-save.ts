@@ -64,10 +64,6 @@ function parseDecimalString(value: unknown): string | null {
   }
 }
 
-function toWholeDecimalString(value: string): string {
-  return new Decimal(value).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toString()
-}
-
 function parseNonNegativeInt(value: unknown): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return null
@@ -122,7 +118,7 @@ function parseModernState(value: unknown): GameState | null {
   const nowMs = Date.now()
   const initial = createInitialGameState(nowMs)
   const candidate = value as Record<string, unknown>
-  const parsedCredits = parseDecimalString(candidate.credits)
+  const credits = parseDecimalString(candidate.credits)
   const stats = candidate.stats as Record<string, unknown> | undefined
   const generators = candidate.generators as Record<string, unknown> | undefined
   const purchasedUpgrades = candidate.purchasedUpgrades as Record<string, unknown> | undefined
@@ -130,20 +126,15 @@ function parseModernState(value: unknown): GameState | null {
   const settings = parseSettings(candidate.settings)
   const prestige = parsePrestige(candidate.prestige)
 
-  if (!parsedCredits) {
+  if (!credits) {
     return null
   }
-  const credits = toWholeDecimalString(parsedCredits)
 
   const startedAtMs = parseNonNegativeInt(stats?.startedAtMs) ?? nowMs
   const lastTickAtMs = parseNonNegativeInt(stats?.lastTickAtMs) ?? startedAtMs
-  const totalCredits = toWholeDecimalString(
-    parseDecimalString(stats?.totalCredits) ?? credits,
-  )
+  const totalCredits = parseDecimalString(stats?.totalCredits) ?? credits
   const totalCreditsAllResets =
-    toWholeDecimalString(
-      parseDecimalString(stats?.totalCreditsAllResets) ?? totalCredits,
-    )
+    parseDecimalString(stats?.totalCreditsAllResets) ?? totalCredits
 
   const normalizedLastTickAtMs = Math.max(startedAtMs, lastTickAtMs)
 
@@ -202,10 +193,9 @@ function parseLegacyState(value: unknown): GameState | null {
     return null
   }
 
-  const wholeRecoveredCredits = toWholeDecimalString(recoveredCredits)
-  initial.credits = wholeRecoveredCredits
-  initial.stats.totalCredits = wholeRecoveredCredits
-  initial.stats.totalCreditsAllResets = wholeRecoveredCredits
+  initial.credits = recoveredCredits
+  initial.stats.totalCredits = recoveredCredits
+  initial.stats.totalCreditsAllResets = recoveredCredits
 
   const legacyGenerators = candidate.generators as Record<string, unknown> | undefined
   const legacyMiners = parseNonNegativeInt(legacyGenerators?.miners)

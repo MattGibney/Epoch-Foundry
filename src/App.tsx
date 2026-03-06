@@ -138,6 +138,10 @@ function formatAffordabilityEta(totalSeconds: number): string {
   return formatDuration(totalSeconds)
 }
 
+function formatRenderedCredits(value: Decimal.Value): string {
+  return formatIdleNumber(value)
+}
+
 function getSecondsUntilAffordable(
   credits: Decimal,
   cost: Decimal,
@@ -220,7 +224,7 @@ function App() {
           <span>Offline Production</span>
           <Coins className="size-4 text-muted-foreground" aria-hidden />
           <span className="font-mono tabular-nums">
-            {formatIdleNumber(offlineProgress.producedCredits)}
+            {formatRenderedCredits(offlineProgress.producedCredits)}
           </span>
         </span>,
         { id: 'offline-production' },
@@ -472,7 +476,7 @@ function App() {
                     </span>
                   </div>
                   <p className="shrink-0 text-sm text-muted-foreground">
-                    +<span className="font-mono tabular-nums">{formatIdleNumber(contribution)}</span> / sec
+                    +<span className="font-mono tabular-nums">{formatRenderedCredits(contribution)}</span> / sec
                   </p>
                 </div>
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
@@ -483,7 +487,7 @@ function App() {
                 <div className="min-w-0 flex-1">
                   <div className="text-sm text-muted-foreground">
                     Cost:{' '}
-                    <span className="font-mono tabular-nums">{formatIdleNumber(cost)}</span>{' '}
+                    <span className="font-mono tabular-nums">{formatRenderedCredits(cost)}</span>{' '}
                     credits
                   </div>
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -501,9 +505,9 @@ function App() {
                     ) : (
                       <>
                         Need{' '}
-                        <span className="font-mono tabular-nums">
-                          {formatIdleNumber(remainingCredits)}
-                        </span>{' '}
+                          <span className="font-mono tabular-nums">
+                            {formatRenderedCredits(remainingCredits)}
+                          </span>{' '}
                         more
                         {secondsUntilAffordable !== null && secondsUntilAffordable > 0
                           ? ` (${formatAffordabilityEta(secondsUntilAffordable)})`
@@ -553,7 +557,7 @@ function App() {
               <p className="mt-1.5 text-sm text-muted-foreground">
                 Price:{' '}
                 <span className="font-mono tabular-nums">
-                  {formatIdleNumber(cost)}
+                  {formatRenderedCredits(cost)}
                 </span>{' '}
                 credits
               </p>
@@ -643,7 +647,7 @@ function App() {
           </p>
           <p className="flex items-center justify-between">
             <span className="text-muted-foreground">Credits / sec</span>
-            <span className="font-mono tabular-nums">{formatIdleNumber(creditsPerSecond)}</span>
+            <span className="font-mono tabular-nums">{formatRenderedCredits(creditsPerSecond)}</span>
           </p>
           <p className="flex items-center justify-between">
             <span className="text-muted-foreground">Offline Cap</span>
@@ -659,13 +663,13 @@ function App() {
           <p className="flex items-center justify-between">
             <span className="text-muted-foreground">Run Credits Produced</span>
             <span className="font-mono tabular-nums">
-              {formatIdleNumber(game.stats.totalCredits)}
+              {formatRenderedCredits(game.stats.totalCredits)}
             </span>
           </p>
           <p className="flex items-center justify-between">
             <span className="text-muted-foreground">All-Reset Credits Produced</span>
             <span className="font-mono tabular-nums">
-              {formatIdleNumber(game.stats.totalCreditsAllResets)}
+              {formatRenderedCredits(game.stats.totalCreditsAllResets)}
             </span>
           </p>
         </div>
@@ -851,10 +855,10 @@ function App() {
           <div className="flex items-center justify-between gap-3 whitespace-nowrap">
             <p className="flex items-center gap-1.5 font-mono tabular-nums font-semibold">
               <Coins className="size-4 text-muted-foreground" aria-hidden />
-              <span>{formatIdleNumber(game.credits)}</span>
+              <span>{formatRenderedCredits(game.credits)}</span>
             </p>
             <p className="font-mono tabular-nums">
-              +{formatIdleNumber(creditsPerSecond)} / sec
+              +{formatRenderedCredits(creditsPerSecond)} / sec
             </p>
           </div>
         </div>
@@ -867,12 +871,12 @@ function App() {
             <span>Credits</span>
           </p>
           <p className="mt-1 text-3xl font-mono font-semibold tabular-nums">
-            {formatIdleNumber(game.credits)}
+            {formatRenderedCredits(game.credits)}
           </p>
         </article>
         <article className="mt-2">
           <p className="text-sm text-muted-foreground">
-            +<span className="font-mono tabular-nums">{formatIdleNumber(creditsPerSecond)}</span> / sec
+            +<span className="font-mono tabular-nums">{formatRenderedCredits(creditsPerSecond)}</span> / sec
           </p>
         </article>
       </section>
