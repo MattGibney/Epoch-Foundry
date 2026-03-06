@@ -8,7 +8,7 @@ import {
   type GeneratorKey,
   UPGRADE_ORDER,
   type RunUpgradeKey,
-} from '@/lib/mvp-engine'
+} from '@/lib/game-engine'
 
 const SAVE_KEY = 'epochFoundry.save.main'
 const SAVE_FORMAT = 'epoch-foundry-save'

@@ -32,7 +32,7 @@ import {
   UPGRADE_DEFS,
   UPGRADE_ORDER,
   type GameState,
-} from '@/lib/mvp-engine'
+} from '@/lib/game-engine'
 import { formatIdleNumber } from '@/lib/number-format'
 import { cn } from '@/lib/utils'
 
