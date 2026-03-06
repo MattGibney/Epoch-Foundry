@@ -10,6 +10,7 @@
 - Prefer React over Preact for this project; minimizing bundle size is not a primary objective.
 - Prefer shadcn/ui components wherever possible for UI patterns (for example dialogs, forms, and actions) instead of ad-hoc custom elements.
 - Prefer Sonner (via the shadcn-style wrapper) for transient in-app notifications/toasts.
+- When placing Sonner toasts on mobile, set both `offset` and `mobileOffset` using safe-area insets so notifications are not obscured by OS UI.
 - All gameplay numeric values must support magnitudes beyond JavaScript `number` limits; use one shared big-number library consistently across engine, UI formatting, and persistence.
 - Production URL: `https://epoch-foundry.mattgibney.co.uk`.
 - Commits merged/pushed to `main` auto-deploy to production; treat `main` changes as release-impacting.
@@ -21,6 +22,8 @@
 - Use monospace styling for all rendered numeric values in the game UI for readability and consistency.
 - Avoid fixed-column navigation layouts on mobile; prefer patterns that scale with additional sections (for example a section switcher sheet/menu instead of dense tab rows).
 - Keep primary navigation thumb-reachable on mobile (prefer bottom-anchored access patterns over top-only triggers).
+- Define safe area as viewport space not obscured by OS UI (for example status bar, Dynamic Island, and home indicator), and keep all rendered UI/overlays positioned within that safe area.
+- When tuning top spacing, apply safe-area insets in both contexts but allow different extra padding for standard browser mode vs standalone PWA mode.
 - In iOS home-screen standalone mode, treat the top safe-area/status region as translucent and provide a persistent blur veil so scrolled content behind the clock/Dynamic Island remains legible.
 - For mobile navigation scalability, keep the most-used sections as direct bottom icon actions and route less-frequent sections through an overflow drawer.
 - Apply offline progress immediately on load with an explicit cap; use late-game upgrades to extend that cap rather than removing it outright.

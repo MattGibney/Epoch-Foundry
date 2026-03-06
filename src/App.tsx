@@ -58,11 +58,14 @@ import {
   UPGRADE_ORDER,
   type GameState,
 } from '@/lib/game-engine'
+import {
+  OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS,
+  SAFE_AREA_INSETS,
+} from '@/lib/game-config'
 import { formatIdleNumber } from '@/lib/number-format'
 import { cn } from '@/lib/utils'
 
 type TabKey = 'production' | 'upgrades' | 'stats' | 'settings' | 'about'
-const OFFLINE_TOAST_THRESHOLD_SECONDS = 5 * 60
 const CREDITS_SYMBOL = '¤'
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -124,7 +127,7 @@ function App() {
     const offlineProgress = initialLoad.offlineProgress
     if (
       !offlineProgress ||
-      offlineProgress.appliedSeconds <= OFFLINE_TOAST_THRESHOLD_SECONDS
+      offlineProgress.appliedSeconds <= OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS
     ) {
       return
     }
@@ -238,7 +241,7 @@ function App() {
       const blurBoundary =
         topSafeAreaBoundaryRef.current?.getBoundingClientRect().bottom ?? 0
       const summaryTop = summaryElement.getBoundingClientRect().top
-      setShowFloatingSummary(summaryTop <= blurBoundary)
+      setShowFloatingSummary(summaryTop < blurBoundary)
     }
 
     const syncOnNextFrame = () => {
@@ -551,8 +554,13 @@ function App() {
   return (
     <>
       <main
-        className="mx-auto min-h-screen w-full max-w-lg px-4 pt-6"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.25rem)' }}
+        className="mx-auto min-h-screen w-full max-w-lg"
+        style={{
+          paddingTop: `1rem`,
+          paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
+          paddingRight: `calc(${SAFE_AREA_INSETS.right} + 1rem)`,
+          paddingBottom: `calc(${SAFE_AREA_INSETS.bottom} + 5.25rem)`,
+        }}
       >
       <div
         className={cn(
@@ -561,15 +569,15 @@ function App() {
         )}
         style={{
           height: showFloatingSummary
-            ? 'calc(env(safe-area-inset-top) + 3rem)'
-            : 'env(safe-area-inset-top)',
-          paddingLeft: 'calc(env(safe-area-inset-left) + 1rem)',
-          paddingRight: 'calc(env(safe-area-inset-right) + 1rem)',
+            ? `calc(${SAFE_AREA_INSETS.top} + 3rem)`
+            : SAFE_AREA_INSETS.top,
+          paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
+          paddingRight: `calc(${SAFE_AREA_INSETS.right} + 1rem)`,
         }}
       >
         <div
           ref={topSafeAreaBoundaryRef}
-          style={{ height: 'env(safe-area-inset-top)' }}
+          style={{ height: SAFE_AREA_INSETS.top }}
         />
         <div
           className={cn(
@@ -589,7 +597,7 @@ function App() {
         </div>
       </div>
 
-      <section ref={creditsSummaryRef} className="mt-2 border-b border-border/70 pb-4">
+      <section ref={creditsSummaryRef} className="border-b border-border/70 pb-4">
         <article>
           <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
             <Coins className="size-3.5 text-muted-foreground" aria-hidden />
@@ -617,9 +625,9 @@ function App() {
       <div
         className="fixed inset-x-0 bottom-0 z-40"
         style={{
-          paddingLeft: 'calc(env(safe-area-inset-left) + 1rem)',
-          paddingRight: 'calc(env(safe-area-inset-right) + 1rem)',
-          paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)',
+          paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
+          paddingRight: `calc(${SAFE_AREA_INSETS.right} + 1rem)`,
+          paddingBottom: `calc(${SAFE_AREA_INSETS.bottom} + 0.75rem)`,
         }}
       >
         <div className="mx-auto w-full max-w-lg">
@@ -697,8 +705,13 @@ function App() {
       <Toaster
         position="top-right"
         offset={{
-          top: 'calc(env(safe-area-inset-top) + 0.75rem)',
-          right: '1rem',
+          top: `calc(${SAFE_AREA_INSETS.top} + 1rem)`,
+          right: `calc(${SAFE_AREA_INSETS.right} + 0.75rem)`,
+        }}
+        mobileOffset={{
+          top: `calc(${SAFE_AREA_INSETS.top} + 1rem)`,
+          left: `calc(${SAFE_AREA_INSETS.left} + 0.75rem)`,
+          right: `calc(${SAFE_AREA_INSETS.right} + 0.75rem)`,
         }}
       />
     </>
