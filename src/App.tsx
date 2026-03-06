@@ -66,7 +66,6 @@ import { formatIdleNumber } from '@/lib/number-format'
 import { cn } from '@/lib/utils'
 
 type TabKey = 'production' | 'upgrades' | 'stats' | 'settings' | 'about'
-const CREDITS_SYMBOL = '¤'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'production', label: 'Production' },
@@ -133,9 +132,13 @@ function App() {
     }
 
     toast(
-      `Offline Production ${CREDITS_SYMBOL} ${formatIdleNumber(
-        offlineProgress.producedCredits,
-      )}`,
+      <span className="inline-flex items-center gap-1.5">
+        <span>Offline Production</span>
+        <Coins className="size-4 text-muted-foreground" aria-hidden />
+        <span className="font-mono tabular-nums">
+          {formatIdleNumber(offlineProgress.producedCredits)}
+        </span>
+      </span>,
       { id: 'offline-production' },
     )
   }, [initialLoad])
