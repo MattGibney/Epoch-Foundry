@@ -21,14 +21,19 @@ npm run dev
 
 ## Current MVP Slice
 
-- A single total value that increases automatically over time.
-- Exactly 10 multiplier options from `1x` to `10e12345x`, with much larger jumps between options.
-- Larger multipliers render with larger button sizes.
-- Selected multiplier controls generation rate per second.
-- Number formatting switches to notation after `100,000,000` (for example `100T`, `50UvT`), with scientific fallback for extreme values.
+- Resource loop with `Credits`, `Components`, `Research`, and `Influence`.
+- Generator ladder with 3 tiers: `Miners`, `Refiners`, `Labs`.
+- Bulk-buy controls (`1x`, `10x`, `100x`) and geometric generator pricing.
+- Run upgrades panel (`Improved Drills`, `Precision Refining`, `Neural Lab Cores`).
+- Tree panel (`Industry`, `Automation`, `Chronotech`) purchased with Influence.
+- Overclock ability (3x production burst with cooldown).
+- Contract system with rotating goals and rewards.
+- Reboot prestige panel with Influence projection and reset flow.
+- Stats panel with run/lifetime metrics and contract completion count.
+- Number formatting with suffix/scientific fallback for large values.
 - Autosave every 10 seconds.
 - Save on tab/page exit.
-- Restore previous state on load from `localStorage`.
+- Restore previous state on load from `localStorage`, including migration from legacy save shape.
 
 ## Save Format
 
