@@ -51,6 +51,21 @@ function parseBool(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null
 }
 
+function parseSettings(value: unknown): GameState['settings'] {
+  if (!value || typeof value !== 'object') {
+    return {
+      showPurchasedUpgrades: false,
+    }
+  }
+
+  const candidate = value as Record<string, unknown>
+  const showPurchasedUpgrades = parseBool(candidate.showPurchasedUpgrades)
+
+  return {
+    showPurchasedUpgrades: showPurchasedUpgrades ?? false,
+  }
+}
+
 function parseModernState(value: unknown): GameState | null {
   if (!value || typeof value !== 'object') {
     return null
@@ -62,6 +77,7 @@ function parseModernState(value: unknown): GameState | null {
   const generators = candidate.generators as Record<string, unknown> | undefined
   const purchasedUpgrades = candidate.purchasedUpgrades as Record<string, unknown> | undefined
   const buyAmount = parseNonNegativeInt(candidate.buyAmount)
+  const settings = parseSettings(candidate.settings)
 
   if (!credits || !stats || !generators || !purchasedUpgrades) {
     return null
@@ -132,6 +148,7 @@ function parseModernState(value: unknown): GameState | null {
       lastTickAtMs,
       totalCredits,
     },
+    settings,
   }
 }
 

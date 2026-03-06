@@ -57,12 +57,17 @@ export interface StatsState {
   totalCredits: string
 }
 
+export interface GameSettingsState {
+  showPurchasedUpgrades: boolean
+}
+
 export interface GameState {
   credits: string
   generators: GeneratorsState
   purchasedUpgrades: PurchasedUpgradesState
   buyAmount: number
   stats: StatsState
+  settings: GameSettingsState
 }
 
 interface GeneratorDef {
@@ -372,6 +377,9 @@ export function createInitialGameState(nowMs = Date.now()): GameState {
       lastTickAtMs: nowMs,
       totalCredits: '0',
     },
+    settings: {
+      showPurchasedUpgrades: false,
+    },
   }
 }
 
@@ -383,6 +391,19 @@ export function setBuyAmount(state: GameState, amount: number): GameState {
   return {
     ...state,
     buyAmount: amount,
+  }
+}
+
+export function setShowPurchasedUpgrades(
+  state: GameState,
+  showPurchasedUpgrades: boolean,
+): GameState {
+  return {
+    ...state,
+    settings: {
+      ...state.settings,
+      showPurchasedUpgrades,
+    },
   }
 }
 

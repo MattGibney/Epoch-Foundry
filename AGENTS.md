@@ -14,3 +14,6 @@
 - Commits merged/pushed to `main` auto-deploy to production; treat `main` changes as release-impacting.
 - Preserve PWA/iOS home-screen support (manifest, service worker registration, iOS web-app meta tags, and touch icons) so installed app behavior remains stable.
 - Include an in-app refresh/update control for installed PWA mode, since iOS home-screen apps do not expose normal browser refresh UI.
+- Prefer mobile-first UI decisions and avoid unnecessary nested card/chrome containers; use spacing and simple dividers when a full card is not needed.
+- Keep shadcn theme tokens/mappings in sync with the selected base theme so stateful component colors (for example `bg-input` on switches) render correctly.
+- Keep `@/*` path alias configuration available in the root TypeScript config so shadcn CLI resolves `@/...` aliases to `src/...` paths correctly.
