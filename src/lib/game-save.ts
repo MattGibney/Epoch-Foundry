@@ -64,6 +64,10 @@ function parseDecimalString(value: unknown): string | null {
   }
 }
 
+function toWholeDecimalString(value: string): string {
+  return new Decimal(value).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toString()
+}
+
 function parseNonNegativeInt(value: unknown): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return null
@@ -118,7 +122,7 @@ function parseModernState(value: unknown): GameState | null {
   const nowMs = Date.now()
   const initial = createInitialGameState(nowMs)
   const candidate = value as Record<string, unknown>
-  const credits = parseDecimalString(candidate.credits)
+  const parsedCredits = parseDecimalString(candidate.credits)
   const stats = candidate.stats as Record<string, unknown> | undefined
   const generators = candidate.generators as Record<string, unknown> | undefined
   const purchasedUpgrades = candidate.purchasedUpgrades as Record<string, unknown> | undefined
@@ -126,13 +130,20 @@ function parseModernState(value: unknown): GameState | null {
   const settings = parseSettings(candidate.settings)
   const prestige = parsePrestige(candidate.prestige)
 
-  if (!credits) {
+  if (!parsedCredits) {
     return null
   }
+  const credits = toWholeDecimalString(parsedCredits)
 
   const startedAtMs = parseNonNegativeInt(stats?.startedAtMs) ?? nowMs
   const lastTickAtMs = parseNonNegativeInt(stats?.lastTickAtMs) ?? startedAtMs
-  const totalCredits = parseDecimalString(stats?.totalCredits) ?? credits
+  const totalCredits = toWholeDecimalString(
+    parseDecimalString(stats?.totalCredits) ?? credits,
+  )
+  const totalCreditsAllResets =
+    toWholeDecimalString(
+      parseDecimalString(stats?.totalCreditsAllResets) ?? totalCredits,
+    )
 
   const normalizedLastTickAtMs = Math.max(startedAtMs, lastTickAtMs)
 
@@ -167,6 +178,7 @@ function parseModernState(value: unknown): GameState | null {
       startedAtMs,
       lastTickAtMs: normalizedLastTickAtMs,
       totalCredits,
+      totalCreditsAllResets,
     },
     settings,
     prestige,
@@ -190,8 +202,10 @@ function parseLegacyState(value: unknown): GameState | null {
     return null
   }
 
-  initial.credits = recoveredCredits
-  initial.stats.totalCredits = recoveredCredits
+  const wholeRecoveredCredits = toWholeDecimalString(recoveredCredits)
+  initial.credits = wholeRecoveredCredits
+  initial.stats.totalCredits = wholeRecoveredCredits
+  initial.stats.totalCreditsAllResets = wholeRecoveredCredits
 
   const legacyGenerators = candidate.generators as Record<string, unknown> | undefined
   const legacyMiners = parseNonNegativeInt(legacyGenerators?.miners)
@@ -297,6 +311,8 @@ export async function loadGameStateWithSummary(): Promise<LoadGameStateResult> {
     const didStateChangeFromHydration =
       hydratedState.credits !== loadedState.credits ||
       hydratedState.stats.totalCredits !== loadedState.stats.totalCredits ||
+      hydratedState.stats.totalCreditsAllResets !==
+        loadedState.stats.totalCreditsAllResets ||
       hydratedState.stats.lastTickAtMs !== loadedState.stats.lastTickAtMs
     const shouldRewriteMain =
       loadedSource === 'backup' || didStateChangeFromHydration

@@ -180,6 +180,7 @@ function App() {
   const [isHydrated, setIsHydrated] = useState(false)
   const [activeTab, setActiveTab] = useState<TabKey>('production')
   const [isSectionsOpen, setIsSectionsOpen] = useState(false)
+  const [isPrestigeDrawerOpen, setIsPrestigeDrawerOpen] = useState(false)
   const [nowMs, setNowMs] = useState<number>(() => Date.now())
   const [showFloatingSummary, setShowFloatingSummary] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -402,6 +403,7 @@ function App() {
     setGame(nextState)
     setNowMs(now)
     setActiveTab('production')
+    setIsPrestigeDrawerOpen(false)
 
     void saveGameState(nextState)
   }, [])
@@ -409,20 +411,32 @@ function App() {
   const renderProductionTab = () => (
     <div className="space-y-6">
       <section>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          Buy Amount
-        </p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {BUY_AMOUNT_OPTIONS.map((amount) => (
-            <Button
-              key={amount}
-              size="sm"
-              variant={game.buyAmount === amount ? 'default' : 'outline'}
-              onClick={() => setGame((current) => setBuyAmount(current, amount))}
-            >
-              <span className="font-mono tabular-nums">{amount}x</span>
-            </Button>
-          ))}
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!canPrestigeNow}
+            onClick={() => setIsPrestigeDrawerOpen(true)}
+          >
+            Prestige (+{formatIdleNumber(prestigeGain)})
+          </Button>
+          <div
+            className="inline-flex items-center overflow-hidden rounded-md border border-border"
+            role="group"
+            aria-label="Buy amount"
+          >
+            {BUY_AMOUNT_OPTIONS.map((amount) => (
+              <Button
+                key={amount}
+                size="sm"
+                variant={game.buyAmount === amount ? 'default' : 'ghost'}
+                className="h-7 rounded-none border-0 border-r border-border px-2 text-xs last:border-r-0"
+                onClick={() => setGame((current) => setBuyAmount(current, amount))}
+              >
+                <span className="font-mono text-xs tabular-nums">{amount}x</span>
+              </Button>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -641,10 +655,20 @@ function App() {
       </section>
       <section className="border-t border-border/70 pt-4">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Lifetime</p>
-        <p className="mt-2 flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Total Credits Produced</span>
-          <span className="font-mono tabular-nums">{formatIdleNumber(game.stats.totalCredits)}</span>
-        </p>
+        <div className="mt-2 space-y-1 text-sm">
+          <p className="flex items-center justify-between">
+            <span className="text-muted-foreground">Run Credits Produced</span>
+            <span className="font-mono tabular-nums">
+              {formatIdleNumber(game.stats.totalCredits)}
+            </span>
+          </p>
+          <p className="flex items-center justify-between">
+            <span className="text-muted-foreground">All-Reset Credits Produced</span>
+            <span className="font-mono tabular-nums">
+              {formatIdleNumber(game.stats.totalCreditsAllResets)}
+            </span>
+          </p>
+        </div>
       </section>
       <section className="border-t border-border/70 pt-4">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Prestige</p>
@@ -672,36 +696,13 @@ function App() {
             <span className="font-mono tabular-nums">{game.prestige.resets}</span>
           </p>
         </div>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button className="mt-4" disabled={!canPrestigeNow}>
-              Prestige Reset
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Prestige this run?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This resets credits, generators, and upgrades for this run.
-                You gain{' '}
-                <span className="font-mono tabular-nums">
-                  +{formatIdleNumber(prestigeGain)}
-                </span>{' '}
-                essence and your multiplier becomes{' '}
-                <span className="font-mono tabular-nums">
-                  x{formatIdleNumber(nextPrestigeMultiplier)}
-                </span>
-                .
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={prestigeReset}>
-                Confirm Prestige
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <Button
+          className="mt-4"
+          disabled={!canPrestigeNow}
+          onClick={() => setIsPrestigeDrawerOpen(true)}
+        >
+          Prestige Reset
+        </Button>
       </section>
     </div>
   )
@@ -818,7 +819,7 @@ function App() {
       <main
         className="mx-auto min-h-screen w-full max-w-lg"
         style={{
-          paddingTop: `1rem`,
+          paddingTop: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
           paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
           paddingRight: `calc(${SAFE_AREA_INSETS.right} + 1rem)`,
           paddingBottom: `calc(${SAFE_AREA_INSETS.bottom} + 5.25rem)`,
@@ -887,6 +888,7 @@ function App() {
       <div
         className="fixed inset-x-0 bottom-0 z-40"
         style={{
+          paddingTop: `calc(${SAFE_AREA_INSETS.top} + 1rem)`,
           paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
           paddingRight: `calc(${SAFE_AREA_INSETS.right} + 1rem)`,
           paddingBottom: `calc(${SAFE_AREA_INSETS.bottom} + 0.75rem)`,
@@ -964,6 +966,35 @@ function App() {
         </div>
       </div>
       </main>
+      <Sheet open={isPrestigeDrawerOpen} onOpenChange={setIsPrestigeDrawerOpen}>
+        <SheetContent side="bottom" className="rounded-t-xl px-0 pb-6">
+          <SheetHeader className="px-4 pb-1">
+            <SheetTitle>Prestige this run?</SheetTitle>
+            <SheetDescription>
+              This resets credits, generators, and upgrades for this run.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-2 space-y-4 px-4">
+            <p className="text-sm text-muted-foreground">
+              You gain{' '}
+              <span className="font-mono tabular-nums">
+                +{formatIdleNumber(prestigeGain)}
+              </span>{' '}
+              essence and your multiplier becomes{' '}
+              <span className="font-mono tabular-nums">
+                x{formatIdleNumber(nextPrestigeMultiplier)}
+              </span>
+              .
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button onClick={prestigeReset}>Confirm Prestige</Button>
+              <Button variant="outline" onClick={() => setIsPrestigeDrawerOpen(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
       <Toaster
         position="top-right"
         offset={{

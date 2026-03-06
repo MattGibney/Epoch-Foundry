@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 
 const NOTATION_THRESHOLD = new Decimal(100_000_000)
+const DECIMAL_DISABLED_THRESHOLD = new Decimal(1_000_000)
 const TEN = new Decimal(10)
 
 const SHORT_SUFFIXES = [
@@ -37,31 +38,22 @@ const SHORT_SUFFIXES = [
   'NoT',
 ] as const
 
-const smallNumberFormatter = new Intl.NumberFormat('en-GB', {
+const integerNumberFormatter = new Intl.NumberFormat('en-GB', {
   minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+})
+
+const fixedTwoDecimalFormatter = new Intl.NumberFormat('en-GB', {
+  minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })
 
-function trimTrailingZeros(value: string): string {
-  return value.replace(/\.0+$|(\.\d*?)0+$/, '$1')
-}
-
 function formatMantissa(value: Decimal): string {
-  const absValue = value.abs()
-
-  if (absValue.greaterThanOrEqualTo(100)) {
-    return value.toFixed(0)
-  }
-
-  if (absValue.greaterThanOrEqualTo(10)) {
-    return trimTrailingZeros(value.toFixed(1))
-  }
-
-  return trimTrailingZeros(value.toFixed(2))
+  return value.toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toFixed(0)
 }
 
 function toScientific(value: Decimal): string {
-  return value.toExponential(1).replace('e+', 'e')
+  return value.toExponential(0).replace('e+', 'e')
 }
 
 function parseExponent(value: Decimal): number {
@@ -93,8 +85,18 @@ export function formatIdleNumber(value: Decimal.Value): string {
   }
 
   const absValue = decimalValue.abs()
+  if (absValue.lessThanOrEqualTo(DECIMAL_DISABLED_THRESHOLD)) {
+    if (decimalValue.isInteger()) {
+      return integerNumberFormatter.format(decimalValue.toNumber())
+    }
+
+    return fixedTwoDecimalFormatter.format(decimalValue.toNumber())
+  }
+
   if (absValue.lessThanOrEqualTo(NOTATION_THRESHOLD)) {
-    return smallNumberFormatter.format(decimalValue.toNumber())
+    return integerNumberFormatter.format(
+      decimalValue.toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber(),
+    )
   }
 
   const exponent = parseExponent(absValue)
