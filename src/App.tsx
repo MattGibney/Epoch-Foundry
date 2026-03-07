@@ -32,6 +32,8 @@ import {
   canPrestige,
   canBuyUpgrade,
   createInitialGameState,
+  GENERATOR_ORDER,
+  getGeneratorCost,
   getOfflineProgressCapSeconds,
   getPrestigeGainForReset,
   getPrestigeMultiplier,
@@ -433,6 +435,14 @@ function App() {
     () => UPGRADE_ORDER.reduce((count, key) => count + (canBuyUpgrade(game, key) ? 1 : 0), 0),
     [game],
   )
+  const purchasableGeneratorCount = useMemo(
+    () =>
+      GENERATOR_ORDER.reduce((count, key) => {
+        const cost = getGeneratorCost(game, key)
+        return count + (new Decimal(game.credits).greaterThanOrEqualTo(cost) ? 1 : 0)
+      }, 0),
+    [game],
+  )
   const unlockedAchievementCount = useMemo(
     () => getUnlockedAchievementCount(game),
     [game],
@@ -587,6 +597,14 @@ function App() {
                 const Icon = item.icon
                 const showUpgradeBadge =
                   item.key === 'upgrades' && purchasableUpgradeCount > 0
+                const showProductionBadge =
+                  item.key === 'production' && purchasableGeneratorCount > 0
+                const badgeCount =
+                  item.key === 'upgrades'
+                    ? purchasableUpgradeCount
+                    : item.key === 'production'
+                      ? purchasableGeneratorCount
+                      : 0
 
                 return (
                   <Button
@@ -602,9 +620,9 @@ function App() {
                   >
                     <span className="relative">
                       <Icon className="size-7" />
-                      {showUpgradeBadge && (
+                      {(showUpgradeBadge || showProductionBadge) && (
                         <span className="absolute -right-4 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-none text-background">
-                          {purchasableUpgradeCount > 99 ? '99+' : purchasableUpgradeCount}
+                          {badgeCount > 99 ? '99+' : badgeCount}
                         </span>
                       )}
                     </span>
