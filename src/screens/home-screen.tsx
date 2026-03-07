@@ -1,9 +1,14 @@
 import type Decimal from 'decimal.js'
 
+import { ProducerFlowField } from '@/components/game/producer-flow-field'
+import { SAFE_AREA_INSETS } from '@/lib/game-config'
 import {
   ACHIEVEMENT_DEFS,
   ACHIEVEMENT_ORDER,
+  GENERATOR_DEFS,
+  GENERATOR_ORDER,
   getAchievementProgressRatio,
+  getGeneratorProductionPerSecond,
   type GameState,
 } from '@/lib/game-engine'
 
@@ -12,6 +17,12 @@ interface HomeScreenProps {
 }
 
 export function HomeScreen({ game }: HomeScreenProps) {
+  const producerMetrics = GENERATOR_ORDER.map((key) => ({
+    key,
+    label: GENERATOR_DEFS[key].label,
+    productionPerSecond: getGeneratorProductionPerSecond(game, key),
+  }))
+
   const nextAchievementGoals = ACHIEVEMENT_ORDER
     .filter((key) => !game.achievements[key])
     .map((key, index) => ({
@@ -68,6 +79,16 @@ export function HomeScreen({ game }: HomeScreenProps) {
             )}
           </div>
         </div>
+      </section>
+      <section
+        className="overflow-hidden"
+        style={{
+          marginLeft: `calc(-1 * (${SAFE_AREA_INSETS.left} + 1rem))`,
+          marginRight: `calc(-1 * (${SAFE_AREA_INSETS.right} + 1rem))`,
+          width: `calc(100% + ${SAFE_AREA_INSETS.left} + ${SAFE_AREA_INSETS.right} + 2rem)`,
+        }}
+      >
+        <ProducerFlowField producers={producerMetrics} className="block" />
       </section>
     </div>
   )
