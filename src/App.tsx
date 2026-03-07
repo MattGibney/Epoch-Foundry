@@ -5,6 +5,7 @@ import {
   Factory,
   MoreHorizontal,
   ChartNoAxesColumn,
+  Target,
   type LucideIcon,
   Wrench,
 } from 'lucide-react'
@@ -86,17 +87,18 @@ const TABS: { key: TabKey; label: string }[] = [
 ]
 
 const PRIMARY_NAV_ITEMS: {
-  key: 'production' | 'upgrades' | 'stats'
+  key: 'production' | 'upgrades' | 'stats' | 'contracts'
   label: string
   icon: LucideIcon
 }[] = [
   { key: 'production', label: 'Production', icon: Factory },
   { key: 'upgrades', label: 'Upgrades', icon: Wrench },
   { key: 'stats', label: 'Stats', icon: ChartNoAxesColumn },
+  { key: 'contracts', label: 'Challenges', icon: Target },
 ]
 
-function isPrimaryTab(tab: TabKey): tab is 'production' | 'upgrades' | 'stats' {
-  return tab === 'production' || tab === 'upgrades' || tab === 'stats'
+function isPrimaryTab(tab: TabKey): tab is 'production' | 'upgrades' | 'stats' | 'contracts' {
+  return tab === 'production' || tab === 'upgrades' || tab === 'stats' || tab === 'contracts'
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -609,7 +611,7 @@ function App() {
       >
         <div className="mx-auto w-full max-w-lg">
           <div className="rounded-xl border border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-5 gap-1">
               {PRIMARY_NAV_ITEMS.map((item) => {
                 const Icon = item.icon
                 const showUpgradeBadge =
