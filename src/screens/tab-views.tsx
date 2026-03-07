@@ -5,14 +5,12 @@ import type { GameState } from '@/lib/game-engine'
 import { formatIdleNumber } from '@/lib/number-format'
 import { AboutScreen } from '@/screens/about-screen'
 import { AchievementsScreen } from '@/screens/achievements-screen'
-import { HomeScreen } from '@/screens/home-screen'
 import { ProductionScreen } from '@/screens/production-screen'
 import { SettingsScreen } from '@/screens/settings-screen'
 import { StatsScreen } from '@/screens/stats-screen'
 import { UpgradesScreen } from '@/screens/upgrades-screen'
 
 export type TabKey =
-  | 'home'
   | 'production'
   | 'upgrades'
   | 'stats'
@@ -39,25 +37,6 @@ interface ProductionTabViewProps extends CommonTabProps {
     cost: Decimal,
     creditsPerSecond: Decimal,
   ) => number | null
-}
-
-type HomeTabViewProps = CommonTabProps
-
-export function HomeTabView(props: HomeTabViewProps) {
-  return (
-    <>
-      <CreditsHeader
-        credits={props.game.credits}
-        creditsPerSecond={props.creditsPerSecond}
-        formatTopCreditsDisplay={props.formatTopCreditsDisplay}
-        formatRenderedCredits={props.formatRenderedCredits}
-        onAnchorRefChange={props.onAnchorRefChange}
-      />
-      <section className="mt-5">
-        <HomeScreen game={props.game} />
-      </section>
-    </>
-  )
 }
 
 export function ProductionTabView(props: ProductionTabViewProps) {
