@@ -51,8 +51,8 @@ A simple, ordered feature roadmap for implementation.
 
 ## 7. Content and Architecture Scaling
 
-- [ ] Progression pacing rebalance (cost curves + prestige gain tuning)
-- [ ] Move progression content to data-driven config tables with validation
+- [x] Progression pacing rebalance (cost curves + prestige gain tuning)
+- [x] Move progression content to data-driven config tables with validation
 - [ ] Add a "next meaningful goal" panel on Production
 - [ ] Add economy invariant tests (tick math, prestige, save/load, unlock rules)
 
