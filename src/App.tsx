@@ -810,8 +810,10 @@ function App() {
               <article
                 key={key}
                 className={cn(
-                  'rounded-lg border p-3',
-                  unlocked ? 'border-emerald-600/40 opacity-100' : 'border-border opacity-55',
+                  'rounded-lg p-3',
+                  unlocked
+                    ? 'border border-black opacity-100'
+                    : 'border border-border opacity-55',
                 )}
               >
                 <div className="flex h-full flex-col gap-1.5">
