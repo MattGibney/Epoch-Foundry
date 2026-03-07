@@ -168,8 +168,8 @@ export const ACHIEVEMENT_ORDER = [
   'upgrades35',
   'upgrades38',
   'offlineCap1h',
-  'offlineCap4h',
   'offlineCap12h',
+  'offlineCap4h',
   'offlineCap24h',
 ] as const
 
@@ -272,7 +272,7 @@ type UpgradeDef = GlobalUpgradeDef | GeneratorUpgradeDef | OfflineCapUpgradeDef
 const ONE = new Decimal(1)
 const ZERO = new Decimal(0)
 const MAX_TICK_SECONDS = 5
-const BASE_OFFLINE_PROGRESS_CAP_SECONDS = 30 * 60
+const BASE_OFFLINE_PROGRESS_CAP_SECONDS = 15 * 60
 const PRESTIGE_UNLOCK_CREDITS = new Decimal(PRESTIGE_BALANCE.unlockCredits)
 const PRESTIGE_GAIN_EXPONENT = new Decimal(PRESTIGE_BALANCE.gainExponent)
 const PRESTIGE_ESSENCE_MULTIPLIER_STEP = new Decimal(PRESTIGE_BALANCE.essenceMultiplierStep)

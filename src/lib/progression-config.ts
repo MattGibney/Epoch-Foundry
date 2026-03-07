@@ -171,10 +171,10 @@ export const UPGRADE_CONFIG: Record<string, UpgradeConfigEntry> = {
   quantumForecasts: { key: 'quantumForecasts', label: 'Quantum Forecasts', description: 'Global production x2.', cost: '90000000', effectType: 'global', multiplier: '2', requiresOwned: { generator: 'megaRigs', count: 25 }, requiresUpgrade: 'automationLoops' },
   fractalEconomies: { key: 'fractalEconomies', label: 'Fractal Economies', description: 'Global production x2.5.', cost: '5000000000000', effectType: 'global', multiplier: '2.5', requiresOwned: { generator: 'stellarForges', count: 30 }, requiresUpgrade: 'quantumForecasts' },
   causalOverclock: { key: 'causalOverclock', label: 'Causal Overclock', description: 'Global production x3.', cost: '150000000000000000', effectType: 'global', multiplier: '3', requiresOwned: { generator: 'singularityWells', count: 30 }, requiresUpgrade: 'fractalEconomies' },
-  archiveBatteries: { key: 'archiveBatteries', label: 'Archive Batteries', description: 'Increase offline progress cap by +30 minutes.', cost: '7500000000000', effectType: 'offlineCap', offlineCapSeconds: 30 * 60, requiresOwned: { generator: 'orbitalPlatforms', count: 75 } },
-  temporalVaults: { key: 'temporalVaults', label: 'Temporal Vaults', description: 'Increase offline progress cap by +3 hours.', cost: '2500000000000000', effectType: 'offlineCap', offlineCapSeconds: 3 * 60 * 60, requiresOwned: { generator: 'orbitalPlatforms', count: 180 }, requiresUpgrade: 'archiveBatteries' },
-  deepArchive: { key: 'deepArchive', label: 'Deep Archive Vaults', description: 'Increase offline progress cap by +8 hours.', cost: '4000000000000000000', effectType: 'offlineCap', offlineCapSeconds: 8 * 60 * 60, requiresOwned: { generator: 'dysonArrays', count: 80 }, requiresUpgrade: 'temporalVaults' },
-  chronoReserves: { key: 'chronoReserves', label: 'Chrono Reserves', description: 'Increase offline progress cap by +24 hours.', cost: '95000000000000000000', effectType: 'offlineCap', offlineCapSeconds: 24 * 60 * 60, requiresOwned: { generator: 'continuumEngines', count: 60 }, requiresUpgrade: 'deepArchive' },
+  archiveBatteries: { key: 'archiveBatteries', label: 'Archive Batteries', description: 'Increase offline progress cap by +45 minutes.', cost: '500000000000', effectType: 'offlineCap', offlineCapSeconds: 45 * 60, requiresOwned: { generator: 'orbitalPlatforms', count: 75 } },
+  temporalVaults: { key: 'temporalVaults', label: 'Temporal Vaults', description: 'Increase offline progress cap by +1 hour.', cost: '25000000000000', effectType: 'offlineCap', offlineCapSeconds: 1 * 60 * 60, requiresOwned: { generator: 'orbitalPlatforms', count: 180 }, requiresUpgrade: 'archiveBatteries' },
+  deepArchive: { key: 'deepArchive', label: 'Deep Archive Vaults', description: 'Increase offline progress cap by +1.5 hours.', cost: '600000000000000', effectType: 'offlineCap', offlineCapSeconds: 90 * 60, requiresOwned: { generator: 'dysonArrays', count: 80 }, requiresUpgrade: 'temporalVaults' },
+  chronoReserves: { key: 'chronoReserves', label: 'Chrono Reserves', description: 'Increase offline progress cap by +2.5 hours.', cost: '15000000000000000', effectType: 'offlineCap', offlineCapSeconds: 150 * 60, requiresOwned: { generator: 'continuumEngines', count: 60 }, requiresUpgrade: 'deepArchive' },
 }
 
 export const ACHIEVEMENT_CONFIG: Record<string, AchievementConfigEntry> = {
@@ -285,8 +285,8 @@ export const ACHIEVEMENT_CONFIG: Record<string, AchievementConfigEntry> = {
   upgrades38: { key: 'upgrades38', label: 'Workshop Complete', description: 'Purchase all 38 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 38 } },
   offlineCap1h: { key: 'offlineCap1h', label: 'Extended Shift', description: 'Increase offline cap to at least 1 hour.', requirement: { type: 'offlineCapSeconds', seconds: 1 * 60 * 60 } },
   offlineCap4h: { key: 'offlineCap4h', label: 'Deep Shift', description: 'Increase offline cap to at least 4 hours.', requirement: { type: 'offlineCapSeconds', seconds: 4 * 60 * 60 } },
-  offlineCap12h: { key: 'offlineCap12h', label: 'Long Shift', description: 'Increase offline cap to at least 12 hours.', requirement: { type: 'offlineCapSeconds', seconds: 12 * 60 * 60 } },
-  offlineCap24h: { key: 'offlineCap24h', label: 'Night Shift', description: 'Increase offline cap to at least 24 hours.', requirement: { type: 'offlineCapSeconds', seconds: 24 * 60 * 60 } },
+  offlineCap12h: { key: 'offlineCap12h', label: 'Long Shift', description: 'Increase offline cap to at least 2 hours.', requirement: { type: 'offlineCapSeconds', seconds: 2 * 60 * 60 } },
+  offlineCap24h: { key: 'offlineCap24h', label: 'Night Shift', description: 'Increase offline cap to at least 6 hours.', requirement: { type: 'offlineCapSeconds', seconds: 6 * 60 * 60 } },
 }
 
 function assertDecimalString(value: string, context: string): void {
