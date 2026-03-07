@@ -206,17 +206,14 @@ export function ContractsScreen({
 
               <div className="mt-3">
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Rewards</p>
-                <div className="mt-1.5 space-y-1.5">
+                <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
                   {contract.rewards.map((reward, index) => {
                     const display = getRewardDisplay(reward, formatRenderedCredits)
                     return (
-                      <div
-                        key={`${contract.id}-reward-${index}`}
-                        className="flex items-center justify-between rounded-md border border-border/60 bg-muted/20 px-2.5 py-1.5 text-xs"
-                      >
-                        <span className="text-muted-foreground">{display.label}</span>
-                        <span className="font-mono tabular-nums text-foreground">{display.value}</span>
-                      </div>
+                      <p key={`${contract.id}-reward-${index}`}>
+                        <span className="text-foreground">{display.label}</span>{' '}
+                        <span className="font-mono tabular-nums">{display.value}</span>
+                      </p>
                     )
                   })}
                 </div>
