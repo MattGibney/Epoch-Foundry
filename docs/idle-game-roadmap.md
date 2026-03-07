@@ -53,7 +53,7 @@ A simple, ordered feature roadmap for implementation.
 
 - [x] Progression pacing rebalance (cost curves + prestige gain tuning)
 - [x] Move progression content to data-driven config tables with validation
-- [ ] Add a "next meaningful goal" panel on Production
+- [x] Add a "next meaningful goal" panel on Production/Home
 - [ ] Add economy invariant tests (tick math, prestige, save/load, unlock rules)
 
 ## 8. Upcoming Systems

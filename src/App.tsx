@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Decimal from 'decimal.js'
 import {
-  BarChart3,
   Coins,
   Factory,
+  House,
   MoreHorizontal,
   type LucideIcon,
   Wrench,
@@ -54,6 +54,7 @@ import { formatIdleNumber } from '@/lib/number-format'
 import {
   AboutTabView,
   AchievementsTabView,
+  HomeTabView,
   ProductionTabView,
   SettingsTabView,
   StatsTabView,
@@ -63,6 +64,7 @@ import {
 import { cn } from '@/lib/utils'
 
 const TABS: { key: TabKey; label: string }[] = [
+  { key: 'home', label: 'Home' },
   { key: 'production', label: 'Production' },
   { key: 'upgrades', label: 'Upgrades' },
   { key: 'stats', label: 'Stats' },
@@ -72,17 +74,17 @@ const TABS: { key: TabKey; label: string }[] = [
 ]
 
 const PRIMARY_NAV_ITEMS: {
-  key: 'production' | 'upgrades' | 'stats'
+  key: 'home' | 'production' | 'upgrades'
   label: string
   icon: LucideIcon
 }[] = [
+  { key: 'home', label: 'Home', icon: House },
   { key: 'production', label: 'Production', icon: Factory },
   { key: 'upgrades', label: 'Upgrades', icon: Wrench },
-  { key: 'stats', label: 'Stats', icon: BarChart3 },
 ]
 
-function isPrimaryTab(tab: TabKey): tab is 'production' | 'upgrades' | 'stats' {
-  return tab === 'production' || tab === 'upgrades' || tab === 'stats'
+function isPrimaryTab(tab: TabKey): tab is 'home' | 'production' | 'upgrades' {
+  return tab === 'home' || tab === 'production' || tab === 'upgrades'
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -197,7 +199,7 @@ function getSecondsUntilAffordable(
 function App() {
   const [game, setGame] = useState<GameState>(() => createInitialGameState(Date.now()))
   const [isHydrated, setIsHydrated] = useState(false)
-  const [activeTab, setActiveTab] = useState<TabKey>('production')
+  const [activeTab, setActiveTab] = useState<TabKey>('home')
   const [isSectionsOpen, setIsSectionsOpen] = useState(false)
   const [isPrestigeDrawerOpen, setIsPrestigeDrawerOpen] = useState(false)
   const [nowMs, setNowMs] = useState<number>(() => Date.now())
@@ -473,6 +475,14 @@ function App() {
     }
 
     switch (activeTab) {
+      case 'home':
+        return (
+          <HomeTabView
+            {...sharedTabProps}
+            formatAffordabilityEta={formatAffordabilityEta}
+            getSecondsUntilAffordable={getSecondsUntilAffordable}
+          />
+        )
       case 'production':
         return (
           <ProductionTabView
