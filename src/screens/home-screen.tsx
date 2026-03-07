@@ -1,14 +1,14 @@
 import type Decimal from 'decimal.js'
 
-import { ProducerFlowField } from '@/components/game/producer-flow-field'
-import { SAFE_AREA_INSETS } from '@/lib/game-config'
+// import { ProducerFlowField } from '@/components/game/producer-flow-field'
+// import { SAFE_AREA_INSETS } from '@/lib/game-config'
 import {
   ACHIEVEMENT_DEFS,
   ACHIEVEMENT_ORDER,
-  GENERATOR_DEFS,
-  GENERATOR_ORDER,
+  // GENERATOR_DEFS,
+  // GENERATOR_ORDER,
   getAchievementProgressRatio,
-  getGeneratorProductionPerSecond,
+  // getGeneratorProductionPerSecond,
   type GameState,
 } from '@/lib/game-engine'
 
@@ -17,11 +17,11 @@ interface HomeScreenProps {
 }
 
 export function HomeScreen({ game }: HomeScreenProps) {
-  const producerMetrics = GENERATOR_ORDER.map((key) => ({
-    key,
-    label: GENERATOR_DEFS[key].label,
-    productionPerSecond: getGeneratorProductionPerSecond(game, key),
-  }))
+  // const producerMetrics = GENERATOR_ORDER.map((key) => ({
+  //   key,
+  //   label: GENERATOR_DEFS[key].label,
+  //   productionPerSecond: getGeneratorProductionPerSecond(game, key),
+  // }))
 
   const nextAchievementGoals = ACHIEVEMENT_ORDER
     .filter((key) => !game.achievements[key])
@@ -45,7 +45,10 @@ export function HomeScreen({ game }: HomeScreenProps) {
       if (selected.length >= 3) {
         return selected
       }
-      if (selected.some((entry) => entry.definition.category === candidate.definition.category)) {
+      if (
+        selected.some((entry) =>
+          entry.definition.category === candidate.definition.category)
+      ) {
         return selected
       }
       selected.push({
@@ -80,7 +83,7 @@ export function HomeScreen({ game }: HomeScreenProps) {
           </div>
         </div>
       </section>
-      <section
+      {/* <section
         className="overflow-hidden"
         style={{
           marginLeft: `calc(-1 * (${SAFE_AREA_INSETS.left} + 1rem))`,
@@ -89,7 +92,7 @@ export function HomeScreen({ game }: HomeScreenProps) {
         }}
       >
         <ProducerFlowField producers={producerMetrics} className="block" />
-      </section>
+      </section> */}
     </div>
   )
 }
