@@ -418,6 +418,10 @@ function App() {
     () => getOfflineProgressCapSeconds(game),
     [game],
   )
+  const purchasableUpgradeCount = useMemo(
+    () => UPGRADE_ORDER.reduce((count, key) => count + (canBuyUpgrade(game, key) ? 1 : 0), 0),
+    [game],
+  )
   const unlockedAchievementCount = useMemo(
     () => getUnlockedAchievementCount(game),
     [game],
@@ -983,6 +987,8 @@ function App() {
             <div className="grid grid-cols-4 gap-1">
               {PRIMARY_NAV_ITEMS.map((item) => {
                 const Icon = item.icon
+                const showUpgradeBadge =
+                  item.key === 'upgrades' && purchasableUpgradeCount > 0
 
                 return (
                   <Button
@@ -996,7 +1002,14 @@ function App() {
                     onClick={() => setActiveTab(item.key)}
                     aria-label={item.label}
                   >
-                    <Icon className="size-7" />
+                    <span className="relative">
+                      <Icon className="size-7" />
+                      {showUpgradeBadge && (
+                        <span className="absolute -right-4 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-none text-background">
+                          {purchasableUpgradeCount > 99 ? '99+' : purchasableUpgradeCount}
+                        </span>
+                      )}
+                    </span>
                     <span className="text-[10px] leading-none">{item.label}</span>
                   </Button>
                 )
