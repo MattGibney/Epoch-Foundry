@@ -141,7 +141,7 @@ export function ProductionScreen({
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
                       className={cn(
-                        'h-full rounded-full transition-all',
+                        'h-full rounded-full transition-all duration-75',
                         canBuy ? 'bg-foreground/70' : 'bg-muted-foreground/60',
                       )}
                       style={{ width: `${Math.max(0, affordabilityPercent)}%` }}
