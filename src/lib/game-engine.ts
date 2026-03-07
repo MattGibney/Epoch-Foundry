@@ -170,6 +170,7 @@ interface UpgradeBaseDef {
     generator: GeneratorKey
     count: number
   }
+  requiresUpgrade?: RunUpgradeKey
 }
 
 interface AchievementDef {
@@ -361,6 +362,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'miners',
     multiplier: '3',
     requiresOwned: { generator: 'miners', count: 50 },
+    requiresUpgrade: 'minerTuning',
   },
   minerFoundries: {
     key: 'minerFoundries',
@@ -371,6 +373,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'miners',
     multiplier: '4',
     requiresOwned: { generator: 'miners', count: 120 },
+    requiresUpgrade: 'minerSwarm',
   },
   drillGrease: {
     key: 'drillGrease',
@@ -391,6 +394,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'drills',
     multiplier: '3',
     requiresOwned: { generator: 'drills', count: 60 },
+    requiresUpgrade: 'drillGrease',
   },
   drillHypercut: {
     key: 'drillHypercut',
@@ -401,6 +405,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'drills',
     multiplier: '4',
     requiresOwned: { generator: 'drills', count: 120 },
+    requiresUpgrade: 'drillAI',
   },
   extractorCooling: {
     key: 'extractorCooling',
@@ -421,6 +426,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'extractors',
     multiplier: '3',
     requiresOwned: { generator: 'extractors', count: 60 },
+    requiresUpgrade: 'extractorCooling',
   },
   extractorMatrices: {
     key: 'extractorMatrices',
@@ -431,6 +437,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'extractors',
     multiplier: '4',
     requiresOwned: { generator: 'extractors', count: 120 },
+    requiresUpgrade: 'extractorClusters',
   },
   refineryCatalysts: {
     key: 'refineryCatalysts',
@@ -451,6 +458,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'refineries',
     multiplier: '3',
     requiresOwned: { generator: 'refineries', count: 60 },
+    requiresUpgrade: 'refineryCatalysts',
   },
   refinerySingularities: {
     key: 'refinerySingularities',
@@ -461,6 +469,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'refineries',
     multiplier: '4',
     requiresOwned: { generator: 'refineries', count: 120 },
+    requiresUpgrade: 'refineryOverdrive',
   },
   megaRigServos: {
     key: 'megaRigServos',
@@ -481,6 +490,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'megaRigs',
     multiplier: '3',
     requiresOwned: { generator: 'megaRigs', count: 60 },
+    requiresUpgrade: 'megaRigServos',
   },
   megaRigSentience: {
     key: 'megaRigSentience',
@@ -491,6 +501,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'megaRigs',
     multiplier: '4',
     requiresOwned: { generator: 'megaRigs', count: 120 },
+    requiresUpgrade: 'megaRigNanites',
   },
   orbitalDrones: {
     key: 'orbitalDrones',
@@ -511,6 +522,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'orbitalPlatforms',
     multiplier: '3',
     requiresOwned: { generator: 'orbitalPlatforms', count: 40 },
+    requiresUpgrade: 'orbitalDrones',
   },
   orbitalAnchors: {
     key: 'orbitalAnchors',
@@ -521,6 +533,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'orbitalPlatforms',
     multiplier: '4',
     requiresOwned: { generator: 'orbitalPlatforms', count: 100 },
+    requiresUpgrade: 'orbitalCommand',
   },
   stellarFlux: {
     key: 'stellarFlux',
@@ -541,6 +554,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'stellarForges',
     multiplier: '3',
     requiresOwned: { generator: 'stellarForges', count: 45 },
+    requiresUpgrade: 'stellarFlux',
   },
   stellarAscension: {
     key: 'stellarAscension',
@@ -551,6 +565,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'stellarForges',
     multiplier: '4',
     requiresOwned: { generator: 'stellarForges', count: 110 },
+    requiresUpgrade: 'stellarLattices',
   },
   dysonPhasing: {
     key: 'dysonPhasing',
@@ -571,6 +586,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'dysonArrays',
     multiplier: '3',
     requiresOwned: { generator: 'dysonArrays', count: 45 },
+    requiresUpgrade: 'dysonPhasing',
   },
   dysonDominion: {
     key: 'dysonDominion',
@@ -581,6 +597,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'dysonArrays',
     multiplier: '4',
     requiresOwned: { generator: 'dysonArrays', count: 110 },
+    requiresUpgrade: 'dysonHarmonics',
   },
   singularityContainment: {
     key: 'singularityContainment',
@@ -601,6 +618,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'singularityWells',
     multiplier: '3',
     requiresOwned: { generator: 'singularityWells', count: 45 },
+    requiresUpgrade: 'singularityContainment',
   },
   singularityTranscendence: {
     key: 'singularityTranscendence',
@@ -611,6 +629,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'singularityWells',
     multiplier: '4',
     requiresOwned: { generator: 'singularityWells', count: 110 },
+    requiresUpgrade: 'singularityLensing',
   },
   continuumStabilizers: {
     key: 'continuumStabilizers',
@@ -631,6 +650,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'continuumEngines',
     multiplier: '3',
     requiresOwned: { generator: 'continuumEngines', count: 45 },
+    requiresUpgrade: 'continuumStabilizers',
   },
   continuumParadoxCore: {
     key: 'continuumParadoxCore',
@@ -641,6 +661,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     target: 'continuumEngines',
     multiplier: '4',
     requiresOwned: { generator: 'continuumEngines', count: 110 },
+    requiresUpgrade: 'continuumRecursion',
   },
   automationLoops: {
     key: 'automationLoops',
@@ -659,6 +680,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     effectType: 'global',
     multiplier: '2',
     requiresOwned: { generator: 'megaRigs', count: 25 },
+    requiresUpgrade: 'automationLoops',
   },
   fractalEconomies: {
     key: 'fractalEconomies',
@@ -668,6 +690,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     effectType: 'global',
     multiplier: '2.5',
     requiresOwned: { generator: 'stellarForges', count: 30 },
+    requiresUpgrade: 'quantumForecasts',
   },
   causalOverclock: {
     key: 'causalOverclock',
@@ -677,6 +700,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     effectType: 'global',
     multiplier: '3',
     requiresOwned: { generator: 'singularityWells', count: 30 },
+    requiresUpgrade: 'fractalEconomies',
   },
   archiveBatteries: {
     key: 'archiveBatteries',
@@ -695,6 +719,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     effectType: 'offlineCap',
     offlineCapSeconds: 3 * 60 * 60,
     requiresOwned: { generator: 'orbitalPlatforms', count: 180 },
+    requiresUpgrade: 'archiveBatteries',
   },
   deepArchive: {
     key: 'deepArchive',
@@ -704,6 +729,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     effectType: 'offlineCap',
     offlineCapSeconds: 8 * 60 * 60,
     requiresOwned: { generator: 'dysonArrays', count: 80 },
+    requiresUpgrade: 'temporalVaults',
   },
   chronoReserves: {
     key: 'chronoReserves',
@@ -713,6 +739,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = {
     effectType: 'offlineCap',
     offlineCapSeconds: 24 * 60 * 60,
     requiresOwned: { generator: 'continuumEngines', count: 60 },
+    requiresUpgrade: 'deepArchive',
   },
 }
 
@@ -1394,24 +1421,48 @@ export function buyGenerator(state: GameState, key: GeneratorKey): GameState {
 
 export function isUpgradeUnlocked(state: GameState, key: RunUpgradeKey): boolean {
   const upgrade = UPGRADE_DEFS[key]
-  if (!upgrade || !upgrade.requiresOwned) {
+  if (!upgrade) {
     return true
   }
 
-  return state.generators[upgrade.requiresOwned.generator] >= upgrade.requiresOwned.count
+  const meetsGeneratorRequirement =
+    !upgrade.requiresOwned ||
+    state.generators[upgrade.requiresOwned.generator] >= upgrade.requiresOwned.count
+  const meetsUpgradeRequirement =
+    !upgrade.requiresUpgrade || state.purchasedUpgrades[upgrade.requiresUpgrade]
+
+  return meetsGeneratorRequirement && meetsUpgradeRequirement
 }
 
 export function getUpgradeUnlockProgress(state: GameState, key: RunUpgradeKey) {
   const upgrade = UPGRADE_DEFS[key]
-  if (!upgrade || !upgrade.requiresOwned) {
+  if (!upgrade) {
     return null
   }
 
-  return {
-    generator: upgrade.requiresOwned.generator,
-    current: state.generators[upgrade.requiresOwned.generator],
-    required: upgrade.requiresOwned.count,
+  if (upgrade.requiresOwned) {
+    const currentOwned = state.generators[upgrade.requiresOwned.generator]
+    if (currentOwned < upgrade.requiresOwned.count) {
+      return {
+        current: currentOwned,
+        required: upgrade.requiresOwned.count,
+        label: GENERATOR_DEFS[upgrade.requiresOwned.generator].label,
+      }
+    }
   }
+
+  if (upgrade.requiresUpgrade) {
+    const isPurchased = state.purchasedUpgrades[upgrade.requiresUpgrade]
+    if (!isPurchased) {
+      return {
+        current: 0,
+        required: 1,
+        label: UPGRADE_DEFS[upgrade.requiresUpgrade].label,
+      }
+    }
+  }
+
+  return null
 }
 
 export function canBuyUpgrade(state: GameState, key: RunUpgradeKey): boolean {

@@ -666,7 +666,7 @@ function App() {
                       <span className="font-mono tabular-nums">
                         {unlockProgress.current}/{unlockProgress.required}
                       </span>{' '}
-                      {GENERATOR_DEFS[unlockProgress.generator].label}
+                      {unlockProgress.label}
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">More credits</p>
