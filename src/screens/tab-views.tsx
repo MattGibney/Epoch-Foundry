@@ -54,7 +54,7 @@ export function HomeTabView(props: HomeTabViewProps) {
         onAnchorRefChange={props.onAnchorRefChange}
       />
       <section className="mt-5">
-        <HomeScreen game={props.game} creditsPerSecond={props.creditsPerSecond} />
+        <HomeScreen game={props.game} />
       </section>
     </>
   )
