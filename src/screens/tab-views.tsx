@@ -28,9 +28,6 @@ interface CommonTabProps {
 }
 
 interface ProductionTabViewProps extends CommonTabProps {
-  canPrestigeNow: boolean
-  prestigeGain: Decimal
-  onOpenPrestige: () => void
   formatAffordabilityEta: (totalSeconds: number) => string
   getSecondsUntilAffordable: (
     credits: Decimal,
@@ -53,14 +50,10 @@ export function ProductionTabView(props: ProductionTabViewProps) {
         <ProductionScreen
           game={props.game}
           creditsPerSecond={props.creditsPerSecond}
-          canPrestigeNow={props.canPrestigeNow}
-          prestigeGain={props.prestigeGain}
-          onOpenPrestige={props.onOpenPrestige}
           onGameChange={props.onGameChange}
           formatRenderedCredits={props.formatRenderedCredits}
           formatAffordabilityEta={props.formatAffordabilityEta}
           getSecondsUntilAffordable={props.getSecondsUntilAffordable}
-          formatIdleNumber={formatIdleNumber}
         />
       </section>
     </>

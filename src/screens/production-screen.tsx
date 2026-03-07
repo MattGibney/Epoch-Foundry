@@ -16,9 +16,6 @@ import { cn } from '@/lib/utils'
 interface ProductionScreenProps {
   game: GameState
   creditsPerSecond: Decimal
-  canPrestigeNow: boolean
-  prestigeGain: Decimal
-  onOpenPrestige: () => void
   onGameChange: (updater: (current: GameState) => GameState) => void
   formatRenderedCredits: (value: Decimal.Value) => string
   formatAffordabilityEta: (totalSeconds: number) => string
@@ -27,33 +24,20 @@ interface ProductionScreenProps {
     cost: Decimal,
     creditsPerSecond: Decimal,
   ) => number | null
-  formatIdleNumber: (value: Decimal.Value) => string
 }
 
 export function ProductionScreen({
   game,
   creditsPerSecond,
-  canPrestigeNow,
-  prestigeGain,
-  onOpenPrestige,
   onGameChange,
   formatRenderedCredits,
   formatAffordabilityEta,
   getSecondsUntilAffordable,
-  formatIdleNumber,
 }: ProductionScreenProps) {
   return (
     <div className="space-y-6">
       <section>
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={!canPrestigeNow}
-            onClick={onOpenPrestige}
-          >
-            Prestige (+{formatIdleNumber(prestigeGain)})
-          </Button>
+        <div className="flex items-center justify-end gap-2">
           <div
             className="inline-flex items-center overflow-hidden rounded-md border border-border"
             role="group"

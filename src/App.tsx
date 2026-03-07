@@ -487,9 +487,6 @@ function App() {
         return (
           <ProductionTabView
             {...sharedTabProps}
-            canPrestigeNow={canPrestigeNow}
-            prestigeGain={prestigeGain}
-            onOpenPrestige={() => setIsPrestigeDrawerOpen(true)}
             formatAffordabilityEta={formatAffordabilityEta}
             getSecondsUntilAffordable={getSecondsUntilAffordable}
           />
