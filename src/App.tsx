@@ -526,7 +526,13 @@ function App() {
           />
         )
       case 'contracts':
-        return <ContractsTabView {...sharedTabProps} />
+        return (
+          <ContractsTabView
+            {...sharedTabProps}
+            nowMs={nowMs}
+            formatDuration={formatDuration}
+          />
+        )
       case 'settings':
         return (
           <SettingsTabView

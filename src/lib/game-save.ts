@@ -154,13 +154,120 @@ function parseContractState(value: unknown): ContractState | null {
     return null
   }
 
+  const kind =
+    candidate.kind === 'challenge' || candidate.kind === 'objective'
+      ? candidate.kind
+      : 'objective'
+  const isParticipating = candidate.isParticipating === true
   const band = parseContractBand(candidate.band)
-  const rewardCredits = parseDecimalString(candidate.rewardCredits)
+  const quality =
+    candidate.quality === 'elite' || candidate.quality === 'rare' || candidate.quality === 'common'
+      ? candidate.quality
+      : 'common'
   const createdAtMs = parseNonNegativeInt(candidate.createdAtMs)
   const objective = candidate.objective as Record<string, unknown> | undefined
-  if (!band || !rewardCredits || createdAtMs === null || !objective) {
+  if (!band || createdAtMs === null || !objective) {
     return null
   }
+  const expiresAtMsRaw = parseNonNegativeInt(candidate.expiresAtMs)
+  const expiresAtMs =
+    expiresAtMsRaw !== null ? expiresAtMsRaw : candidate.expiresAtMs === null ? null : null
+  const challengeDurationMsRaw = parseNonNegativeInt(candidate.challengeDurationMs)
+  const challengeDurationMs =
+    challengeDurationMsRaw !== null
+      ? challengeDurationMsRaw
+      : kind === 'challenge' && expiresAtMs !== null
+        ? Math.max(0, expiresAtMs - createdAtMs)
+        : null
+
+  const rewardsRaw = Array.isArray(candidate.rewards) ? candidate.rewards : []
+  const parsedRewards = rewardsRaw
+    .map((reward): ContractState['rewards'][number] | null => {
+      if (!reward || typeof reward !== 'object') {
+        return null
+      }
+      const entry = reward as Record<string, unknown>
+      if (entry.type === 'credits') {
+        const amount = parseDecimalString(entry.amount)
+        return amount ? { type: 'credits', amount } : null
+      }
+      if (entry.type === 'essence') {
+        const amount = parseDecimalString(entry.amount)
+        return amount ? { type: 'essence', amount } : null
+      }
+      if (entry.type === 'productionBoost') {
+        const multiplier = parseDecimalString(entry.multiplier)
+        const durationSeconds = parseNonNegativeInt(entry.durationSeconds)
+        if (!multiplier || durationSeconds === null) {
+          return null
+        }
+        return { type: 'productionBoost', multiplier, durationSeconds }
+      }
+      if (entry.type === 'costDiscountCharges') {
+        const multiplier = parseDecimalString(entry.multiplier)
+        const charges = parseNonNegativeInt(entry.charges)
+        if (!multiplier || charges === null) {
+          return null
+        }
+        return { type: 'costDiscountCharges', multiplier, charges }
+      }
+      if (entry.type === 'nextRewardMultiplier') {
+        const multiplier = parseDecimalString(entry.multiplier)
+        return multiplier ? { type: 'nextRewardMultiplier', multiplier } : null
+      }
+      return null
+    })
+    .filter((reward): reward is ContractState['rewards'][number] => reward !== null)
+
+  const rewards =
+    parsedRewards.length > 0
+      ? parsedRewards
+      : (() => {
+          const legacyCredits = parseDecimalString(candidate.rewardCredits) ?? '0'
+          return [{ type: 'credits' as const, amount: legacyCredits }]
+        })()
+
+  const modifierRaw = candidate.modifier as Record<string, unknown> | null | undefined
+  const modifier: ContractState['modifier'] = (() => {
+    if (!modifierRaw || typeof modifierRaw !== 'object' || typeof modifierRaw.type !== 'string') {
+      return null
+    }
+
+    if (modifierRaw.type === 'blockGenerator' || modifierRaw.type === 'onlyGenerator') {
+      if (
+        typeof modifierRaw.generator === 'string' &&
+        GENERATOR_ORDER.includes(modifierRaw.generator as GeneratorKey)
+      ) {
+        return {
+          type: modifierRaw.type,
+          generator: modifierRaw.generator as GeneratorKey,
+        }
+      }
+      return null
+    }
+
+    if (modifierRaw.type === 'upgradesDisabled' || modifierRaw.type === 'noPrestige') {
+      return { type: modifierRaw.type }
+    }
+
+    if (modifierRaw.type === 'minTier') {
+      const minimumTierIndex = parseNonNegativeInt(modifierRaw.minimumTierIndex)
+      if (minimumTierIndex === null) {
+        return null
+      }
+      return { type: 'minTier', minimumTierIndex }
+    }
+
+    if (modifierRaw.type === 'buyAmountLocked') {
+      const amount = parseNonNegativeInt(modifierRaw.amount)
+      if (amount === null || !BUY_AMOUNT_OPTIONS.includes(amount as (typeof BUY_AMOUNT_OPTIONS)[number])) {
+        return null
+      }
+      return { type: 'buyAmountLocked', amount }
+    }
+
+    return null
+  })()
 
   if (objective.type === 'runCredits') {
     const target = parseDecimalString(objective.target)
@@ -169,10 +276,16 @@ function parseContractState(value: unknown): ContractState | null {
     }
     return {
       id: candidate.id,
+      kind,
       band,
+      quality,
+      isParticipating,
       objective: { type: 'runCredits', target },
-      rewardCredits,
+      rewards,
+      modifier,
+      challengeDurationMs,
       createdAtMs,
+      expiresAtMs,
     }
   }
 
@@ -186,14 +299,40 @@ function parseContractState(value: unknown): ContractState | null {
     }
     return {
       id: candidate.id,
+      kind,
       band,
+      quality,
+      isParticipating,
       objective: {
         type: 'owned',
         generator: objective.generator as GeneratorKey,
         target,
       },
-      rewardCredits,
+      rewards,
+      modifier,
+      challengeDurationMs,
       createdAtMs,
+      expiresAtMs,
+    }
+  }
+
+  if (objective.type === 'creditsPerSecond') {
+    const target = parseDecimalString(objective.target)
+    if (!target) {
+      return null
+    }
+    return {
+      id: candidate.id,
+      kind,
+      band,
+      quality,
+      isParticipating,
+      objective: { type: 'creditsPerSecond', target },
+      rewards,
+      modifier,
+      challengeDurationMs,
+      createdAtMs,
+      expiresAtMs,
     }
   }
 
@@ -204,10 +343,16 @@ function parseContractState(value: unknown): ContractState | null {
     }
     return {
       id: candidate.id,
+      kind,
       band,
+      quality,
+      isParticipating,
       objective: { type: 'purchasedUpgrades', target },
-      rewardCredits,
+      rewards,
+      modifier,
+      challengeDurationMs,
       createdAtMs,
+      expiresAtMs,
     }
   }
 
@@ -275,6 +420,14 @@ function parseModernState(value: unknown): GameState | null {
   const parsedContracts = activeContractsRaw
     .map((entry) => parseContractState(entry))
     .filter((entry): entry is ContractState => entry !== null)
+  const effects = contracts?.effects as Record<string, unknown> | undefined
+  const productionBoostMultiplier = parseDecimalString(effects?.productionBoostMultiplier) ?? '1'
+  const productionBoostRemainingSeconds =
+    parseNonNegativeInt(effects?.productionBoostRemainingSeconds) ?? 0
+  const costDiscountMultiplier = parseDecimalString(effects?.costDiscountMultiplier) ?? '1'
+  const costDiscountRemainingPurchases =
+    parseNonNegativeInt(effects?.costDiscountRemainingPurchases) ?? 0
+  const nextRewardMultiplier = parseDecimalString(effects?.nextRewardMultiplier) ?? '1'
 
   const parsedState: GameState = {
     credits,
@@ -302,6 +455,13 @@ function parseModernState(value: unknown): GameState | null {
     contracts: {
       active: parsedContracts,
       generationCounter,
+      effects: {
+        productionBoostMultiplier,
+        productionBoostRemainingSeconds,
+        costDiscountMultiplier,
+        costDiscountRemainingPurchases,
+        nextRewardMultiplier,
+      },
     },
   }
 

@@ -146,7 +146,10 @@ export function AchievementsTabView(props: AchievementsTabViewProps) {
   )
 }
 
-type ContractsTabViewProps = CommonTabProps
+interface ContractsTabViewProps extends CommonTabProps {
+  nowMs: number
+  formatDuration: (seconds: number) => string
+}
 
 export function ContractsTabView(props: ContractsTabViewProps) {
   return (
@@ -161,8 +164,10 @@ export function ContractsTabView(props: ContractsTabViewProps) {
       <section className="mt-5">
         <ContractsScreen
           game={props.game}
+          nowMs={props.nowMs}
           onGameChange={props.onGameChange}
           formatRenderedCredits={props.formatRenderedCredits}
+          formatDuration={props.formatDuration}
         />
       </section>
     </>
