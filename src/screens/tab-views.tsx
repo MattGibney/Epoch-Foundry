@@ -41,14 +41,7 @@ interface ProductionTabViewProps extends CommonTabProps {
   ) => number | null
 }
 
-interface HomeTabViewProps extends CommonTabProps {
-  formatAffordabilityEta: (totalSeconds: number) => string
-  getSecondsUntilAffordable: (
-    credits: Decimal,
-    cost: Decimal,
-    creditsPerSecond: Decimal,
-  ) => number | null
-}
+type HomeTabViewProps = CommonTabProps
 
 export function HomeTabView(props: HomeTabViewProps) {
   return (
@@ -61,14 +54,7 @@ export function HomeTabView(props: HomeTabViewProps) {
         onAnchorRefChange={props.onAnchorRefChange}
       />
       <section className="mt-5">
-        <HomeScreen
-          game={props.game}
-          creditsPerSecond={props.creditsPerSecond}
-          formatRenderedCredits={props.formatRenderedCredits}
-          formatIdleNumber={formatIdleNumber}
-          formatAffordabilityEta={props.formatAffordabilityEta}
-          getSecondsUntilAffordable={props.getSecondsUntilAffordable}
-        />
+        <HomeScreen game={props.game} creditsPerSecond={props.creditsPerSecond} />
       </section>
     </>
   )

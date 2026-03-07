@@ -7,6 +7,20 @@ interface AchievementsScreenProps {
 }
 
 export function AchievementsScreen({ game, unlockedAchievementCount }: AchievementsScreenProps) {
+  const groupedAchievements = ACHIEVEMENT_ORDER.reduce<
+    Array<{ category: string; keys: typeof ACHIEVEMENT_ORDER[number][] }>
+  >((groups, key) => {
+    const definition = ACHIEVEMENT_DEFS[key]
+    const existingGroup = groups.find((group) => group.category === definition.category)
+    if (existingGroup) {
+      existingGroup.keys.push(key)
+      return groups
+    }
+
+    groups.push({ category: definition.category, keys: [key] })
+    return groups
+  }, [])
+
   return (
     <div className="space-y-6">
       <section>
@@ -19,26 +33,37 @@ export function AchievementsScreen({ game, unlockedAchievementCount }: Achieveme
         </p>
       </section>
       <section className="border-t border-border/70 pt-4">
-        <div className="grid grid-cols-3 gap-2">
-          {ACHIEVEMENT_ORDER.map((key) => {
-            const definition = ACHIEVEMENT_DEFS[key]
-            const unlocked = game.achievements[key]
+        <div className="space-y-6">
+          {groupedAchievements.map((group) => (
+            <section key={group.category} className="space-y-2.5">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {group.category}
+              </h2>
+              <div className="grid grid-cols-3 gap-2">
+                {group.keys.map((key) => {
+                  const definition = ACHIEVEMENT_DEFS[key]
+                  const unlocked = game.achievements[key]
 
-            return (
-              <article
-                key={key}
-                className={cn(
-                  'rounded-lg p-3',
-                  unlocked ? 'border border-black opacity-100' : 'border border-border opacity-55',
-                )}
-              >
-                <div className="flex h-full flex-col gap-1.5">
-                  <h3 className="text-sm font-semibold leading-tight">{definition.label}</h3>
-                  <p className="text-xs text-muted-foreground">{definition.description}</p>
-                </div>
-              </article>
-            )
-          })}
+                  return (
+                    <article
+                      key={key}
+                      className={cn(
+                        'rounded-lg p-3',
+                        unlocked
+                          ? 'border border-black opacity-100'
+                          : 'border border-border opacity-55',
+                      )}
+                    >
+                      <div className="flex h-full flex-col gap-1.5">
+                        <h3 className="text-sm font-semibold leading-tight">{definition.label}</h3>
+                        <p className="text-xs text-muted-foreground">{definition.description}</p>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       </section>
     </div>

@@ -476,13 +476,7 @@ function App() {
 
     switch (activeTab) {
       case 'home':
-        return (
-          <HomeTabView
-            {...sharedTabProps}
-            formatAffordabilityEta={formatAffordabilityEta}
-            getSecondsUntilAffordable={getSecondsUntilAffordable}
-          />
-        )
+        return <HomeTabView {...sharedTabProps} />
       case 'production':
         return (
           <ProductionTabView

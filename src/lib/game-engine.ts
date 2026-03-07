@@ -185,8 +185,10 @@ interface UpgradeBaseDef {
 
 interface AchievementDef {
   key: AchievementKey
+  category: string
   label: string
   description: string
+  requirement: AchievementConfigEntry['requirement']
   isUnlocked: (state: GameState) => boolean
 }
 
@@ -382,19 +384,100 @@ function isAchievementUnlockedFromRequirement(
   }
 }
 
+function getAchievementCategoryFromRequirement(
+  requirement: AchievementConfigEntry['requirement'],
+): string {
+  switch (requirement.type) {
+    case 'allResetCredits':
+      return 'Lifetime Credits'
+    case 'runCredits':
+      return 'Run Credits'
+    case 'owned':
+      return GENERATOR_DEFS[requirement.generator as GeneratorKey].label
+    case 'prestigeResets':
+      return 'Prestige'
+    case 'essence':
+      return 'Essence'
+    case 'purchasedUpgrades':
+      return 'Upgrades'
+    case 'offlineCapSeconds':
+      return 'Offline'
+    default:
+      return 'General'
+  }
+}
+
+function getAchievementProgressRatioForRequirement(
+  state: GameState,
+  requirement: AchievementConfigEntry['requirement'],
+): Decimal {
+  switch (requirement.type) {
+    case 'allResetCredits': {
+      const threshold = toDecimal(requirement.threshold)
+      if (threshold.lessThanOrEqualTo(0)) {
+        return ONE
+      }
+      return toDecimal(state.stats.totalCreditsAllResets).div(threshold)
+    }
+    case 'runCredits': {
+      const threshold = toDecimal(requirement.threshold)
+      if (threshold.lessThanOrEqualTo(0)) {
+        return ONE
+      }
+      return toDecimal(state.stats.totalCredits).div(threshold)
+    }
+    case 'owned':
+      return new Decimal(state.generators[requirement.generator as GeneratorKey]).div(
+        requirement.count,
+      )
+    case 'prestigeResets':
+      return new Decimal(state.prestige.resets).div(requirement.count)
+    case 'essence': {
+      const threshold = toDecimal(requirement.threshold)
+      if (threshold.lessThanOrEqualTo(0)) {
+        return ONE
+      }
+      return toDecimal(state.prestige.essence).div(threshold)
+    }
+    case 'purchasedUpgrades':
+      return new Decimal(getPurchasedUpgradeCount(state)).div(requirement.count)
+    case 'offlineCapSeconds':
+      return new Decimal(getOfflineProgressCapSeconds(state)).div(requirement.seconds)
+    default:
+      return ZERO
+  }
+}
+
 export const ACHIEVEMENT_DEFS: Record<AchievementKey, AchievementDef> = ACHIEVEMENT_ORDER.reduce(
   (accumulator, key) => {
     const entry = ACHIEVEMENT_CONFIG[key]
     accumulator[key] = {
       key,
+      category: getAchievementCategoryFromRequirement(entry.requirement),
       label: entry.label,
       description: entry.description,
+      requirement: entry.requirement,
       isUnlocked: (state) => isAchievementUnlockedFromRequirement(state, entry.requirement),
     }
     return accumulator
   },
   {} as Record<AchievementKey, AchievementDef>,
 )
+
+export function getAchievementProgressRatio(state: GameState, key: AchievementKey): Decimal {
+  if (state.achievements[key]) {
+    return ONE
+  }
+
+  const rawRatio = getAchievementProgressRatioForRequirement(state, ACHIEVEMENT_DEFS[key].requirement)
+  if (!rawRatio.isFinite() || rawRatio.lessThan(0)) {
+    return ZERO
+  }
+  if (rawRatio.greaterThan(1)) {
+    return ONE
+  }
+  return rawRatio
+}
 
 function getPurchasedUpgradeCount(state: GameState): number {
   return UPGRADE_ORDER.reduce(

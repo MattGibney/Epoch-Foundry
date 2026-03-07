@@ -1,37 +1,20 @@
 import Decimal from 'decimal.js'
 
 import {
-  canBuyUpgrade,
-  GENERATOR_DEFS,
-  GENERATOR_ORDER,
-  getGeneratorCost,
-  getPrestigeGainForReset,
-  getUpgradeUnlockProgress,
-  UPGRADE_DEFS,
-  UPGRADE_ORDER,
+  ACHIEVEMENT_DEFS,
+  ACHIEVEMENT_ORDER,
+  getAchievementProgressRatio,
   type GameState,
 } from '@/lib/game-engine'
 
 interface HomeScreenProps {
   game: GameState
   creditsPerSecond: Decimal
-  formatRenderedCredits: (value: Decimal.Value) => string
-  formatIdleNumber: (value: Decimal.Value) => string
-  formatAffordabilityEta: (totalSeconds: number) => string
-  getSecondsUntilAffordable: (
-    credits: Decimal,
-    cost: Decimal,
-    creditsPerSecond: Decimal,
-  ) => number | null
 }
 
 export function HomeScreen({
   game,
   creditsPerSecond,
-  formatRenderedCredits,
-  formatIdleNumber,
-  formatAffordabilityEta,
-  getSecondsUntilAffordable,
 }: HomeScreenProps) {
   const productionIntensity = (() => {
     if (creditsPerSecond.lessThanOrEqualTo(0)) {
@@ -42,100 +25,37 @@ export function HomeScreen({
     return Math.max(0, Math.min(1, intensity))
   })()
 
-  const nextGeneratorGoal = (() => {
-    const credits = new Decimal(game.credits)
-    let best:
-      | {
-          label: string
-          cost: Decimal
-          etaSeconds: number | null
-        }
-      | null = null
-
-    for (const key of GENERATOR_ORDER) {
-      const cost = getGeneratorCost(game, key, 1)
-      if (credits.greaterThanOrEqualTo(cost)) {
-        continue
+  const nextAchievementGoals = ACHIEVEMENT_ORDER
+    .filter((key) => !game.achievements[key])
+    .map((key, index) => ({
+      definition: ACHIEVEMENT_DEFS[key],
+      progressRatio: getAchievementProgressRatio(game, key),
+      orderIndex: index,
+    }))
+    .sort((a, b) => {
+      if (a.progressRatio.equals(b.progressRatio)) {
+        return a.orderIndex - b.orderIndex
       }
-
-      const etaSeconds = getSecondsUntilAffordable(credits, cost, creditsPerSecond)
-      if (!best) {
-        best = { label: GENERATOR_DEFS[key].label, cost, etaSeconds }
-        continue
+      return b.progressRatio.comparedTo(a.progressRatio)
+    })
+    .reduce<
+      Array<{
+        definition: (typeof ACHIEVEMENT_DEFS)[typeof ACHIEVEMENT_ORDER[number]]
+        progressRatio: Decimal
+      }>
+    >((selected, candidate) => {
+      if (selected.length >= 3) {
+        return selected
       }
-
-      if (best.etaSeconds === null) {
-        best = { label: GENERATOR_DEFS[key].label, cost, etaSeconds }
-        continue
+      if (selected.some((entry) => entry.definition.category === candidate.definition.category)) {
+        return selected
       }
-
-      if (etaSeconds !== null && etaSeconds < best.etaSeconds) {
-        best = { label: GENERATOR_DEFS[key].label, cost, etaSeconds }
-      }
-    }
-
-    return best
-  })()
-
-  const nextUpgradeUnlockGoal = (() => {
-    for (const key of UPGRADE_ORDER) {
-      if (game.purchasedUpgrades[key] || canBuyUpgrade(game, key)) {
-        continue
-      }
-
-      const unlockProgress = getUpgradeUnlockProgress(game, key)
-      if (!unlockProgress) {
-        continue
-      }
-
-      return {
-        label: UPGRADE_DEFS[key].label,
-        current: unlockProgress.current,
-        required: unlockProgress.required,
-        requirementLabel: unlockProgress.label,
-      }
-    }
-
-    return null
-  })()
-
-  const nextPrestigeGoal = (() => {
-    const currentGain = getPrestigeGainForReset(game)
-    const targetGain = currentGain.plus(1)
-    const currentRunCredits = new Decimal(game.stats.totalCredits)
-
-    const gainAt = (runCredits: Decimal): Decimal =>
-      getPrestigeGainForReset({
-        ...game,
-        stats: {
-          ...game.stats,
-          totalCredits: runCredits.toString(),
-        },
+      selected.push({
+        definition: candidate.definition,
+        progressRatio: candidate.progressRatio,
       })
-
-    let low = Decimal.max(currentRunCredits, 0)
-    let high = Decimal.max(new Decimal(1), low.plus(1))
-    let guard = 0
-    while (gainAt(high).lessThan(targetGain) && guard < 256) {
-      high = high.times(2)
-      guard += 1
-    }
-
-    for (let index = 0; index < 256 && high.minus(low).greaterThan(1); index += 1) {
-      const mid = low.plus(high).div(2).floor()
-      if (gainAt(mid).greaterThanOrEqualTo(targetGain)) {
-        high = mid
-      } else {
-        low = mid
-      }
-    }
-
-    return {
-      currentGain,
-      targetGain,
-      targetCredits: high,
-    }
-  })()
+      return selected
+    }, [])
 
   return (
     <div className="space-y-6">
@@ -160,58 +80,21 @@ export function HomeScreen({
           }}
         />
         <div className="relative">
-          <h3 className="text-sm font-semibold">Next Steps</h3>
+          <h3 className="text-sm font-semibold">Goals</h3>
           <div className="mt-3 space-y-3 text-sm text-muted-foreground">
-            <p className="flex items-start justify-between gap-3">
-              <span>Next affordable generator</span>
-              <span className="text-right">
-                {nextGeneratorGoal ? (
-                  <>
-                    <span className="font-medium text-foreground">{nextGeneratorGoal.label}</span>{' '}
-                    (<span className="font-mono tabular-nums">{formatRenderedCredits(nextGeneratorGoal.cost)}</span>
-                    {nextGeneratorGoal.etaSeconds !== null
-                      ? `, ${formatAffordabilityEta(nextGeneratorGoal.etaSeconds)}`
-                      : ''}
-                    )
-                  </>
-                ) : (
-                  'All generators affordable'
-                )}
-              </span>
-            </p>
-            <p className="flex items-start justify-between gap-3">
-              <span>Next upgrade unlock</span>
-              <span className="text-right">
-                {nextUpgradeUnlockGoal ? (
-                  <>
-                    <span className="font-medium text-foreground">{nextUpgradeUnlockGoal.label}</span>{' '}
-                    (
-                    <span className="font-mono tabular-nums">
-                      {nextUpgradeUnlockGoal.current}/{nextUpgradeUnlockGoal.required}
-                    </span>{' '}
-                    {nextUpgradeUnlockGoal.requirementLabel})
-                  </>
-                ) : (
-                  'No pending unlock requirements'
-                )}
-              </span>
-            </p>
-            <p className="flex items-start justify-between gap-3">
-              <span>Next prestige breakpoint</span>
-              <span className="text-right">
-                <span className="font-mono tabular-nums">
-                  {formatRenderedCredits(nextPrestigeGoal.targetCredits)}
-                </span>{' '}
-                run credits
-                <span className="ml-1">
-                  (+
-                  <span className="font-mono tabular-nums">
-                    {formatIdleNumber(nextPrestigeGoal.targetGain)}
-                  </span>{' '}
-                  essence)
-                </span>
-              </span>
-            </p>
+            {nextAchievementGoals.length > 0 ? (
+              nextAchievementGoals.map((goal) => (
+                <article key={goal.definition.key} className="space-y-0.5">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {goal.definition.category}
+                  </p>
+                  <p className="font-medium text-foreground">{goal.definition.label}</p>
+                  <p>{goal.definition.description}</p>
+                </article>
+              ))
+            ) : (
+              <p>All achievements unlocked.</p>
+            )}
           </div>
         </div>
       </section>
