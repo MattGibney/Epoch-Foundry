@@ -801,30 +801,22 @@ function App() {
         </p>
       </section>
       <section className="border-t border-border/70 pt-4">
-        <div className="divide-y divide-border/70">
+        <div className="grid grid-cols-3 gap-2">
           {ACHIEVEMENT_ORDER.map((key) => {
             const definition = ACHIEVEMENT_DEFS[key]
             const unlocked = game.achievements[key]
 
             return (
-              <article key={key} className="py-3 first:pt-0">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-semibold">{definition.label}</h3>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {definition.description}
-                    </p>
-                  </div>
-                  <span
-                    className={cn(
-                      'shrink-0 rounded-full border px-2 py-0.5 text-[11px]',
-                      unlocked
-                        ? 'border-emerald-600/40 text-emerald-700'
-                        : 'border-border text-muted-foreground',
-                    )}
-                  >
-                    {unlocked ? 'Unlocked' : 'Locked'}
-                  </span>
+              <article
+                key={key}
+                className={cn(
+                  'rounded-lg border p-3',
+                  unlocked ? 'border-emerald-600/40 opacity-100' : 'border-border opacity-55',
+                )}
+              >
+                <div className="flex h-full flex-col gap-1.5">
+                  <h3 className="text-sm font-semibold leading-tight">{definition.label}</h3>
+                  <p className="text-xs text-muted-foreground">{definition.description}</p>
                 </div>
               </article>
             )
