@@ -18,7 +18,7 @@ export function CreditsHeader({
   onAnchorRefChange,
 }: CreditsHeaderProps) {
   return (
-    <section ref={onAnchorRefChange} className="border-b border-border/70 pb-4">
+    <section ref={onAnchorRefChange} className="pb-4">
       <article>
         <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
           <Coins className="size-3.5 text-muted-foreground" aria-hidden />

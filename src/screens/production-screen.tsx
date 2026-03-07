@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import Decimal from 'decimal.js'
+import { ChevronDown } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -34,28 +36,48 @@ export function ProductionScreen({
   formatAffordabilityEta,
   getSecondsUntilAffordable,
 }: ProductionScreenProps) {
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false)
+
   return (
-    <div className="space-y-6">
-      <section>
-        <div className="flex items-center justify-end gap-2">
-          <div
-            className="inline-flex items-center overflow-hidden rounded-md border border-border"
-            role="group"
-            aria-label="Buy amount"
-          >
-            {BUY_AMOUNT_OPTIONS.map((amount) => (
-              <Button
-                key={amount}
-                size="sm"
-                variant={game.buyAmount === amount ? 'default' : 'ghost'}
-                className="h-7 rounded-none border-0 border-r border-border px-2 text-xs last:border-r-0"
-                onClick={() => onGameChange((current) => setBuyAmount(current, amount))}
+    <div className="space-y-4">
+      <section className="border-b border-border/70 pb-3">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between text-left"
+          onClick={() => setIsOptionsOpen((current) => !current)}
+          aria-expanded={isOptionsOpen}
+          aria-controls="production-options-panel"
+        >
+          <span className="text-sm font-semibold">Options</span>
+          <ChevronDown
+            className={cn('size-4 text-muted-foreground transition-transform', isOptionsOpen && 'rotate-180')}
+            aria-hidden
+          />
+        </button>
+        {isOptionsOpen && (
+          <div id="production-options-panel" className="pt-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">Buy amount</p>
+              <div
+                className="inline-flex items-center overflow-hidden rounded-md border border-border"
+                role="group"
+                aria-label="Buy amount"
               >
-                <span className="font-mono text-xs tabular-nums">{amount}x</span>
-              </Button>
-            ))}
+                {BUY_AMOUNT_OPTIONS.map((amount) => (
+                  <Button
+                    key={amount}
+                    size="sm"
+                    variant={game.buyAmount === amount ? 'default' : 'ghost'}
+                    className="h-7 rounded-none border-0 border-r border-border px-2 text-xs last:border-r-0"
+                    onClick={() => onGameChange((current) => setBuyAmount(current, amount))}
+                  >
+                    <span className="font-mono text-xs tabular-nums">{amount}x</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       <section className="divide-y divide-border/70">
