@@ -6,3 +6,5 @@ export const UPDATE_FPS_BY_MODE = {
 } as const
 
 export type UpdateFrequencyMode = keyof typeof UPDATE_FPS_BY_MODE
+
+export const TOP_CREDITS_SHORTHAND_THRESHOLD = '9.99e35'

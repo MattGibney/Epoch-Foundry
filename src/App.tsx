@@ -72,6 +72,7 @@ import {
 } from '@/lib/game-config'
 import {
   OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS,
+  TOP_CREDITS_SHORTHAND_THRESHOLD,
   UPDATE_FPS_BY_MODE,
 } from '@/lib/consts'
 import { formatIdleNumber } from '@/lib/number-format'
@@ -127,6 +128,7 @@ const yearEtaFormatter = new Intl.NumberFormat('en-GB', {
   minimumFractionDigits: 0,
   maximumFractionDigits: 1,
 })
+const topCreditsShorthandThreshold = new Decimal(TOP_CREDITS_SHORTHAND_THRESHOLD)
 
 function formatAffordabilityEta(totalSeconds: number): string {
   const daySeconds = 24 * 60 * 60
@@ -146,6 +148,42 @@ function formatAffordabilityEta(totalSeconds: number): string {
 
 function formatRenderedCredits(value: Decimal.Value): string {
   return formatIdleNumber(value)
+}
+
+function formatGroupedInteger(value: Decimal): string {
+  const absoluteRounded = value.abs().toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toFixed(0)
+  const grouped = absoluteRounded.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return value.isNegative() && grouped !== '0' ? `-${grouped}` : grouped
+}
+
+function formatTopCreditsDisplay(value: Decimal.Value): string {
+  let decimalValue: Decimal
+
+  try {
+    decimalValue = new Decimal(value)
+  } catch {
+    return 'NaN'
+  }
+
+  if (!decimalValue.isFinite()) {
+    if (decimalValue.isNaN()) {
+      return 'NaN'
+    }
+
+    return decimalValue.isNegative() ? '-Infinity' : 'Infinity'
+  }
+
+  const absoluteValue = decimalValue.abs()
+
+  if (absoluteValue.lessThanOrEqualTo(topCreditsShorthandThreshold)) {
+    if (absoluteValue.lessThan(10_000)) {
+      return formatIdleNumber(decimalValue)
+    }
+
+    return formatGroupedInteger(decimalValue)
+  }
+
+  return formatIdleNumber(decimalValue)
 }
 
 function getSecondsUntilAffordable(
@@ -986,7 +1024,7 @@ function App() {
             <span>Credits</span>
           </p>
           <p className="mt-1 text-3xl font-mono font-semibold tabular-nums">
-            {formatRenderedCredits(game.credits)}
+            {formatTopCreditsDisplay(game.credits)}
           </p>
         </article>
         <article className="mt-2">
