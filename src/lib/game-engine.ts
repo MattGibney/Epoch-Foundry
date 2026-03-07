@@ -247,6 +247,7 @@ export interface ContractState {
   objective: ContractObjective
   rewards: ContractReward[]
   modifier: ContractModifier | null
+  offerExpiresAtMs: number
   challengeDurationMs: number | null
   createdAtMs: number
   expiresAtMs: number | null
@@ -697,6 +698,44 @@ function getContractBandBySlot(slot: number): ContractBand {
   return 'long'
 }
 
+function getContractOfferDurationMs(band: ContractBand): number {
+  if (band === 'short') {
+    return 15 * 60 * 1000
+  }
+  if (band === 'medium') {
+    return 20 * 60 * 1000
+  }
+  return 25 * 60 * 1000
+}
+
+function getContractActiveDurationMs(
+  band: ContractBand,
+  quality: ContractQuality,
+  kind: ContractState['kind'],
+): number {
+  const baseHours =
+    quality === 'elite'
+      ? band === 'short'
+        ? 1.5
+        : band === 'medium'
+          ? 2.5
+          : 4
+      : quality === 'rare'
+        ? band === 'short'
+          ? 3
+          : band === 'medium'
+            ? 5
+            : 8
+        : band === 'short'
+          ? 6
+          : band === 'medium'
+            ? 10
+            : 16
+
+  const kindMultiplier = kind === 'challenge' ? 0.9 : 1
+  return Math.floor(baseHours * kindMultiplier * 60 * 60 * 1000)
+}
+
 function getContractQuality(seed: string): ContractQuality {
   const roll = randomFromSeed(seed, 10)
   let cursor = 0
@@ -1079,10 +1118,11 @@ function generateContractForSlot(
     objective: selectedObjective,
     rewards: buildContractRewards(state, slotSeed, band, quality, kind, targetSeconds),
     modifier,
-    challengeDurationMs:
-      kind === 'challenge'
-        ? Math.floor(targetSeconds * CONTRACT_CHALLENGE_DURATION_MULTIPLIER * 1000)
-        : null,
+    offerExpiresAtMs: nowMs + getContractOfferDurationMs(band),
+    challengeDurationMs: Math.max(
+      Math.floor(targetSeconds * CONTRACT_CHALLENGE_DURATION_MULTIPLIER * 1000),
+      getContractActiveDurationMs(band, quality, kind),
+    ),
     createdAtMs: nowMs,
     expiresAtMs: null,
   }
@@ -1240,12 +1280,14 @@ function resolveContractExpiry(state: GameState, nowMs: number): GameState {
 
   for (let slot = 0; slot < state.contracts.active.length; slot += 1) {
     const contract = nextState.contracts.active[slot]
-    if (
-      !contract ||
-      !contract.isParticipating ||
-      contract.expiresAtMs === null ||
-      contract.expiresAtMs > nowMs
-    ) {
+    if (!contract) {
+      continue
+    }
+
+    const isExpiredOffer = !contract.isParticipating && contract.offerExpiresAtMs <= nowMs
+    const isExpiredActive =
+      contract.isParticipating && contract.expiresAtMs !== null && contract.expiresAtMs <= nowMs
+    if (!isExpiredOffer && !isExpiredActive) {
       continue
     }
 
@@ -1351,14 +1393,18 @@ export function activateContract(state: GameState, contractId: string, nowMs = D
     return state
   }
 
+  if (contract.offerExpiresAtMs <= nowMs) {
+    return skipContract(state, contractId, nowMs)
+  }
+
   const nextContracts = [...state.contracts.active]
   nextContracts[contractIndex] = {
     ...contract,
     isParticipating: true,
     expiresAtMs:
-      contract.kind === 'challenge' && contract.challengeDurationMs !== null
+      contract.challengeDurationMs !== null
         ? nowMs + contract.challengeDurationMs
-        : null,
+        : nowMs + getContractActiveDurationMs(contract.band, contract.quality, contract.kind),
   }
 
   return {
@@ -1400,6 +1446,9 @@ export function claimContract(state: GameState, contractId: string, nowMs = Date
 
   const contract = state.contracts.active[contractIndex]
   if (!contract.isParticipating) {
+    return state
+  }
+  if (contract.expiresAtMs !== null && contract.expiresAtMs <= nowMs) {
     return state
   }
   const progress = getContractProgress(state, contract)
