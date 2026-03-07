@@ -59,6 +59,7 @@ import {
   getUpgradeUnlockProgress,
   setBuyAmount,
   setShowPurchasedUpgrades,
+  setUpdateFrequency,
   tickGame,
   UPGRADE_DEFS,
   UPGRADE_ORDER,
@@ -70,8 +71,8 @@ import {
   SAFE_AREA_INSETS,
 } from '@/lib/game-config'
 import {
-  GAME_TICK_INTERVAL_MS,
   OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS,
+  UPDATE_FPS_BY_MODE,
 } from '@/lib/consts'
 import { formatIdleNumber } from '@/lib/number-format'
 import { cn } from '@/lib/utils'
@@ -320,16 +321,17 @@ function App() {
       return
     }
 
+    const gameTickIntervalMs = 1000 / UPDATE_FPS_BY_MODE[gameRef.current.settings.updateFrequency]
     const tickId = window.setInterval(() => {
       const now = Date.now()
       setNowMs(now)
       setGame((current) => tickGame(current, now))
-    }, GAME_TICK_INTERVAL_MS)
+    }, gameTickIntervalMs)
 
     return () => {
       window.clearInterval(tickId)
     }
-  }, [isHydrated])
+  }, [game.settings.updateFrequency, isHydrated])
 
   useEffect(() => {
     if (!isHydrated) {
@@ -813,6 +815,36 @@ function App() {
         {refreshError && (
           <p className="mt-2 text-sm text-red-600">{refreshError}</p>
         )}
+      </section>
+
+      <section className="border-t border-border/70 pt-4">
+        <h3 className="text-base font-semibold">Performance</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Choose how frequently the game updates on screen.
+        </p>
+        <div
+          className="mt-3 inline-flex items-center overflow-hidden rounded-md border border-border"
+          role="group"
+          aria-label="Update frequency"
+        >
+          {(['slow', 'medium', 'fast'] as const).map((mode) => (
+            <Button
+              key={mode}
+              type="button"
+              size="sm"
+              variant={game.settings.updateFrequency === mode ? 'default' : 'ghost'}
+              className="rounded-none px-3 text-xs capitalize"
+              onClick={() =>
+                setGame((current) => setUpdateFrequency(current, mode))
+              }
+            >
+              {mode}
+            </Button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Slow: 4 fps, Medium: 12 fps, Fast: 30 fps
+        </p>
       </section>
 
       <section className="border-t border-border/70 pt-4">

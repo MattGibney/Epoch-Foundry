@@ -21,6 +21,7 @@ import {
   writeSaveSlotRecord,
   type SaveSlotPayload,
 } from '@/lib/save-db'
+import { type UpdateFrequencyMode } from '@/lib/consts'
 
 const MAIN_SAVE_SLOT = 'main'
 const BACKUP_SAVE_SLOT = 'backup'
@@ -81,18 +82,29 @@ function parseBool(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null
 }
 
+function parseUpdateFrequency(value: unknown): UpdateFrequencyMode | null {
+  if (value === 'slow' || value === 'medium' || value === 'fast') {
+    return value
+  }
+
+  return null
+}
+
 function parseSettings(value: unknown): GameState['settings'] {
   if (!value || typeof value !== 'object') {
     return {
       showPurchasedUpgrades: false,
+      updateFrequency: 'slow',
     }
   }
 
   const candidate = value as Record<string, unknown>
   const showPurchasedUpgrades = parseBool(candidate.showPurchasedUpgrades)
+  const updateFrequency = parseUpdateFrequency(candidate.updateFrequency)
 
   return {
     showPurchasedUpgrades: showPurchasedUpgrades ?? false,
+    updateFrequency: updateFrequency ?? 'slow',
   }
 }
 

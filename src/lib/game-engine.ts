@@ -133,6 +133,7 @@ export interface StatsState {
 
 export interface GameSettingsState {
   showPurchasedUpgrades: boolean
+  updateFrequency: 'slow' | 'medium' | 'fast'
 }
 
 export interface PrestigeState {
@@ -1141,6 +1142,7 @@ export function createInitialGameState(nowMs = Date.now()): GameState {
     },
     settings: {
       showPurchasedUpgrades: false,
+      updateFrequency: 'slow',
     },
     prestige: createInitialPrestigeState(),
   }
@@ -1206,6 +1208,19 @@ export function setShowPurchasedUpgrades(
     settings: {
       ...state.settings,
       showPurchasedUpgrades,
+    },
+  }
+}
+
+export function setUpdateFrequency(
+  state: GameState,
+  updateFrequency: GameSettingsState['updateFrequency'],
+): GameState {
+  return {
+    ...state,
+    settings: {
+      ...state.settings,
+      updateFrequency,
     },
   }
 }

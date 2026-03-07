@@ -1,3 +1,8 @@
 export const OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS = 5 * 60
-export const GAME_TICKS_PER_SECOND = 4
-export const GAME_TICK_INTERVAL_MS = 1000 / GAME_TICKS_PER_SECOND
+export const UPDATE_FPS_BY_MODE = {
+  slow: 4,
+  medium: 12,
+  fast: 30,
+} as const
+
+export type UpdateFrequencyMode = keyof typeof UPDATE_FPS_BY_MODE
