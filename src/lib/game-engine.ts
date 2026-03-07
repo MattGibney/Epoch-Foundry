@@ -1045,12 +1045,30 @@ function buildContractRewards(
     },
   ]
 
+  const chosenBonusTypes = new Set<ContractReward['type']>()
+
+  const pickUniqueBonusReward = (index: number): ContractReward | null => {
+    const available = bonusKinds.filter((reward) => !chosenBonusTypes.has(reward.type))
+    if (available.length === 0) {
+      return null
+    }
+    const selected = randomChoiceFromSeed(seed, index, available)
+    chosenBonusTypes.add(selected.type)
+    return selected
+  }
+
   if (kind === 'challenge' || quality !== 'common' || randomFromSeed(seed, 40) > 0.55) {
-    rewards.push(randomChoiceFromSeed(seed, 41, bonusKinds))
+    const selected = pickUniqueBonusReward(41)
+    if (selected) {
+      rewards.push(selected)
+    }
   }
 
   if (quality === 'elite' && randomFromSeed(seed, 42) > 0.35) {
-    rewards.push(randomChoiceFromSeed(seed, 43, bonusKinds))
+    const selected = pickUniqueBonusReward(43)
+    if (selected) {
+      rewards.push(selected)
+    }
   }
 
   return rewards

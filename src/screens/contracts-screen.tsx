@@ -119,23 +119,38 @@ function getObjectiveDescription(contract: ContractState): string {
   return 'Purchase additional upgrades this run.'
 }
 
-function getRewardLabel(
+function getRewardDisplay(
   reward: ContractReward,
   formatRenderedCredits: (value: Decimal.Value) => string,
-): string {
+): { label: string; value: string } {
   if (reward.type === 'credits') {
-    return `+${formatRenderedCredits(reward.amount)} credits`
+    return {
+      label: 'Credits',
+      value: `+${formatRenderedCredits(reward.amount)}`,
+    }
   }
   if (reward.type === 'essence') {
-    return `+${formatCompactValue(reward.amount)} essence`
+    return {
+      label: 'Essence',
+      value: `+${formatCompactValue(reward.amount)}`,
+    }
   }
   if (reward.type === 'productionBoost') {
-    return `x${formatCompactValue(reward.multiplier)} production for ${Math.round(reward.durationSeconds / 60)}m`
+    return {
+      label: 'Production Boost',
+      value: `x${formatCompactValue(reward.multiplier)} for ${Math.round(reward.durationSeconds / 60)}m`,
+    }
   }
   if (reward.type === 'costDiscountCharges') {
-    return `x${formatCompactValue(reward.multiplier)} costs for next ${reward.charges} purchases`
+    return {
+      label: 'Cost Discount',
+      value: `x${formatCompactValue(reward.multiplier)} for ${reward.charges} buys`,
+    }
   }
-  return `x${formatCompactValue(reward.multiplier)} next contract reward`
+  return {
+    label: 'Next Reward Multiplier',
+    value: `x${formatCompactValue(reward.multiplier)}`,
+  }
 }
 
 export function ContractsScreen({
@@ -189,12 +204,22 @@ export function ContractsScreen({
                 )}
               </div>
 
-              <div className="mt-3 space-y-1.5">
-                {contract.rewards.map((reward, index) => (
-                  <p key={`${contract.id}-reward-${index}`} className="text-xs text-muted-foreground">
-                    Reward: <span className="font-mono tabular-nums">{getRewardLabel(reward, formatRenderedCredits)}</span>
-                  </p>
-                ))}
+              <div className="mt-3">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Rewards</p>
+                <div className="mt-1.5 space-y-1.5">
+                  {contract.rewards.map((reward, index) => {
+                    const display = getRewardDisplay(reward, formatRenderedCredits)
+                    return (
+                      <div
+                        key={`${contract.id}-reward-${index}`}
+                        className="flex items-center justify-between rounded-md border border-border/60 bg-muted/20 px-2.5 py-1.5 text-xs"
+                      >
+                        <span className="text-muted-foreground">{display.label}</span>
+                        <span className="font-mono tabular-nums text-foreground">{display.value}</span>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
 
               <div className="mt-3 flex items-center gap-3">
