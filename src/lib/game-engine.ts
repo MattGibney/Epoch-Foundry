@@ -210,6 +210,30 @@ export interface PrestigeState {
   essence: string
 }
 
+export interface RandomState {
+  worldSeed: string
+}
+
+export type ContractBand = 'short' | 'medium' | 'long'
+
+export type ContractObjective =
+  | { type: 'runCredits'; target: string }
+  | { type: 'owned'; generator: GeneratorKey; target: number }
+  | { type: 'purchasedUpgrades'; target: number }
+
+export interface ContractState {
+  id: string
+  band: ContractBand
+  objective: ContractObjective
+  rewardCredits: string
+  createdAtMs: number
+}
+
+export interface ContractsState {
+  active: ContractState[]
+  generationCounter: number
+}
+
 export interface GameState {
   credits: string
   generators: GeneratorsState
@@ -219,6 +243,8 @@ export interface GameState {
   stats: StatsState
   settings: GameSettingsState
   prestige: PrestigeState
+  random: RandomState
+  contracts: ContractsState
 }
 
 interface GeneratorDef {
@@ -273,6 +299,7 @@ const ONE = new Decimal(1)
 const ZERO = new Decimal(0)
 const MAX_TICK_SECONDS = 5
 const BASE_OFFLINE_PROGRESS_CAP_SECONDS = 15 * 60
+const CONTRACT_SLOT_COUNT = 3
 const PRESTIGE_UNLOCK_CREDITS = new Decimal(PRESTIGE_BALANCE.unlockCredits)
 const PRESTIGE_GAIN_EXPONENT = new Decimal(PRESTIGE_BALANCE.gainExponent)
 const PRESTIGE_ESSENCE_MULTIPLIER_STEP = new Decimal(PRESTIGE_BALANCE.essenceMultiplierStep)
@@ -568,6 +595,284 @@ function calculateBulkCost(
   return baseCost.times(ownedScale).times(geometricSeries)
 }
 
+function hashString32(input: string): number {
+  let hash = 2166136261
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+function randomFromSeed(seed: string, index: number): number {
+  const hashed = hashString32(`${seed}:${index}`)
+  return hashed / 4294967296
+}
+
+function randomIntFromSeed(seed: string, index: number, min: number, max: number): number {
+  const clampedMin = Math.ceil(min)
+  const clampedMax = Math.floor(max)
+  if (clampedMax <= clampedMin) {
+    return clampedMin
+  }
+  const value = randomFromSeed(seed, index)
+  return clampedMin + Math.floor(value * (clampedMax - clampedMin + 1))
+}
+
+function randomChoiceFromSeed<T>(seed: string, index: number, items: readonly T[]): T {
+  const selectedIndex = randomIntFromSeed(seed, index, 0, items.length - 1)
+  return items[selectedIndex]
+}
+
+function generateWorldSeed(nowMs = Date.now()): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = new Uint32Array(2)
+    crypto.getRandomValues(bytes)
+    return `${nowMs.toString(36)}-${bytes[0].toString(36)}${bytes[1].toString(36)}`
+  }
+
+  return `${nowMs.toString(36)}-${Math.floor(Math.random() * 1e12).toString(36)}`
+}
+
+function getContractBandRangeSeconds(
+  band: ContractBand,
+): { min: number; max: number } {
+  switch (band) {
+    case 'short':
+      return { min: 5 * 60, max: 15 * 60 }
+    case 'medium':
+      return { min: 30 * 60, max: 90 * 60 }
+    case 'long':
+      return { min: 2 * 60 * 60, max: 8 * 60 * 60 }
+    default:
+      return { min: 10 * 60, max: 20 * 60 }
+  }
+}
+
+function getContractBandBySlot(slot: number): ContractBand {
+  if (slot === 0) {
+    return 'short'
+  }
+  if (slot === 1) {
+    return 'medium'
+  }
+  return 'long'
+}
+
+function estimateSecondsForObjective(
+  state: GameState,
+  objective: ContractObjective,
+): number {
+  const credits = toDecimal(state.credits)
+  const creditsPerSecond = getTotalProductionPerSecond(state)
+  if (creditsPerSecond.lessThanOrEqualTo(0)) {
+    return Number.POSITIVE_INFINITY
+  }
+
+  if (objective.type === 'runCredits') {
+    const remaining = Decimal.max(
+      ZERO,
+      toDecimal(objective.target).minus(state.stats.totalCredits),
+    )
+    return remaining.div(creditsPerSecond).toNumber()
+  }
+
+  if (objective.type === 'owned') {
+    const owned = state.generators[objective.generator]
+    const required = Math.max(0, objective.target - owned)
+    if (required <= 0) {
+      return 0
+    }
+
+    const definition = GENERATOR_DEFS[objective.generator]
+    const totalCost = calculateBulkCost(
+      toDecimal(definition.baseCost),
+      toDecimal(definition.growth),
+      owned,
+      required,
+    )
+    const remainingCost = Decimal.max(ZERO, totalCost.minus(credits))
+    return remainingCost.div(creditsPerSecond).toNumber()
+  }
+
+  const currentPurchased = getPurchasedUpgradeCount(state)
+  const requiredUpgrades = Math.max(0, objective.target - currentPurchased)
+  if (requiredUpgrades <= 0) {
+    return 0
+  }
+
+  const pendingCosts = UPGRADE_ORDER
+    .filter((key) => !state.purchasedUpgrades[key])
+    .map((key) => toDecimal(UPGRADE_DEFS[key].cost))
+    .sort((a, b) => a.comparedTo(b))
+
+  if (pendingCosts.length < requiredUpgrades) {
+    return Number.POSITIVE_INFINITY
+  }
+
+  const projectedCost = pendingCosts
+    .slice(0, requiredUpgrades)
+    .reduce((sum, cost) => sum.plus(cost), ZERO)
+  const remainingCost = Decimal.max(ZERO, projectedCost.minus(credits))
+  return remainingCost.div(creditsPerSecond).toNumber()
+}
+
+function buildContractObjectiveCandidate(
+  state: GameState,
+  seed: string,
+  band: ContractBand,
+  targetSeconds: number,
+  indexOffset: number,
+): ContractObjective | null {
+  const objectiveType = randomChoiceFromSeed(
+    seed,
+    indexOffset,
+    ['runCredits', 'owned', 'purchasedUpgrades'] as const,
+  )
+  const creditsPerSecond = getTotalProductionPerSecond(state)
+
+  if (objectiveType === 'runCredits') {
+    if (creditsPerSecond.lessThanOrEqualTo(0)) {
+      return null
+    }
+
+    const scale = new Decimal(0.8 + randomFromSeed(seed, indexOffset + 1) * 0.45)
+    const delta = Decimal.max(
+      creditsPerSecond
+      .times(targetSeconds)
+      .times(scale)
+      .ceil(),
+      new Decimal(1000),
+    )
+    return {
+      type: 'runCredits',
+      target: toDecimal(state.stats.totalCredits).plus(delta).toString(),
+    }
+  }
+
+  if (objectiveType === 'owned') {
+    const generator = randomChoiceFromSeed(seed, indexOffset + 1, GENERATOR_ORDER)
+    const owned = state.generators[generator]
+    const definition = GENERATOR_DEFS[generator]
+    const budget = toDecimal(state.credits).plus(creditsPerSecond.times(targetSeconds))
+    let affordableUnits = 0
+
+    for (let amount = 1; amount <= 500; amount += 1) {
+      const cost = calculateBulkCost(
+        toDecimal(definition.baseCost),
+        toDecimal(definition.growth),
+        owned,
+        amount,
+      )
+      if (cost.greaterThan(budget)) {
+        break
+      }
+      affordableUnits = amount
+    }
+
+    if (affordableUnits <= 0) {
+      return null
+    }
+
+    const capByBand = band === 'short' ? 25 : band === 'medium' ? 75 : 180
+    const maxIncrement = Math.max(1, Math.min(affordableUnits, capByBand))
+    const minIncrement = Math.max(1, Math.floor(maxIncrement * 0.35))
+    const increment = randomIntFromSeed(seed, indexOffset + 2, minIncrement, maxIncrement)
+
+    return {
+      type: 'owned',
+      generator,
+      target: owned + increment,
+    }
+  }
+
+  const currentUpgrades = getPurchasedUpgradeCount(state)
+  const remainingUpgrades = UPGRADE_ORDER.filter((key) => !state.purchasedUpgrades[key]).length
+  if (remainingUpgrades <= 0) {
+    return null
+  }
+
+  const maxByBand = band === 'short' ? 2 : band === 'medium' ? 4 : 6
+  const maxIncrement = Math.max(1, Math.min(remainingUpgrades, maxByBand))
+  const increment = randomIntFromSeed(seed, indexOffset + 3, 1, maxIncrement)
+  return {
+    type: 'purchasedUpgrades',
+    target: currentUpgrades + increment,
+  }
+}
+
+function generateContractForSlot(
+  state: GameState,
+  generationCounter: number,
+  slot: number,
+  nowMs: number,
+): ContractState {
+  const band = getContractBandBySlot(slot)
+  const bandRange = getContractBandRangeSeconds(band)
+  const slotSeed = `${state.random.worldSeed}:contracts:${generationCounter}:${slot}`
+  const targetSeconds = randomIntFromSeed(slotSeed, 0, bandRange.min, bandRange.max)
+  const attemptLimit = 24
+  const fallbackObjective: ContractObjective = {
+    type: 'runCredits',
+    target: toDecimal(state.stats.totalCredits)
+      .plus(
+        Decimal.max(
+          getTotalProductionPerSecond(state).times(Math.max(300, targetSeconds)),
+          new Decimal(1000),
+        ),
+      )
+      .ceil()
+      .toString(),
+  }
+  let selectedObjective: ContractObjective = fallbackObjective
+
+  for (let attempt = 0; attempt < attemptLimit; attempt += 1) {
+    const objective = buildContractObjectiveCandidate(
+      state,
+      slotSeed,
+      band,
+      targetSeconds,
+      100 + attempt * 10,
+    )
+    if (!objective) {
+      continue
+    }
+
+    const etaSeconds = estimateSecondsForObjective(state, objective)
+    const minBound = bandRange.min * 0.35
+    const maxBound = bandRange.max * 1.35
+    if (Number.isFinite(etaSeconds) && etaSeconds >= minBound && etaSeconds <= maxBound) {
+      selectedObjective = objective
+      break
+    }
+  }
+
+  const rewardSeconds = targetSeconds * (band === 'short' ? 0.45 : band === 'medium' ? 0.65 : 0.85)
+  const rewardCredits = getTotalProductionPerSecond(state)
+    .times(rewardSeconds)
+    .plus(band === 'short' ? 2500 : band === 'medium' ? 12000 : 50000)
+    .ceil()
+    .toString()
+
+  return {
+    id: `contract-${generationCounter}-${slot}`,
+    band,
+    objective: selectedObjective,
+    rewardCredits,
+    createdAtMs: nowMs,
+  }
+}
+
+function generateContractSet(
+  state: GameState,
+  generationCounter: number,
+  nowMs: number,
+): ContractState[] {
+  return Array.from({ length: CONTRACT_SLOT_COUNT }, (_unused, slot) =>
+    generateContractForSlot(state, generationCounter, slot, nowMs),
+  )
+}
+
 function createInitialPurchasedUpgrades(): PurchasedUpgradesState {
   return UPGRADE_ORDER.reduce((accumulator, key) => {
     accumulator[key] = false
@@ -623,8 +928,98 @@ function createInitialPrestigeState(): PrestigeState {
   }
 }
 
-export function createInitialGameState(nowMs = Date.now()): GameState {
+function createInitialRandomState(nowMs = Date.now()): RandomState {
   return {
+    worldSeed: generateWorldSeed(nowMs),
+  }
+}
+
+function createInitialContractsState(state: GameState, nowMs: number): ContractsState {
+  return {
+    active: generateContractSet(state, 0, nowMs),
+    generationCounter: 0,
+  }
+}
+
+export function getContractProgress(state: GameState, contract: ContractState) {
+  if (contract.objective.type === 'runCredits') {
+    const target = toDecimal(contract.objective.target)
+    const current = toDecimal(state.stats.totalCredits)
+    return {
+      isComplete: current.greaterThanOrEqualTo(target),
+      current: current.toString(),
+      target: target.toString(),
+      label: 'Run Credits',
+    }
+  }
+
+  if (contract.objective.type === 'owned') {
+    const current = state.generators[contract.objective.generator]
+    return {
+      isComplete: current >= contract.objective.target,
+      current: current.toString(),
+      target: contract.objective.target.toString(),
+      label: GENERATOR_DEFS[contract.objective.generator].label,
+    }
+  }
+
+  const current = getPurchasedUpgradeCount(state)
+  return {
+    isComplete: current >= contract.objective.target,
+    current: current.toString(),
+    target: contract.objective.target.toString(),
+    label: 'Upgrades Purchased',
+  }
+}
+
+export function claimContract(state: GameState, contractId: string, nowMs = Date.now()): GameState {
+  const contractIndex = state.contracts.active.findIndex((contract) => contract.id === contractId)
+  if (contractIndex < 0) {
+    return state
+  }
+
+  const contract = state.contracts.active[contractIndex]
+  const progress = getContractProgress(state, contract)
+  if (!progress.isComplete) {
+    return state
+  }
+
+  const generationCounter = state.contracts.generationCounter + 1
+  const nextContracts = [...state.contracts.active]
+  nextContracts[contractIndex] = generateContractForSlot(
+    state,
+    generationCounter,
+    contractIndex,
+    nowMs,
+  )
+
+  return syncAchievements({
+    ...state,
+    credits: toDecimal(state.credits).plus(contract.rewardCredits).toString(),
+    contracts: {
+      ...state.contracts,
+      active: nextContracts,
+      generationCounter,
+    },
+  })
+}
+
+export function ensureContractsState(state: GameState, nowMs = Date.now()): GameState {
+  const hasValidContracts =
+    Array.isArray(state.contracts?.active) &&
+    state.contracts.active.length === CONTRACT_SLOT_COUNT
+  if (hasValidContracts) {
+    return state
+  }
+
+  return {
+    ...state,
+    contracts: createInitialContractsState(state, nowMs),
+  }
+}
+
+export function createInitialGameState(nowMs = Date.now()): GameState {
+  const initial: GameState = {
     credits: '0',
     generators: {
       miners: 1,
@@ -652,6 +1047,16 @@ export function createInitialGameState(nowMs = Date.now()): GameState {
       updateFrequency: 'slow',
     },
     prestige: createInitialPrestigeState(),
+    random: createInitialRandomState(nowMs),
+    contracts: {
+      active: [],
+      generationCounter: 0,
+    },
+  }
+
+  return {
+    ...initial,
+    contracts: createInitialContractsState(initial, nowMs),
   }
 }
 
@@ -679,10 +1084,10 @@ export function applyPrestigeReset(state: GameState, nowMs = Date.now()): GameSt
   }
 
   const initialState = createInitialGameState(nowMs)
-
-  return syncAchievements({
+  const resetBase: GameState = {
     ...initialState,
     settings: state.settings,
+    random: state.random,
     stats: {
       ...initialState.stats,
       totalCreditsAllResets: state.stats.totalCreditsAllResets,
@@ -692,6 +1097,11 @@ export function applyPrestigeReset(state: GameState, nowMs = Date.now()): GameSt
       essence: toDecimal(state.prestige.essence).plus(gainedEssence).toString(),
     },
     achievements: state.achievements,
+  }
+
+  return syncAchievements({
+    ...resetBase,
+    contracts: createInitialContractsState(resetBase, nowMs),
   })
 }
 

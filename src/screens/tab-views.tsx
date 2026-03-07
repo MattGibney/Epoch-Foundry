@@ -5,6 +5,7 @@ import type { GameState } from '@/lib/game-engine'
 import { formatIdleNumber } from '@/lib/number-format'
 import { AboutScreen } from '@/screens/about-screen'
 import { AchievementsScreen } from '@/screens/achievements-screen'
+import { ContractsScreen } from '@/screens/contracts-screen'
 import { ProductionScreen } from '@/screens/production-screen'
 import { SettingsScreen } from '@/screens/settings-screen'
 import { StatsScreen } from '@/screens/stats-screen'
@@ -15,6 +16,7 @@ export type TabKey =
   | 'upgrades'
   | 'stats'
   | 'achievements'
+  | 'contracts'
   | 'settings'
   | 'about'
 
@@ -138,6 +140,29 @@ export function AchievementsTabView(props: AchievementsTabViewProps) {
         <AchievementsScreen
           game={props.game}
           unlockedAchievementCount={props.unlockedAchievementCount}
+        />
+      </section>
+    </>
+  )
+}
+
+type ContractsTabViewProps = CommonTabProps
+
+export function ContractsTabView(props: ContractsTabViewProps) {
+  return (
+    <>
+      <CreditsHeader
+        credits={props.game.credits}
+        creditsPerSecond={props.creditsPerSecond}
+        formatTopCreditsDisplay={props.formatTopCreditsDisplay}
+        formatRenderedCredits={props.formatRenderedCredits}
+        onAnchorRefChange={props.onAnchorRefChange}
+      />
+      <section className="mt-5">
+        <ContractsScreen
+          game={props.game}
+          onGameChange={props.onGameChange}
+          formatRenderedCredits={props.formatRenderedCredits}
         />
       </section>
     </>

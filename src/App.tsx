@@ -66,6 +66,7 @@ import { formatIdleNumber } from '@/lib/number-format'
 import {
   AboutTabView,
   AchievementsTabView,
+  ContractsTabView,
   ProductionTabView,
   SettingsTabView,
   StatsTabView,
@@ -79,6 +80,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'upgrades', label: 'Upgrades' },
   { key: 'stats', label: 'Stats' },
   { key: 'achievements', label: 'Achievements' },
+  { key: 'contracts', label: 'Contracts' },
   { key: 'settings', label: 'Settings' },
   { key: 'about', label: 'About' },
 ]
@@ -523,6 +525,8 @@ function App() {
             unlockedAchievementCount={unlockedAchievementCount}
           />
         )
+      case 'contracts':
+        return <ContractsTabView {...sharedTabProps} />
       case 'settings':
         return (
           <SettingsTabView

@@ -5,11 +5,14 @@ import {
   applyOfflineProgress,
   BUY_AMOUNT_OPTIONS,
   createInitialGameState,
+  ensureContractsState,
   GENERATOR_ORDER,
   getOfflineProgressCapSeconds,
   getUnlockedAchievementCount,
   type GameState,
   type GeneratorKey,
+  type ContractBand,
+  type ContractState,
   syncAchievements,
   type AchievementKey,
   UPGRADE_ORDER,
@@ -126,6 +129,91 @@ function parsePrestige(value: unknown): GameState['prestige'] {
   }
 }
 
+function parseWorldSeed(value: unknown, fallbackStartedAtMs: number): string {
+  if (typeof value === 'string' && value.length > 0) {
+    return value
+  }
+
+  return `legacy-${fallbackStartedAtMs.toString(36)}`
+}
+
+function parseContractBand(value: unknown): ContractBand | null {
+  if (value === 'short' || value === 'medium' || value === 'long') {
+    return value
+  }
+  return null
+}
+
+function parseContractState(value: unknown): ContractState | null {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const candidate = value as Record<string, unknown>
+  if (typeof candidate.id !== 'string' || candidate.id.length === 0) {
+    return null
+  }
+
+  const band = parseContractBand(candidate.band)
+  const rewardCredits = parseDecimalString(candidate.rewardCredits)
+  const createdAtMs = parseNonNegativeInt(candidate.createdAtMs)
+  const objective = candidate.objective as Record<string, unknown> | undefined
+  if (!band || !rewardCredits || createdAtMs === null || !objective) {
+    return null
+  }
+
+  if (objective.type === 'runCredits') {
+    const target = parseDecimalString(objective.target)
+    if (!target) {
+      return null
+    }
+    return {
+      id: candidate.id,
+      band,
+      objective: { type: 'runCredits', target },
+      rewardCredits,
+      createdAtMs,
+    }
+  }
+
+  if (objective.type === 'owned') {
+    if (typeof objective.generator !== 'string' || !GENERATOR_ORDER.includes(objective.generator as GeneratorKey)) {
+      return null
+    }
+    const target = parseNonNegativeInt(objective.target)
+    if (target === null) {
+      return null
+    }
+    return {
+      id: candidate.id,
+      band,
+      objective: {
+        type: 'owned',
+        generator: objective.generator as GeneratorKey,
+        target,
+      },
+      rewardCredits,
+      createdAtMs,
+    }
+  }
+
+  if (objective.type === 'purchasedUpgrades') {
+    const target = parseNonNegativeInt(objective.target)
+    if (target === null) {
+      return null
+    }
+    return {
+      id: candidate.id,
+      band,
+      objective: { type: 'purchasedUpgrades', target },
+      rewardCredits,
+      createdAtMs,
+    }
+  }
+
+  return null
+}
+
 function parseModernState(value: unknown): GameState | null {
   if (!value || typeof value !== 'object') {
     return null
@@ -179,7 +267,16 @@ function parseModernState(value: unknown): GameState | null {
       ? buyAmount
       : BUY_AMOUNT_OPTIONS[0]
 
-  return {
+  const random = candidate.random as Record<string, unknown> | undefined
+  const contracts = candidate.contracts as Record<string, unknown> | undefined
+  const worldSeed = parseWorldSeed(random?.worldSeed, startedAtMs)
+  const generationCounter = parseNonNegativeInt(contracts?.generationCounter) ?? 0
+  const activeContractsRaw = Array.isArray(contracts?.active) ? contracts.active : []
+  const parsedContracts = activeContractsRaw
+    .map((entry) => parseContractState(entry))
+    .filter((entry): entry is ContractState => entry !== null)
+
+  const parsedState: GameState = {
     credits,
     generators: {
       ...parsedGenerators,
@@ -199,7 +296,16 @@ function parseModernState(value: unknown): GameState | null {
     },
     settings,
     prestige,
+    random: {
+      worldSeed,
+    },
+    contracts: {
+      active: parsedContracts,
+      generationCounter,
+    },
   }
+
+  return ensureContractsState(parsedState, nowMs)
 }
 
 function parseLegacyState(value: unknown): GameState | null {

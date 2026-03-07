@@ -58,7 +58,7 @@ A simple, ordered feature roadmap for implementation.
 
 ## 8. Upcoming Systems
 
-- [ ] Contracts/objective layer
+- [x] Contracts/objective layer
 - [ ] Overclock burst ability
 - [ ] Early automation rules
 - [ ] Tree/keystone progression layer

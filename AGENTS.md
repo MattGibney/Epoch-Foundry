@@ -38,3 +38,4 @@
 - Keep credit progression calculations in decimal precision internally; apply whole-number rounding only when rendering credit values in the UI.
 - Prefer data-driven achievement definitions so the system scales cleanly to hundreds of achievements without UI/engine rewrites.
 - Keep Home-screen production visualizers as standalone swappable components with data-only inputs so visual styles can be replaced without changing game/screen logic.
+- Keep gameplay randomness deterministic from a persisted run seed (`worldSeed`) and shared RNG utilities; avoid direct `Math.random()` in game systems.
