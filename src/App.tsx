@@ -12,6 +12,16 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -201,7 +211,7 @@ function App() {
   const [isHydrated, setIsHydrated] = useState(false)
   const [activeTab, setActiveTab] = useState<TabKey>('production')
   const [isSectionsOpen, setIsSectionsOpen] = useState(false)
-  const [isPrestigeDrawerOpen, setIsPrestigeDrawerOpen] = useState(false)
+  const [isPrestigeAlertOpen, setIsPrestigeAlertOpen] = useState(false)
   const [nowMs, setNowMs] = useState<number>(() => Date.now())
   const [showFloatingSummary, setShowFloatingSummary] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -467,7 +477,7 @@ function App() {
     setGame(nextState)
     setNowMs(now)
     setActiveTab('production')
-    setIsPrestigeDrawerOpen(false)
+    setIsPrestigeAlertOpen(false)
 
     void saveGameState(nextState)
   }, [])
@@ -502,7 +512,7 @@ function App() {
             prestigeMultiplier={prestigeMultiplier}
             prestigeGain={prestigeGain}
             canPrestigeNow={canPrestigeNow}
-            onOpenPrestige={() => setIsPrestigeDrawerOpen(true)}
+            onOpenPrestige={() => setIsPrestigeAlertOpen(true)}
             formatDuration={formatDuration}
           />
         )
@@ -676,35 +686,43 @@ function App() {
         </div>
       </div>
       </main>
-      <Sheet open={isPrestigeDrawerOpen} onOpenChange={setIsPrestigeDrawerOpen}>
-        <SheetContent side="bottom" className="rounded-t-xl px-0 pb-6">
-          <SheetHeader className="px-4 pb-1">
-            <SheetTitle>Prestige this run?</SheetTitle>
-            <SheetDescription>
-              This resets credits, generators, and upgrades for this run.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="mt-2 space-y-4 px-4">
-            <p className="text-sm text-muted-foreground">
-              You gain{' '}
-              <span className="font-mono tabular-nums">
+      <AlertDialog open={isPrestigeAlertOpen} onOpenChange={setIsPrestigeAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Prestige this run?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will reset credits, generators, and run upgrades for this run.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              You will gain{' '}
+              <span className="font-mono tabular-nums text-foreground">
                 +{formatIdleNumber(prestigeGain)}
               </span>{' '}
-              essence and your multiplier becomes{' '}
-              <span className="font-mono tabular-nums">
-                x{formatIdleNumber(nextPrestigeMultiplier)}
-              </span>
-              .
+              essence.
             </p>
-            <div className="flex flex-col gap-2">
-              <Button onClick={prestigeReset}>Confirm Prestige</Button>
-              <Button variant="outline" onClick={() => setIsPrestigeDrawerOpen(false)}>
-                Cancel
-              </Button>
+            <div className="rounded-md border border-border/70 bg-muted/30 px-3 py-2">
+              <p className="flex items-center justify-between">
+                <span>Current multiplier</span>
+                <span className="font-mono tabular-nums text-foreground">
+                  x{formatIdleNumber(prestigeMultiplier)}
+                </span>
+              </p>
+              <p className="mt-1 flex items-center justify-between">
+                <span>After prestige</span>
+                <span className="font-mono tabular-nums font-semibold text-foreground">
+                  x{formatIdleNumber(nextPrestigeMultiplier)}
+                </span>
+              </p>
             </div>
           </div>
-        </SheetContent>
-      </Sheet>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={prestigeReset}>Confirm Prestige</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Toaster
         position="top-right"
         offset={{
