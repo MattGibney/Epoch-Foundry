@@ -54,8 +54,14 @@ export function ProductionScreen({
             aria-hidden
           />
         </button>
-        {isOptionsOpen && (
-          <div id="production-options-panel" className="pt-3">
+        <div
+          id="production-options-panel"
+          className={cn(
+            'grid overflow-hidden transition-all duration-200 ease-out',
+            isOptionsOpen ? 'grid-rows-[1fr] opacity-100 pt-3' : 'grid-rows-[0fr] opacity-0 pt-0',
+          )}
+        >
+          <div className="min-h-0">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground">Buy amount</p>
               <div
@@ -77,7 +83,7 @@ export function ProductionScreen({
               </div>
             </div>
           </div>
-        )}
+        </div>
       </section>
 
       <section className="divide-y divide-border/70">
