@@ -10,17 +10,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -31,7 +20,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Toaster } from '@/components/ui/sonner'
-import { Switch } from '@/components/ui/switch'
 import {
   clearGameSave,
   loadGameStateWithSummary,
@@ -41,31 +29,18 @@ import {
   ACHIEVEMENT_DEFS,
   ACHIEVEMENT_ORDER,
   applyPrestigeReset,
-  BUY_AMOUNT_OPTIONS,
-  buyGenerator,
-  buyUpgrade,
   canPrestige,
   canBuyUpgrade,
   createInitialGameState,
-  GENERATOR_DEFS,
-  GENERATOR_ORDER,
-  getGeneratorCost,
-  getGeneratorProductionPerSecond,
   getOfflineProgressCapSeconds,
   getPrestigeGainForReset,
   getPrestigeMultiplier,
   getUnlockedAchievementCount,
   getTotalProductionPerSecond,
-  getUpgradeUnlockProgress,
-  setBuyAmount,
-  setShowPurchasedUpgrades,
-  setUpdateFrequency,
   tickGame,
-  UPGRADE_DEFS,
   UPGRADE_ORDER,
   type GameState,
   type AchievementKey,
-  type RunUpgradeKey,
 } from '@/lib/game-engine'
 import {
   SAFE_AREA_INSETS,
@@ -76,9 +51,16 @@ import {
   UPDATE_FPS_BY_MODE,
 } from '@/lib/consts'
 import { formatIdleNumber } from '@/lib/number-format'
+import {
+  AboutTabView,
+  AchievementsTabView,
+  ProductionTabView,
+  SettingsTabView,
+  StatsTabView,
+  type TabKey,
+  UpgradesTabView,
+} from '@/screens/tab-views'
 import { cn } from '@/lib/utils'
-
-type TabKey = 'production' | 'upgrades' | 'stats' | 'achievements' | 'settings' | 'about'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'production', label: 'Production' },
@@ -212,17 +194,6 @@ function getSecondsUntilAffordable(
   return Math.max(1, eta.ceil().toNumber())
 }
 
-type UpgradeDefinition = (typeof UPGRADE_DEFS)[RunUpgradeKey]
-
-const UPGRADE_SECTIONS: {
-  effectType: UpgradeDefinition['effectType']
-  heading: string
-}[] = [
-  { effectType: 'generator', heading: 'Generator Upgrades' },
-  { effectType: 'global', heading: 'Global Upgrades' },
-  { effectType: 'offlineCap', heading: 'Offline Upgrades' },
-]
-
 function App() {
   const [game, setGame] = useState<GameState>(() => createInitialGameState(Date.now()))
   const [isHydrated, setIsHydrated] = useState(false)
@@ -233,8 +204,8 @@ function App() {
   const [showFloatingSummary, setShowFloatingSummary] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState<string | null>(null)
+  const [floatingAnchorElement, setFloatingAnchorElement] = useState<HTMLElement | null>(null)
   const gameRef = useRef(game)
-  const creditsSummaryRef = useRef<HTMLElement | null>(null)
   const topSafeAreaBoundaryRef = useRef<HTMLDivElement | null>(null)
   const knownUnlockedAchievementsRef = useRef<Set<AchievementKey>>(new Set())
 
@@ -412,7 +383,7 @@ function App() {
   }, [isHydrated, persistGame])
 
   useEffect(() => {
-    const summaryElement = creditsSummaryRef.current
+    const summaryElement = floatingAnchorElement
     if (!summaryElement) {
       return
     }
@@ -448,7 +419,7 @@ function App() {
         window.cancelAnimationFrame(frameId)
       }
     }
-  }, [])
+  }, [activeTab, floatingAnchorElement])
 
   const creditsPerSecond = useMemo(() => getTotalProductionPerSecond(game), [game])
   const prestigeGain = useMemo(() => getPrestigeGainForReset(game), [game])
@@ -491,519 +462,66 @@ function App() {
     void saveGameState(nextState)
   }, [])
 
-  const renderProductionTab = () => (
-    <div className="space-y-6">
-      <section>
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={!canPrestigeNow}
-            onClick={() => setIsPrestigeDrawerOpen(true)}
-          >
-            Prestige (+{formatIdleNumber(prestigeGain)})
-          </Button>
-          <div
-            className="inline-flex items-center overflow-hidden rounded-md border border-border"
-            role="group"
-            aria-label="Buy amount"
-          >
-            {BUY_AMOUNT_OPTIONS.map((amount) => (
-              <Button
-                key={amount}
-                size="sm"
-                variant={game.buyAmount === amount ? 'default' : 'ghost'}
-                className="h-7 rounded-none border-0 border-r border-border px-2 text-xs last:border-r-0"
-                onClick={() => setGame((current) => setBuyAmount(current, amount))}
-              >
-                <span className="font-mono text-xs tabular-nums">{amount}x</span>
-              </Button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="divide-y divide-border/70">
-        {GENERATOR_ORDER.map((key) => {
-          const definition = GENERATOR_DEFS[key]
-          const cost = getGeneratorCost(game, key)
-          const owned = game.generators[key]
-          const credits = new Decimal(game.credits)
-          const canBuy = credits.greaterThanOrEqualTo(cost)
-          const contribution = getGeneratorProductionPerSecond(game, key)
-          const remainingCredits = canBuy ? new Decimal(0) : cost.minus(credits)
-          const secondsUntilAffordable = getSecondsUntilAffordable(
-            credits,
-            cost,
-            creditsPerSecond,
-          )
-          const affordabilityPercent = Decimal.min(
-            new Decimal(100),
-            credits.div(cost).times(100),
-          )
-            .toDecimalPlaces(0, Decimal.ROUND_FLOOR)
-            .toNumber()
-
-          return (
-            <article key={definition.key} className="py-4 first:pt-0">
-              <div className="min-w-0">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex items-center gap-2">
-                    <h3 className="truncate text-base font-semibold">{definition.label}</h3>
-                    <span className="shrink-0 rounded-full border border-border/70 px-2 py-0.5 font-mono text-xs tabular-nums text-muted-foreground">
-                      {owned}
-                    </span>
-                  </div>
-                  <p className="shrink-0 text-sm text-muted-foreground">
-                    +<span className="font-mono tabular-nums">{formatRenderedCredits(contribution)}</span> / sec
-                  </p>
-                </div>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {definition.description}
-                </p>
-              </div>
-              <div className="mt-2 flex items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm text-muted-foreground">
-                    Cost:{' '}
-                    <span className="font-mono tabular-nums">{formatRenderedCredits(cost)}</span>{' '}
-                    credits
-                  </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={cn(
-                        'h-full rounded-full transition-all',
-                        canBuy ? 'bg-foreground/70' : 'bg-muted-foreground/60',
-                      )}
-                      style={{ width: `${Math.max(0, affordabilityPercent)}%` }}
-                    />
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {canBuy ? (
-                      'Ready to purchase'
-                    ) : (
-                      <>
-                        Need{' '}
-                          <span className="font-mono tabular-nums">
-                            {formatRenderedCredits(remainingCredits)}
-                          </span>{' '}
-                        more
-                        {secondsUntilAffordable !== null && secondsUntilAffordable > 0
-                          ? ` (${formatAffordabilityEta(secondsUntilAffordable)})`
-                          : ''}
-                      </>
-                    )}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  className="h-10 min-w-[5.5rem] shrink-0 font-mono tabular-nums"
-                  disabled={!canBuy}
-                  onClick={() => setGame((current) => buyGenerator(current, key))}
-                >
-                  Buy
-                </Button>
-              </div>
-            </article>
-          )
-        })}
-      </section>
-    </div>
-  )
-
-  const renderUpgradesTab = () => {
-    const visibleUpgradeKeys = UPGRADE_ORDER.filter((key) => {
-      if (game.settings.showPurchasedUpgrades) {
-        return true
-      }
-
-      return !game.purchasedUpgrades[key]
-    })
-
-    const renderUpgradeItem = (key: RunUpgradeKey) => {
-      const definition = UPGRADE_DEFS[key]
-      const purchased = game.purchasedUpgrades[key]
-      const canBuy = canBuyUpgrade(game, key)
-      const unlockProgress = getUpgradeUnlockProgress(game, key)
-      const cost = new Decimal(definition.cost)
-
-      return (
-        <article key={definition.key} className="border-b border-border/70 py-4 first:pt-0">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="text-base font-semibold">{definition.label}</h3>
-              <p className="mt-0.5 text-sm text-muted-foreground">{definition.description}</p>
-              <p className="mt-1.5 text-sm text-muted-foreground">
-                Price:{' '}
-                <span className="font-mono tabular-nums">
-                  {formatRenderedCredits(cost)}
-                </span>{' '}
-                credits
-              </p>
-            </div>
-            <div className="shrink-0 text-center">
-              {purchased ? (
-                <Button
-                  size="sm"
-                  className="h-10 min-w-[5.5rem]"
-                  variant="secondary"
-                  disabled
-                >
-                  Owned
-                </Button>
-              ) : canBuy ? (
-                <Button
-                  size="sm"
-                  className="h-10 min-w-[5.5rem]"
-                  onClick={() => setGame((current) => buyUpgrade(current, key))}
-                >
-                  Buy
-                </Button>
-              ) : (
-                <div className="min-w-[5.5rem]">
-                  <p className="text-xs text-muted-foreground">Requires</p>
-                  {unlockProgress ? (
-                    <p className="text-xs text-muted-foreground">
-                      <span className="font-mono tabular-nums">
-                        {unlockProgress.current}/{unlockProgress.required}
-                      </span>{' '}
-                      {unlockProgress.label}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">More credits</p>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </article>
-      )
+  const renderActiveTab = () => {
+    const sharedTabProps = {
+      game,
+      creditsPerSecond,
+      formatRenderedCredits,
+      formatTopCreditsDisplay,
+      onAnchorRefChange: setFloatingAnchorElement,
+      onGameChange: setGame,
     }
 
-    return (
-      <div className="space-y-8">
-        {UPGRADE_SECTIONS.map((section) => {
-          const sectionUpgrades = visibleUpgradeKeys.filter(
-            (key) => UPGRADE_DEFS[key].effectType === section.effectType,
-          )
-
-          if (sectionUpgrades.length === 0) {
-            return null
-          }
-
-          return (
-            <section key={section.effectType} className="space-y-3 pt-2 first:pt-0">
-              <h3 className="border-b border-border/70 pb-2 text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
-                {section.heading}
-              </h3>
-              <div>
-                {sectionUpgrades.map((key) => renderUpgradeItem(key))}
-              </div>
-            </section>
-          )
-        })}
-        {!game.settings.showPurchasedUpgrades &&
-          UPGRADE_ORDER.every((key) => game.purchasedUpgrades[key]) && (
-            <section className="py-3">
-              <p className="text-sm text-muted-foreground">
-                All upgrades are purchased. Enable "Show Purchased Upgrades" in
-                Settings to review completed upgrades.
-              </p>
-            </section>
-          )}
-      </div>
-    )
-  }
-
-  const renderStatsTab = () => (
-    <div className="space-y-6">
-      <section>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Session</p>
-        <div className="mt-2 space-y-1 text-sm">
-          <p className="flex items-center justify-between">
-            <span className="text-muted-foreground">Run Time</span>
-            <span className="font-mono tabular-nums">{formatDuration(runDuration)}</span>
-          </p>
-          <p className="flex items-center justify-between">
-            <span className="text-muted-foreground">Credits / sec</span>
-            <span className="font-mono tabular-nums">{formatRenderedCredits(creditsPerSecond)}</span>
-          </p>
-          <p className="flex items-center justify-between">
-            <span className="text-muted-foreground">Offline Cap</span>
-            <span className="font-mono tabular-nums">
-              {formatDuration(offlineProgressCapSeconds)}
-            </span>
-          </p>
-        </div>
-      </section>
-      <section className="border-t border-border/70 pt-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Lifetime</p>
-        <div className="mt-2 space-y-1 text-sm">
-          <p className="flex items-center justify-between">
-            <span className="text-muted-foreground">Run Credits Produced</span>
-            <span className="font-mono tabular-nums">
-              {formatRenderedCredits(game.stats.totalCredits)}
-            </span>
-          </p>
-          <p className="flex items-center justify-between">
-            <span className="text-muted-foreground">All-Reset Credits Produced</span>
-            <span className="font-mono tabular-nums">
-              {formatRenderedCredits(game.stats.totalCreditsAllResets)}
-            </span>
-          </p>
-        </div>
-      </section>
-      <section className="border-t border-border/70 pt-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Prestige</p>
-        <div className="mt-2 space-y-1 text-sm">
-          <p className="flex items-center justify-between">
-            <span className="text-muted-foreground">Essence</span>
-            <span className="font-mono tabular-nums">
-              {formatIdleNumber(game.prestige.essence)}
-            </span>
-          </p>
-          <p className="flex items-center justify-between">
-            <span className="text-muted-foreground">Permanent Multiplier</span>
-            <span className="font-mono tabular-nums">
-              x{formatIdleNumber(prestigeMultiplier)}
-            </span>
-          </p>
-          <p className="flex items-center justify-between">
-            <span className="text-muted-foreground">Reset Gain</span>
-            <span className="font-mono tabular-nums">
-              +{formatIdleNumber(prestigeGain)}
-            </span>
-          </p>
-          <p className="flex items-center justify-between">
-            <span className="text-muted-foreground">Total Resets</span>
-            <span className="font-mono tabular-nums">{game.prestige.resets}</span>
-          </p>
-        </div>
-        <Button
-          className="mt-4"
-          disabled={!canPrestigeNow}
-          onClick={() => setIsPrestigeDrawerOpen(true)}
-        >
-          Prestige Reset
-        </Button>
-      </section>
-    </div>
-  )
-
-  const renderAchievementsTab = () => (
-    <div className="space-y-6">
-      <section>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Progress</p>
-        <p className="mt-2 flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Unlocked</span>
-          <span className="font-mono tabular-nums">
-            {unlockedAchievementCount}/{ACHIEVEMENT_ORDER.length}
-          </span>
-        </p>
-      </section>
-      <section className="border-t border-border/70 pt-4">
-        <div className="grid grid-cols-3 gap-2">
-          {ACHIEVEMENT_ORDER.map((key) => {
-            const definition = ACHIEVEMENT_DEFS[key]
-            const unlocked = game.achievements[key]
-
-            return (
-              <article
-                key={key}
-                className={cn(
-                  'rounded-lg p-3',
-                  unlocked
-                    ? 'border border-black opacity-100'
-                    : 'border border-border opacity-55',
-                )}
-              >
-                <div className="flex h-full flex-col gap-1.5">
-                  <h3 className="text-sm font-semibold leading-tight">{definition.label}</h3>
-                  <p className="text-xs text-muted-foreground">{definition.description}</p>
-                </div>
-              </article>
-            )
-          })}
-        </div>
-      </section>
-    </div>
-  )
-
-  const renderSettingsTab = () => (
-    <div className="space-y-6">
-      <section>
-        <h3 className="text-base font-semibold">App Updates</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Installed home-screen mode does not expose browser refresh controls.
-          Use this to fetch the latest deployed version and reload the app.
-        </p>
-        <Button
-          variant="secondary"
-          className="mt-4"
-          disabled={isRefreshing}
-          onClick={() => void refreshApp()}
-        >
-          {isRefreshing ? 'Refreshing...' : 'Refresh App'}
-        </Button>
-        {refreshError && (
-          <p className="mt-2 text-sm text-red-600">{refreshError}</p>
-        )}
-      </section>
-
-      <section className="border-t border-border/70 pt-4">
-        <h3 className="text-base font-semibold">Performance</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Choose how frequently the game updates on screen.
-        </p>
-        <div
-          className="mt-3 inline-flex items-center overflow-hidden rounded-md border border-border"
-          role="group"
-          aria-label="Update frequency"
-        >
-          {(['slow', 'medium', 'fast'] as const).map((mode) => (
-            <Button
-              key={mode}
-              type="button"
-              size="sm"
-              variant={game.settings.updateFrequency === mode ? 'default' : 'ghost'}
-              className="rounded-none px-3 text-xs capitalize"
-              onClick={() =>
-                setGame((current) => setUpdateFrequency(current, mode))
-              }
-            >
-              {mode}
-            </Button>
-          ))}
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Slow: 4 fps, Medium: 12 fps, Fast: 30 fps
-        </p>
-      </section>
-
-      <section className="border-t border-border/70 pt-4">
-        <h3 className="text-base font-semibold">Upgrade Display</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Hide completed upgrades by default to keep the list focused.
-        </p>
-        <div className="mt-3 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium">Show Purchased Upgrades</p>
-            <p className="text-xs text-muted-foreground">
-              Display already-owned upgrades in the Upgrades tab.
-            </p>
-          </div>
-          <Switch
-            checked={game.settings.showPurchasedUpgrades}
-            onCheckedChange={(checked) =>
-              setGame((current) => setShowPurchasedUpgrades(current, checked))
-            }
+    switch (activeTab) {
+      case 'production':
+        return (
+          <ProductionTabView
+            {...sharedTabProps}
+            canPrestigeNow={canPrestigeNow}
+            prestigeGain={prestigeGain}
+            onOpenPrestige={() => setIsPrestigeDrawerOpen(true)}
+            formatAffordabilityEta={formatAffordabilityEta}
+            getSecondsUntilAffordable={getSecondsUntilAffordable}
           />
-        </div>
-      </section>
-
-      <section className="border-t border-border/70 pt-4">
-        <h3 className="text-base font-semibold">Reset Game</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          This clears all progress and starts a fresh run.
-        </p>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="outline"
-              className="mt-4 border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700"
-            >
-              Reset Game
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Reset your game?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently erase your current progress. This action
-                cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-red-600 text-white hover:bg-red-700"
-                onClick={resetGame}
-              >
-                Yes, reset game
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </section>
-    </div>
-  )
-
-  const renderAboutTab = () => (
-    <div className="space-y-6">
-      <section>
-        <p className="text-justify text-sm text-muted-foreground">
-          Epoch Foundry is a long-form idle game about scaling production over
-          repeated runs. Build up credits, optimize upgrade timing, and use
-          prestige to convert each reset into permanent momentum.
-        </p>
-      </section>
-      <section className="border-t border-border/70 pt-4">
-        <h3 className="text-base font-semibold">How To Play</h3>
-        <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground">
-          <li>Buy generators to increase credits per second.</li>
-          <li>Use buy amounts to scale purchases faster.</li>
-          <li>Purchase upgrades to multiply output by generator tier.</li>
-          <li>Prestige when gains slow down to earn essence and speed future runs.</li>
-        </ul>
-      </section>
-      <section className="border-t border-border/70 pt-4">
-        <h3 className="text-base font-semibold">Core Systems</h3>
-        <div className="mt-2 space-y-2 text-sm text-muted-foreground">
-          <p>
-            <span className="font-medium text-foreground">Credits:</span> the
-            main currency used for all purchases.
-          </p>
-          <p>
-            <span className="font-medium text-foreground">Generators:</span>{' '}
-            10 production tiers with escalating cost and yield.
-          </p>
-          <p>
-            <span className="font-medium text-foreground">Upgrades:</span>{' '}
-            multi-tier boost chains where stronger upgrades depend on earlier
-            tiers.
-          </p>
-          <p>
-            <span className="font-medium text-foreground">Prestige:</span>{' '}
-            resets your run in exchange for essence, which permanently boosts
-            production.
-          </p>
-          <p>
-            <span className="font-medium text-foreground">Achievements:</span>{' '}
-            long-term milestones that track progression and goals.
-          </p>
-        </div>
-      </section>
-      <section className="border-t border-border/70 pt-4">
-        <h3 className="text-base font-semibold">Long-Term Progression</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          The game is designed for long sessions across many resets. Early
-          progression is straightforward; depth comes from sequencing upgrades,
-          timing prestige windows, and compounding permanent multipliers.
-        </p>
-      </section>
-      <section className="border-t border-border/70 pt-4">
-        <h3 className="text-base font-semibold">Save & Offline</h3>
-        <div className="mt-2 space-y-1.5 text-sm text-muted-foreground">
-          <p>Progress is auto-saved every 10 seconds and on app exit.</p>
-          <p>Save data is stored locally in IndexedDB on this device.</p>
-          <p>
-            Offline production is applied on load, with a cap that can be
-            expanded through late-game upgrades.
-          </p>
-        </div>
-      </section>
-    </div>
-  )
+        )
+      case 'upgrades':
+        return <UpgradesTabView {...sharedTabProps} />
+      case 'stats':
+        return (
+          <StatsTabView
+            {...sharedTabProps}
+            runDuration={runDuration}
+            offlineProgressCapSeconds={offlineProgressCapSeconds}
+            prestigeMultiplier={prestigeMultiplier}
+            prestigeGain={prestigeGain}
+            canPrestigeNow={canPrestigeNow}
+            onOpenPrestige={() => setIsPrestigeDrawerOpen(true)}
+            formatDuration={formatDuration}
+          />
+        )
+      case 'achievements':
+        return (
+          <AchievementsTabView
+            {...sharedTabProps}
+            unlockedAchievementCount={unlockedAchievementCount}
+          />
+        )
+      case 'settings':
+        return (
+          <SettingsTabView
+            {...sharedTabProps}
+            isRefreshing={isRefreshing}
+            refreshError={refreshError}
+            onRefreshApp={refreshApp}
+            onResetGame={resetGame}
+          />
+        )
+      case 'about':
+        return <AboutTabView />
+      default:
+        return null
+    }
+  }
 
   return (
     <>
@@ -1051,48 +569,7 @@ function App() {
         </div>
       </div>
 
-      <section
-        ref={creditsSummaryRef}
-        className={cn(
-          'pb-4',
-          activeTab === 'about' ? '' : 'border-b border-border/70',
-        )}
-      >
-        {activeTab === 'about' ? (
-          <div className="py-12 text-center">
-            <h1 className="text-5xl font-semibold tracking-tight">Epoch Foundry</h1>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Forge production across epochs.
-            </p>
-          </div>
-        ) : (
-          <>
-            <article>
-              <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
-                <Coins className="size-3.5 text-muted-foreground" aria-hidden />
-                <span>Credits</span>
-              </p>
-              <p className="mt-1 text-3xl font-mono font-semibold tabular-nums">
-                {formatTopCreditsDisplay(game.credits)}
-              </p>
-            </article>
-            <article className="mt-2">
-              <p className="text-sm text-muted-foreground">
-                +<span className="font-mono tabular-nums">{formatRenderedCredits(creditsPerSecond)}</span> / sec
-              </p>
-            </article>
-          </>
-        )}
-      </section>
-
-      <section className="mt-5">
-        {activeTab === 'production' && renderProductionTab()}
-        {activeTab === 'upgrades' && renderUpgradesTab()}
-        {activeTab === 'stats' && renderStatsTab()}
-        {activeTab === 'achievements' && renderAchievementsTab()}
-        {activeTab === 'settings' && renderSettingsTab()}
-        {activeTab === 'about' && renderAboutTab()}
-      </section>
+      {renderActiveTab()}
 
       <div
         className="fixed inset-x-0 bottom-0 z-40"

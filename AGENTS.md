@@ -15,6 +15,7 @@
 - Production URL: `https://epoch-foundry.mattgibney.co.uk`.
 - Commits merged/pushed to `main` auto-deploy to production; treat `main` changes as release-impacting.
 - Preserve PWA/iOS home-screen support (manifest, service worker registration, iOS web-app meta tags, and touch icons) so installed app behavior remains stable.
+- Keep `App.tsx` focused on app state orchestration and global layout concerns; place tab/screen UI in dedicated screen files, and let each screen compose/select its own header variant.
 - When expanding core keyed game schemas (for example generators), update engine types and persistence parsing together; prefer order-driven mappings over hardcoded per-key copies.
 - Include an in-app refresh/update control for installed PWA mode, since iOS home-screen apps do not expose normal browser refresh UI.
 - Prefer mobile-first UI decisions and avoid unnecessary nested card/chrome containers; use spacing and simple dividers when a full card is not needed.
