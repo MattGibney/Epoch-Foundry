@@ -473,6 +473,7 @@ function App() {
   const runDuration = Math.max(0, Math.floor((nowMs - game.stats.startedAtMs) / 1_000))
   const overflowTabs = TABS.filter((tab) => !isPrimaryTab(tab.key))
   const isOtherActive = !isPrimaryTab(activeTab)
+  const shouldShowFloatingSummary = activeTab !== 'about' && showFloatingSummary
 
   const prestigeReset = useCallback(() => {
     const now = Date.now()
@@ -940,27 +941,66 @@ function App() {
   const renderAboutTab = () => (
     <div className="space-y-6">
       <section>
-        <h3 className="text-base font-semibold">About</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Epoch Foundry is a mobile-first idle game built around long-term
-          credit production growth.
+        <p className="text-justify text-sm text-muted-foreground">
+          Epoch Foundry is a long-form idle game about scaling production over
+          repeated runs. Build up credits, optimize upgrade timing, and use
+          prestige to convert each reset into permanent momentum.
         </p>
       </section>
       <section className="border-t border-border/70 pt-4">
-        <h3 className="text-base font-semibold">Current Focus</h3>
+        <h3 className="text-base font-semibold">How To Play</h3>
+        <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+          <li>Buy generators to increase credits per second.</li>
+          <li>Use buy amounts to scale purchases faster.</li>
+          <li>Purchase upgrades to multiply output by generator tier.</li>
+          <li>Prestige when gains slow down to earn essence and speed future runs.</li>
+        </ul>
+      </section>
+      <section className="border-t border-border/70 pt-4">
+        <h3 className="text-base font-semibold">Core Systems</h3>
+        <div className="mt-2 space-y-2 text-sm text-muted-foreground">
+          <p>
+            <span className="font-medium text-foreground">Credits:</span> the
+            main currency used for all purchases.
+          </p>
+          <p>
+            <span className="font-medium text-foreground">Generators:</span>{' '}
+            10 production tiers with escalating cost and yield.
+          </p>
+          <p>
+            <span className="font-medium text-foreground">Upgrades:</span>{' '}
+            multi-tier boost chains where stronger upgrades depend on earlier
+            tiers.
+          </p>
+          <p>
+            <span className="font-medium text-foreground">Prestige:</span>{' '}
+            resets your run in exchange for essence, which permanently boosts
+            production.
+          </p>
+          <p>
+            <span className="font-medium text-foreground">Achievements:</span>{' '}
+            long-term milestones that track progression and goals.
+          </p>
+        </div>
+      </section>
+      <section className="border-t border-border/70 pt-4">
+        <h3 className="text-base font-semibold">Long-Term Progression</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Early progression centers on credits, generators, and upgrades that
-          speed up credit production. Additional systems are planned for later
-          phases.
+          The game is designed for long sessions across many resets. Early
+          progression is straightforward; depth comes from sequencing upgrades,
+          timing prestige windows, and compounding permanent multipliers.
         </p>
       </section>
       <section className="border-t border-border/70 pt-4">
-        <h3 className="text-base font-semibold">Technical Notes</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Progress is stored locally with automatic saves and offline
-          production, including a capped offline window that can be expanded by
-          late-game upgrades.
-        </p>
+        <h3 className="text-base font-semibold">Save & Offline</h3>
+        <div className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+          <p>Progress is auto-saved every 10 seconds and on app exit.</p>
+          <p>Save data is stored locally in IndexedDB on this device.</p>
+          <p>
+            Offline production is applied on load, with a cap that can be
+            expanded through late-game upgrades.
+          </p>
+        </div>
       </section>
     </div>
   )
@@ -979,10 +1019,10 @@ function App() {
       <div
         className={cn(
           'pointer-events-none fixed inset-x-0 top-0 z-40 overflow-hidden bg-background/70 backdrop-blur-md transition-[height,border-color] duration-200',
-          showFloatingSummary ? 'border-b border-border' : 'border-b border-transparent',
+          shouldShowFloatingSummary ? 'border-b border-border' : 'border-b border-transparent',
         )}
         style={{
-          height: showFloatingSummary
+          height: shouldShowFloatingSummary
             ? `calc(${SAFE_AREA_INSETS.top} + 3rem)`
             : SAFE_AREA_INSETS.top,
           paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
@@ -996,7 +1036,7 @@ function App() {
         <div
           className={cn(
             'w-full py-2 text-sm transition-all duration-200',
-            showFloatingSummary ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0',
+            shouldShowFloatingSummary ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0',
           )}
         >
           <div className="flex items-center justify-between gap-3 whitespace-nowrap">
@@ -1011,21 +1051,38 @@ function App() {
         </div>
       </div>
 
-      <section ref={creditsSummaryRef} className="border-b border-border/70 pb-4">
-        <article>
-          <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
-            <Coins className="size-3.5 text-muted-foreground" aria-hidden />
-            <span>Credits</span>
-          </p>
-          <p className="mt-1 text-3xl font-mono font-semibold tabular-nums">
-            {formatTopCreditsDisplay(game.credits)}
-          </p>
-        </article>
-        <article className="mt-2">
-          <p className="text-sm text-muted-foreground">
-            +<span className="font-mono tabular-nums">{formatRenderedCredits(creditsPerSecond)}</span> / sec
-          </p>
-        </article>
+      <section
+        ref={creditsSummaryRef}
+        className={cn(
+          'pb-4',
+          activeTab === 'about' ? '' : 'border-b border-border/70',
+        )}
+      >
+        {activeTab === 'about' ? (
+          <div className="py-12 text-center">
+            <h1 className="text-5xl font-semibold tracking-tight">Epoch Foundry</h1>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Forge production across epochs.
+            </p>
+          </div>
+        ) : (
+          <>
+            <article>
+              <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+                <Coins className="size-3.5 text-muted-foreground" aria-hidden />
+                <span>Credits</span>
+              </p>
+              <p className="mt-1 text-3xl font-mono font-semibold tabular-nums">
+                {formatTopCreditsDisplay(game.credits)}
+              </p>
+            </article>
+            <article className="mt-2">
+              <p className="text-sm text-muted-foreground">
+                +<span className="font-mono tabular-nums">{formatRenderedCredits(creditsPerSecond)}</span> / sec
+              </p>
+            </article>
+          </>
+        )}
       </section>
 
       <section className="mt-5">
