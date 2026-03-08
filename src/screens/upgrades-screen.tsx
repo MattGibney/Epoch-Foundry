@@ -1,9 +1,13 @@
 import Decimal from 'decimal.js'
+import { useMemo } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { UNKNOWN_PRODUCER_REVEAL_RATIO } from '@/lib/consts'
 import {
   buyUpgrade,
   canBuyUpgrade,
+  GENERATOR_DEFS,
+  GENERATOR_ORDER,
   getUpgradeUnlockProgress,
   UPGRADE_DEFS,
   UPGRADE_ORDER,
@@ -27,13 +31,77 @@ interface UpgradesScreenProps {
 }
 
 export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: UpgradesScreenProps) {
-  const visibleUpgradeKeys = UPGRADE_ORDER.filter((key) => {
-    if (game.settings.showPurchasedUpgrades) {
-      return true
+  const visibleUpgradeKeys = useMemo(() => {
+    const credits = new Decimal(game.credits)
+    const highestOwnedProducerIndex = GENERATOR_ORDER.reduce(
+      (highest, key, index) => (game.generators[key] > 0 ? index : highest),
+      -1,
+    )
+    let maxRevealedProducerIndex = highestOwnedProducerIndex
+
+    for (
+      let index = highestOwnedProducerIndex + 1;
+      index < GENERATOR_ORDER.length;
+      index += 1
+    ) {
+      const key = GENERATOR_ORDER[index]
+      const revealThreshold = new Decimal(GENERATOR_DEFS[key].baseCost).times(
+        UNKNOWN_PRODUCER_REVEAL_RATIO,
+      )
+      if (credits.greaterThanOrEqualTo(revealThreshold)) {
+        maxRevealedProducerIndex = index
+        continue
+      }
+      break
     }
 
-    return !game.purchasedUpgrades[key]
-  })
+    const revealedProducers = new Set(
+      GENERATOR_ORDER.filter(
+        (key, index) => game.generators[key] > 0 || index <= maxRevealedProducerIndex,
+      ),
+    )
+
+    const childByParent = new Map<RunUpgradeKey, RunUpgradeKey>()
+    for (const key of UPGRADE_ORDER) {
+      const parent = UPGRADE_DEFS[key].requiresUpgrade
+      if (parent) {
+        childByParent.set(parent, key)
+      }
+    }
+
+    const roots = UPGRADE_ORDER.filter((key) => !UPGRADE_DEFS[key].requiresUpgrade)
+    const visible = new Set<RunUpgradeKey>()
+
+    for (const root of roots) {
+      const chain: RunUpgradeKey[] = []
+      let current: RunUpgradeKey | undefined = root
+      while (current) {
+        chain.push(current)
+        current = childByParent.get(current)
+      }
+
+      const rootDef = UPGRADE_DEFS[root]
+      const rootTarget = rootDef.effectType === 'generator' ? rootDef.target : undefined
+      if (rootTarget && !revealedProducers.has(rootTarget)) {
+        continue
+      }
+
+      const nextUpgrade = chain.find((key) => !game.purchasedUpgrades[key])
+      if (nextUpgrade) {
+        visible.add(nextUpgrade)
+      }
+
+      if (game.settings.showPurchasedUpgrades) {
+        for (const key of chain) {
+          if (game.purchasedUpgrades[key]) {
+            visible.add(key)
+          }
+        }
+      }
+    }
+
+    return UPGRADE_ORDER.filter((key) => visible.has(key))
+  }, [game.credits, game.generators, game.purchasedUpgrades, game.settings.showPurchasedUpgrades])
 
   const renderUpgradeItem = (key: RunUpgradeKey) => {
     const definition = UPGRADE_DEFS[key]
