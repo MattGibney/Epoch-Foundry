@@ -103,6 +103,11 @@ export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: Up
     return UPGRADE_ORDER.filter((key) => visible.has(key))
   }, [game.credits, game.generators, game.purchasedUpgrades, game.settings.showPurchasedUpgrades])
 
+  const purchasedUpgradeCount = UPGRADE_ORDER.reduce(
+    (count, key) => count + (game.purchasedUpgrades[key] ? 1 : 0),
+    0,
+  )
+
   const renderUpgradeItem = (key: RunUpgradeKey) => {
     const definition = UPGRADE_DEFS[key]
     const purchased = game.purchasedUpgrades[key]
@@ -158,6 +163,15 @@ export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: Up
 
   return (
     <div className="space-y-8">
+      <section>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">Progress</p>
+        <p className="mt-2 flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Purchased</span>
+          <span className="font-mono tabular-nums">
+            {purchasedUpgradeCount}/{UPGRADE_ORDER.length}
+          </span>
+        </p>
+      </section>
         {UPGRADE_SECTIONS.map((section) => {
           const sectionUpgrades = visibleUpgradeKeys.filter(
             (key) => UPGRADE_DEFS[key].effectType === section.effectType,
