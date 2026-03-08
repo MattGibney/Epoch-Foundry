@@ -12,16 +12,6 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -30,39 +20,40 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Toaster } from '@/components/ui/sonner'
-import {
-  clearGameSave,
-  loadGameStateWithSummary,
-  saveGameState,
-} from '@/lib/game-save'
+import { createDevBootstrapState, type DevBootstrapPresetKey } from '@/lib/dev-bootstrap'
+import { clearGameSave, loadGameStateWithSummary, saveGameState } from '@/lib/game-save'
 import {
   ACHIEVEMENT_DEFS,
   ACHIEVEMENT_ORDER,
   applyPrestigeReset,
-  canPrestige,
   canBuyUpgrade,
+  canPrestige,
   createInitialGameState,
   GENERATOR_ORDER,
   getGeneratorCost,
   getOfflineProgressCapSeconds,
+  getPermanentUpgradeCost,
   getPrestigeGainForReset,
   getPrestigeMultiplier,
-  getUnlockedAchievementCount,
+  getPrestigeMultiplierFromPermanentUpgrades,
   getTotalProductionPerSecond,
+  getUnlockedAchievementCount,
+  PERMANENT_UPGRADE_ORDER,
   tickGame,
   UPGRADE_ORDER,
-  type GameState,
   type AchievementKey,
+  type GameState,
+  type PermanentUpgradeKey,
+  type PermanentUpgradesState,
 } from '@/lib/game-engine'
-import {
-  SAFE_AREA_INSETS,
-} from '@/lib/game-config'
+import { SAFE_AREA_INSETS } from '@/lib/game-config'
 import {
   OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS,
   TOP_CREDITS_SHORTHAND_THRESHOLD,
   UPDATE_FPS_BY_MODE,
 } from '@/lib/consts'
 import { formatIdleNumber } from '@/lib/number-format'
+import { PrestigeScreen } from '@/screens/prestige-screen'
 import {
   AboutTabView,
   AchievementsTabView,
@@ -97,6 +88,15 @@ const PRIMARY_NAV_ITEMS: {
 
 function isPrimaryTab(tab: TabKey): tab is 'production' | 'upgrades' | 'stats' {
   return tab === 'production' || tab === 'upgrades' || tab === 'stats'
+}
+
+function createPermanentUpgradeSnapshot(
+  source: Partial<Record<PermanentUpgradeKey, number>> | undefined,
+): PermanentUpgradesState {
+  return PERMANENT_UPGRADE_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = Math.max(0, Math.floor(source?.[key] ?? 0))
+    return accumulator
+  }, {} as PermanentUpgradesState)
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -213,12 +213,17 @@ function App() {
   const [isHydrated, setIsHydrated] = useState(false)
   const [activeTab, setActiveTab] = useState<TabKey>('production')
   const [isSectionsOpen, setIsSectionsOpen] = useState(false)
-  const [isPrestigeAlertOpen, setIsPrestigeAlertOpen] = useState(false)
   const [nowMs, setNowMs] = useState<number>(() => Date.now())
   const [showFloatingSummary, setShowFloatingSummary] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [floatingAnchorElement, setFloatingAnchorElement] = useState<HTMLElement | null>(null)
+  const [prestigePlan, setPrestigePlan] = useState<{
+    availableEssence: string
+    baseAvailableEssence: string
+    draftUpgrades: PermanentUpgradesState
+    baseUpgrades: PermanentUpgradesState
+  } | null>(null)
   const gameRef = useRef(game)
   const topSafeAreaBoundaryRef = useRef<HTMLDivElement | null>(null)
   const knownUnlockedAchievementsRef = useRef<Set<AchievementKey>>(new Set())
@@ -310,6 +315,7 @@ function App() {
     setGame(nextState)
     setNowMs(now)
     setActiveTab('production')
+    setPrestigePlan(null)
 
     void (async () => {
       await clearGameSave()
@@ -337,6 +343,24 @@ function App() {
       setRefreshError('Refresh failed. Close and reopen the app to retry.')
       setIsRefreshing(false)
     }
+  }, [])
+
+  const applyDevBootstrap = useCallback((preset: DevBootstrapPresetKey) => {
+    const now = Date.now()
+    const bootstrapped = createDevBootstrapState(preset, now)
+    const nextState: GameState = {
+      ...bootstrapped,
+      settings: gameRef.current.settings,
+    }
+
+    gameRef.current = nextState
+    setGame(nextState)
+    setNowMs(now)
+    setActiveTab('production')
+    setPrestigePlan(null)
+    toast(`Loaded dev preset: ${preset}`)
+
+    void saveGameState(nextState)
   }, [])
 
   useEffect(() => {
@@ -405,8 +429,7 @@ function App() {
     let frameId: number | null = null
 
     const syncFloatingState = () => {
-      const blurBoundary =
-        topSafeAreaBoundaryRef.current?.getBoundingClientRect().bottom ?? 0
+      const blurBoundary = topSafeAreaBoundaryRef.current?.getBoundingClientRect().bottom ?? 0
       const summaryTop = summaryElement.getBoundingClientRect().top
       setShowFloatingSummary(summaryTop < blurBoundary)
     }
@@ -439,10 +462,7 @@ function App() {
   const prestigeGain = useMemo(() => getPrestigeGainForReset(game), [game])
   const prestigeMultiplier = useMemo(() => getPrestigeMultiplier(game), [game])
   const canPrestigeNow = useMemo(() => canPrestige(game), [game])
-  const offlineProgressCapSeconds = useMemo(
-    () => getOfflineProgressCapSeconds(game),
-    [game],
-  )
+  const offlineProgressCapSeconds = useMemo(() => getOfflineProgressCapSeconds(game), [game])
   const purchasableUpgradeCount = useMemo(
     () => UPGRADE_ORDER.reduce((count, key) => count + (canBuyUpgrade(game, key) ? 1 : 0), 0),
     [game],
@@ -455,24 +475,88 @@ function App() {
       }, 0),
     [game],
   )
-  const unlockedAchievementCount = useMemo(
-    () => getUnlockedAchievementCount(game),
-    [game],
-  )
-  const nextPrestigeMultiplier = useMemo(
-    () => new Decimal(1).plus(new Decimal(game.prestige.essence).plus(prestigeGain).times('0.1')),
-    [game.prestige.essence, prestigeGain],
+  const unlockedAchievementCount = useMemo(() => getUnlockedAchievementCount(game), [game])
+  const plannedPrestigeMultiplier = useMemo(
+    () =>
+      prestigePlan
+        ? getPrestigeMultiplierFromPermanentUpgrades(prestigePlan.draftUpgrades)
+        : prestigeMultiplier,
+    [prestigeMultiplier, prestigePlan],
   )
   const runDuration = Math.max(0, Math.floor((nowMs - game.stats.startedAtMs) / 1_000))
   const overflowTabs = TABS.filter((tab) => !isPrimaryTab(tab.key))
   const isOtherActive = !isPrimaryTab(activeTab)
+  const isPrestigeMode = prestigePlan !== null
   const shouldShowFloatingSummary =
-    activeTab !== 'about' && activeTab !== 'help' && showFloatingSummary
+    !isPrestigeMode && activeTab !== 'about' && activeTab !== 'help' && showFloatingSummary
 
-  const prestigeReset = useCallback(() => {
+  const startPrestigePlanning = useCallback(() => {
+    const current = gameRef.current
+    const gain = getPrestigeGainForReset(current)
+    if (gain.lessThanOrEqualTo(0)) {
+      return
+    }
+
+    const availableEssence = new Decimal(current.prestige.essence).plus(gain).toString()
+    const baseUpgrades = createPermanentUpgradeSnapshot(current.prestige.permanentUpgrades)
+
+    setPrestigePlan({
+      availableEssence,
+      baseAvailableEssence: availableEssence,
+      draftUpgrades: { ...baseUpgrades },
+      baseUpgrades: { ...baseUpgrades },
+    })
+  }, [])
+
+  const purchasePermanentUpgrade = useCallback((key: PermanentUpgradeKey) => {
+    setPrestigePlan((current) => {
+      if (!current) {
+        return current
+      }
+
+      const cost = getPermanentUpgradeCost(current.draftUpgrades, key)
+      const available = new Decimal(current.availableEssence)
+      if (available.lessThan(cost)) {
+        return current
+      }
+
+      return {
+        ...current,
+        availableEssence: available.minus(cost).toString(),
+        draftUpgrades: {
+          ...current.draftUpgrades,
+          [key]: current.draftUpgrades[key] + 1,
+        },
+      }
+    })
+  }, [])
+
+  const resetPrestigeChoices = useCallback(() => {
+    setPrestigePlan((current) => {
+      if (!current) {
+        return current
+      }
+
+      return {
+        ...current,
+        availableEssence: current.baseAvailableEssence,
+        draftUpgrades: { ...current.baseUpgrades },
+      }
+    })
+  }, [])
+
+  const confirmPrestigeReset = useCallback(() => {
+    if (!prestigePlan) {
+      return
+    }
+
     const now = Date.now()
-    const nextState = applyPrestigeReset(gameRef.current, now)
+    const nextState = applyPrestigeReset(gameRef.current, now, {
+      remainingEssence: prestigePlan.availableEssence,
+      permanentUpgrades: prestigePlan.draftUpgrades,
+    })
     if (nextState === gameRef.current) {
+      setPrestigePlan(null)
       return
     }
 
@@ -480,10 +564,10 @@ function App() {
     setGame(nextState)
     setNowMs(now)
     setActiveTab('production')
-    setIsPrestigeAlertOpen(false)
+    setPrestigePlan(null)
 
     void saveGameState(nextState)
-  }, [])
+  }, [prestigePlan])
 
   const renderActiveTab = () => {
     const sharedTabProps = {
@@ -515,17 +599,12 @@ function App() {
             prestigeMultiplier={prestigeMultiplier}
             prestigeGain={prestigeGain}
             canPrestigeNow={canPrestigeNow}
-            onOpenPrestige={() => setIsPrestigeAlertOpen(true)}
+            onOpenPrestige={startPrestigePlanning}
             formatDuration={formatDuration}
           />
         )
       case 'achievements':
-        return (
-          <AchievementsTabView
-            {...sharedTabProps}
-            unlockedAchievementCount={unlockedAchievementCount}
-          />
-        )
+        return <AchievementsTabView {...sharedTabProps} unlockedAchievementCount={unlockedAchievementCount} />
       case 'settings':
         return (
           <SettingsTabView
@@ -534,6 +613,7 @@ function App() {
             refreshError={refreshError}
             onRefreshApp={refreshApp}
             onResetGame={resetGame}
+            onApplyDevBootstrap={applyDevBootstrap}
           />
         )
       case 'help':
@@ -553,181 +633,159 @@ function App() {
           paddingTop: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
           paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
           paddingRight: `calc(${SAFE_AREA_INSETS.right} + 1rem)`,
-          paddingBottom: `calc(${SAFE_AREA_INSETS.bottom} + 5.25rem)`,
+          paddingBottom: isPrestigeMode
+            ? `calc(${SAFE_AREA_INSETS.bottom} + 1rem)`
+            : `calc(${SAFE_AREA_INSETS.bottom} + 5.25rem)`,
         }}
       >
-      <div
-        className={cn(
-          'pointer-events-none fixed inset-x-0 top-0 z-40 overflow-hidden bg-background/70 backdrop-blur-md transition-[height,border-color] duration-200',
-          shouldShowFloatingSummary ? 'border-b border-border' : 'border-b border-transparent',
-        )}
-        style={{
-          height: shouldShowFloatingSummary
-            ? `calc(${SAFE_AREA_INSETS.top} + 3rem)`
-            : SAFE_AREA_INSETS.top,
-          paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
-          paddingRight: `calc(${SAFE_AREA_INSETS.right} + 1rem)`,
-        }}
-      >
-        <div
-          ref={topSafeAreaBoundaryRef}
-          style={{ height: SAFE_AREA_INSETS.top }}
-        />
-        <div
-          className={cn(
-            'w-full py-2 text-sm transition-all duration-200',
-            shouldShowFloatingSummary ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0',
-          )}
-        >
-          <div className="flex items-center justify-between gap-3 whitespace-nowrap">
-            <p className="flex items-center gap-1.5 font-mono tabular-nums font-semibold">
-              <Coins className="size-4 text-muted-foreground" aria-hidden />
-              <span>{formatRenderedCredits(game.credits)}</span>
-            </p>
-            <p className="font-mono tabular-nums">
-              +{formatRenderedCredits(creditsPerSecond)} / sec
-            </p>
-          </div>
-        </div>
-      </div>
+        {isPrestigeMode && prestigePlan ? (
+          <PrestigeScreen
+            currentEssence={game.prestige.essence}
+            resetGain={prestigeGain}
+            availableEssence={new Decimal(prestigePlan.availableEssence)}
+            currentMultiplier={prestigeMultiplier}
+            projectedMultiplier={plannedPrestigeMultiplier}
+            permanentUpgrades={prestigePlan.draftUpgrades}
+            getUpgradeCost={(key) => getPermanentUpgradeCost(prestigePlan.draftUpgrades, key)}
+            canPurchaseUpgrade={(key) =>
+              new Decimal(prestigePlan.availableEssence).greaterThanOrEqualTo(
+                getPermanentUpgradeCost(prestigePlan.draftUpgrades, key),
+              )
+            }
+            onPurchaseUpgrade={purchasePermanentUpgrade}
+            onResetChoices={resetPrestigeChoices}
+            onCancel={() => setPrestigePlan(null)}
+            onConfirm={confirmPrestigeReset}
+            formatValue={formatIdleNumber}
+          />
+        ) : (
+          <>
+            <div
+              className={cn(
+                'pointer-events-none fixed inset-x-0 top-0 z-40 overflow-hidden bg-background/70 backdrop-blur-md transition-[height,border-color] duration-200',
+                shouldShowFloatingSummary ? 'border-b border-border' : 'border-b border-transparent',
+              )}
+              style={{
+                height: shouldShowFloatingSummary
+                  ? `calc(${SAFE_AREA_INSETS.top} + 3rem)`
+                  : SAFE_AREA_INSETS.top,
+                paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
+                paddingRight: `calc(${SAFE_AREA_INSETS.right} + 1rem)`,
+              }}
+            >
+              <div ref={topSafeAreaBoundaryRef} style={{ height: SAFE_AREA_INSETS.top }} />
+              <div
+                className={cn(
+                  'w-full py-2 text-sm transition-all duration-200',
+                  shouldShowFloatingSummary ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0',
+                )}
+              >
+                <div className="flex items-center justify-between gap-3 whitespace-nowrap">
+                  <p className="flex items-center gap-1.5 font-mono tabular-nums font-semibold">
+                    <Coins className="size-4 text-muted-foreground" aria-hidden />
+                    <span>{formatRenderedCredits(game.credits)}</span>
+                  </p>
+                  <p className="font-mono tabular-nums">+{formatRenderedCredits(creditsPerSecond)} / sec</p>
+                </div>
+              </div>
+            </div>
 
-      {renderActiveTab()}
+            {renderActiveTab()}
 
-      <div
-        className="fixed inset-x-0 bottom-0 z-40"
-        style={{
-          paddingTop: `calc(${SAFE_AREA_INSETS.top} + 1rem)`,
-          paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
-          paddingRight: `calc(${SAFE_AREA_INSETS.right} + 1rem)`,
-          paddingBottom: `calc(${SAFE_AREA_INSETS.bottom} + 0.75rem)`,
-        }}
-      >
-        <div className="mx-auto w-full max-w-lg">
-          <div className="rounded-xl border border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
-            <div className="grid grid-cols-4 gap-1">
-              {PRIMARY_NAV_ITEMS.map((item) => {
-                const Icon = item.icon
-                const showUpgradeBadge =
-                  item.key === 'upgrades' && purchasableUpgradeCount > 0
-                const showProductionBadge =
-                  item.key === 'production' && purchasableGeneratorCount > 0
-                const badgeCount =
-                  item.key === 'upgrades'
-                    ? purchasableUpgradeCount
-                    : item.key === 'production'
-                      ? purchasableGeneratorCount
-                      : 0
+            <div
+              className="fixed inset-x-0 bottom-0 z-40"
+              style={{
+                paddingTop: `calc(${SAFE_AREA_INSETS.top} + 1rem)`,
+                paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
+                paddingRight: `calc(${SAFE_AREA_INSETS.right} + 1rem)`,
+                paddingBottom: `calc(${SAFE_AREA_INSETS.bottom} + 0.75rem)`,
+              }}
+            >
+              <div className="mx-auto w-full max-w-lg">
+                <div className="rounded-xl border border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
+                  <div className="grid grid-cols-4 gap-1">
+                    {PRIMARY_NAV_ITEMS.map((item) => {
+                      const Icon = item.icon
+                      const showUpgradeBadge = item.key === 'upgrades' && purchasableUpgradeCount > 0
+                      const showProductionBadge = item.key === 'production' && purchasableGeneratorCount > 0
+                      const badgeCount =
+                        item.key === 'upgrades'
+                          ? purchasableUpgradeCount
+                          : item.key === 'production'
+                            ? purchasableGeneratorCount
+                            : 0
 
-                return (
-                  <Button
-                    key={item.key}
-                    size="sm"
-                    variant="ghost"
-                    className={cn(
-                      'h-12 flex-col gap-1.5 rounded-lg bg-transparent px-0.5 shadow-none hover:bg-transparent active:bg-transparent',
-                      activeTab === item.key ? 'text-foreground' : 'text-muted-foreground/70',
-                    )}
-                    onClick={() => setActiveTab(item.key)}
-                    aria-label={item.label}
-                  >
-                    <span className="relative">
-                      <Icon className="size-7" />
-                      {(showUpgradeBadge || showProductionBadge) && (
-                        <span className="absolute -right-4 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-none text-background">
-                          {badgeCount > 99 ? '99+' : badgeCount}
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-[10px] leading-none">{item.label}</span>
-                  </Button>
-                )
-              })}
-              <Sheet open={isSectionsOpen} onOpenChange={setIsSectionsOpen}>
-                <SheetTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={cn(
-                      'h-12 flex-col gap-1.5 rounded-lg bg-transparent px-0.5 shadow-none hover:bg-transparent active:bg-transparent',
-                      isOtherActive ? 'text-foreground' : 'text-muted-foreground/70',
-                    )}
-                    aria-label="Other sections"
-                  >
-                    <MoreHorizontal className="size-7" />
-                    <span className="text-[10px] leading-none">Other</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="bottom" className="max-h-[80vh] rounded-t-xl px-0 pb-6">
-                  <SheetHeader className="px-4 pb-1">
-                    <SheetTitle>Other Sections</SheetTitle>
-                    <SheetDescription>
-                      Additional navigation options.
-                    </SheetDescription>
-                  </SheetHeader>
-                  <div className="mt-2 space-y-1 px-4">
-                    {overflowTabs.map((tab) => (
-                      <Button
-                        key={tab.key}
-                        variant={activeTab === tab.key ? 'default' : 'ghost'}
-                        className="h-10 w-full justify-start"
-                        onClick={() => {
-                          setActiveTab(tab.key)
-                          setIsSectionsOpen(false)
-                        }}
-                      >
-                        {tab.label}
-                      </Button>
-                    ))}
-                    {overflowTabs.length === 0 && (
-                      <p className="px-2 py-1 text-sm text-muted-foreground">
-                        No additional sections yet.
-                      </p>
-                    )}
+                      return (
+                        <Button
+                          key={item.key}
+                          size="sm"
+                          variant="ghost"
+                          className={cn(
+                            'h-12 flex-col gap-1.5 rounded-lg bg-transparent px-0.5 shadow-none hover:bg-transparent active:bg-transparent',
+                            activeTab === item.key ? 'text-foreground' : 'text-muted-foreground/70',
+                          )}
+                          onClick={() => setActiveTab(item.key)}
+                          aria-label={item.label}
+                        >
+                          <span className="relative">
+                            <Icon className="size-7" />
+                            {(showUpgradeBadge || showProductionBadge) && (
+                              <span className="absolute -right-4 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-none text-background">
+                                {badgeCount > 99 ? '99+' : badgeCount}
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-[10px] leading-none">{item.label}</span>
+                        </Button>
+                      )
+                    })}
+                    <Sheet open={isSectionsOpen} onOpenChange={setIsSectionsOpen}>
+                      <SheetTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className={cn(
+                            'h-12 flex-col gap-1.5 rounded-lg bg-transparent px-0.5 shadow-none hover:bg-transparent active:bg-transparent',
+                            isOtherActive ? 'text-foreground' : 'text-muted-foreground/70',
+                          )}
+                          aria-label="Other sections"
+                        >
+                          <MoreHorizontal className="size-7" />
+                          <span className="text-[10px] leading-none">Other</span>
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent side="bottom" className="max-h-[80vh] rounded-t-xl px-0 pb-6">
+                        <SheetHeader className="px-4 pb-1">
+                          <SheetTitle>Other Sections</SheetTitle>
+                          <SheetDescription>Additional navigation options.</SheetDescription>
+                        </SheetHeader>
+                        <div className="mt-2 space-y-1 px-4">
+                          {overflowTabs.map((tab) => (
+                            <Button
+                              key={tab.key}
+                              variant={activeTab === tab.key ? 'default' : 'ghost'}
+                              className="h-10 w-full justify-start"
+                              onClick={() => {
+                                setActiveTab(tab.key)
+                                setIsSectionsOpen(false)
+                              }}
+                            >
+                              {tab.label}
+                            </Button>
+                          ))}
+                          {overflowTabs.length === 0 && (
+                            <p className="px-2 py-1 text-sm text-muted-foreground">No additional sections yet.</p>
+                          )}
+                        </div>
+                      </SheetContent>
+                    </Sheet>
                   </div>
-                </SheetContent>
-              </Sheet>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
+          </>
+        )}
       </main>
-      <AlertDialog open={isPrestigeAlertOpen} onOpenChange={setIsPrestigeAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Prestige this run?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will reset credits, generators, and run upgrades for this run.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-2 text-sm text-muted-foreground">
-            <p>
-              You will gain{' '}
-              <span className="font-mono tabular-nums text-foreground">
-                +{formatIdleNumber(prestigeGain)}
-              </span>{' '}
-              essence.
-            </p>
-            <div className="rounded-md border border-border/70 bg-muted/30 px-3 py-2">
-              <p className="flex items-center justify-between">
-                <span>Current multiplier</span>
-                <span className="font-mono tabular-nums text-foreground">
-                  x{formatIdleNumber(prestigeMultiplier)}
-                </span>
-              </p>
-              <p className="mt-1 flex items-center justify-between">
-                <span>After prestige</span>
-                <span className="font-mono tabular-nums font-semibold text-foreground">
-                  x{formatIdleNumber(nextPrestigeMultiplier)}
-                </span>
-              </p>
-            </div>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={prestigeReset}>Confirm Prestige</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       <Toaster
         position="top-right"
         offset={{

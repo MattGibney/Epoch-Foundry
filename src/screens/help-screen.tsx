@@ -34,7 +34,7 @@ export function HelpScreen() {
           </p>
           <p>
             <span className="font-medium text-foreground">Prestige:</span> resets the run and
-            grants essence for permanent scaling.
+            opens a prestige phase where essence is spent on permanent upgrades.
           </p>
           <p>
             <span className="font-medium text-foreground">Achievements:</span> long-term goals

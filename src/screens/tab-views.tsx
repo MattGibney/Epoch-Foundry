@@ -1,6 +1,7 @@
 import type Decimal from 'decimal.js'
 
 import { CreditsHeader } from '@/components/game/credits-header'
+import type { DevBootstrapPresetKey } from '@/lib/dev-bootstrap'
 import type { GameState } from '@/lib/game-engine'
 import { formatIdleNumber } from '@/lib/number-format'
 import { AboutScreen } from '@/screens/about-screen'
@@ -151,6 +152,7 @@ interface SettingsTabViewProps extends CommonTabProps {
   refreshError: string | null
   onRefreshApp: () => Promise<void>
   onResetGame: () => void
+  onApplyDevBootstrap: (preset: DevBootstrapPresetKey) => void
 }
 
 export function SettingsTabView(props: SettingsTabViewProps) {
@@ -170,6 +172,7 @@ export function SettingsTabView(props: SettingsTabViewProps) {
           refreshError={props.refreshError}
           onRefreshApp={props.onRefreshApp}
           onResetGame={props.onResetGame}
+          onApplyDevBootstrap={props.onApplyDevBootstrap}
           onGameChange={props.onGameChange}
         />
       </section>

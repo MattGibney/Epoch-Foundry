@@ -1,6 +1,7 @@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { DEV_BOOTSTRAP_PRESETS, type DevBootstrapPresetKey } from '@/lib/dev-bootstrap'
 import { setShowPurchasedUpgrades, setUpdateFrequency, type GameState } from '@/lib/game-engine'
 
 interface SettingsScreenProps {
@@ -9,6 +10,7 @@ interface SettingsScreenProps {
   refreshError: string | null
   onRefreshApp: () => Promise<void>
   onResetGame: () => void
+  onApplyDevBootstrap: (preset: DevBootstrapPresetKey) => void
   onGameChange: (updater: (current: GameState) => GameState) => void
 }
 
@@ -18,6 +20,7 @@ export function SettingsScreen({
   refreshError,
   onRefreshApp,
   onResetGame,
+  onApplyDevBootstrap,
   onGameChange,
 }: SettingsScreenProps) {
   return (
@@ -100,6 +103,32 @@ export function SettingsScreen({
           </AlertDialogContent>
         </AlertDialog>
       </section>
+
+      {import.meta.env.DEV && (
+        <section className="border-t border-border/70 pt-4">
+          <h3 className="text-base font-semibold">Dev Bootstrap</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Load preset save states for faster feature testing in development.
+          </p>
+          <div className="mt-3 space-y-2">
+            {DEV_BOOTSTRAP_PRESETS.map((preset) => (
+              <div key={preset.key} className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{preset.label}</p>
+                  <p className="text-xs text-muted-foreground">{preset.description}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onApplyDevBootstrap(preset.key)}
+                >
+                  Load
+                </Button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }

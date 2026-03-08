@@ -208,6 +208,7 @@ export interface GameSettingsState {
 export interface PrestigeState {
   resets: number
   essence: string
+  permanentUpgrades: PermanentUpgradesState
 }
 
 export interface RandomState {
@@ -256,6 +257,23 @@ interface AchievementDef {
   isUnlocked: (state: GameState) => boolean
 }
 
+export type PermanentUpgradeKey =
+  | 'essenceInfusion'
+  | 'quantumLattice'
+  | 'singularityCore'
+
+export type PermanentUpgradesState = Record<PermanentUpgradeKey, number>
+
+type PermanentUpgradeDef = {
+  key: PermanentUpgradeKey
+  label: string
+  description: string
+  baseCost: string
+  growth: string
+  effectType: 'additive' | 'multiplicative'
+  value: string
+}
+
 type GlobalUpgradeDef = UpgradeBaseDef & {
   effectType: 'global'
   multiplier: string
@@ -280,7 +298,42 @@ const MAX_TICK_SECONDS = 5
 const BASE_OFFLINE_PROGRESS_CAP_SECONDS = 15 * 60
 const PRESTIGE_UNLOCK_CREDITS = new Decimal(PRESTIGE_BALANCE.unlockCredits)
 const PRESTIGE_GAIN_EXPONENT = new Decimal(PRESTIGE_BALANCE.gainExponent)
-const PRESTIGE_ESSENCE_MULTIPLIER_STEP = new Decimal(PRESTIGE_BALANCE.essenceMultiplierStep)
+
+export const PERMANENT_UPGRADE_ORDER: PermanentUpgradeKey[] = [
+  'essenceInfusion',
+  'quantumLattice',
+  'singularityCore',
+]
+
+export const PERMANENT_UPGRADE_DEFS: Record<PermanentUpgradeKey, PermanentUpgradeDef> = {
+  essenceInfusion: {
+    key: 'essenceInfusion',
+    label: 'Essence Infusion',
+    description: 'Increase permanent production multiplier by +0.20 per level.',
+    baseCost: '5',
+    growth: '1.8',
+    effectType: 'additive',
+    value: '0.2',
+  },
+  quantumLattice: {
+    key: 'quantumLattice',
+    label: 'Quantum Lattice',
+    description: 'Multiply permanent production multiplier by x1.12 per level.',
+    baseCost: '30',
+    growth: '2',
+    effectType: 'multiplicative',
+    value: '1.12',
+  },
+  singularityCore: {
+    key: 'singularityCore',
+    label: 'Singularity Core',
+    description: 'Multiply permanent production multiplier by x1.3 per level.',
+    baseCost: '200',
+    growth: '2.4',
+    effectType: 'multiplicative',
+    value: '1.3',
+  },
+}
 
 export const GENERATOR_ORDER: GeneratorKey[] = [
   'miners',
@@ -634,7 +687,15 @@ function createInitialPrestigeState(): PrestigeState {
   return {
     resets: 0,
     essence: '0',
+    permanentUpgrades: createInitialPermanentUpgradesState(),
   }
+}
+
+function createInitialPermanentUpgradesState(): PermanentUpgradesState {
+  return PERMANENT_UPGRADE_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = 0
+    return accumulator
+  }, {} as PermanentUpgradesState)
 }
 
 function createInitialRandomState(nowMs = Date.now()): RandomState {
@@ -691,13 +752,71 @@ export function canPrestige(state: GameState): boolean {
 }
 
 export function getPrestigeMultiplier(state: GameState): Decimal {
-  return ONE.plus(toDecimal(state.prestige.essence).times(PRESTIGE_ESSENCE_MULTIPLIER_STEP))
+  return getPrestigeMultiplierFromPermanentUpgrades(state.prestige.permanentUpgrades)
 }
 
-export function applyPrestigeReset(state: GameState, nowMs = Date.now()): GameState {
+export function getPrestigeMultiplierFromPermanentUpgrades(
+  permanentUpgrades: PermanentUpgradesState,
+): Decimal {
+  let multiplier = ONE
+
+  for (const key of PERMANENT_UPGRADE_ORDER) {
+    const upgrade = PERMANENT_UPGRADE_DEFS[key]
+    const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
+    if (level <= 0) {
+      continue
+    }
+
+    if (upgrade.effectType === 'additive') {
+      multiplier = multiplier.plus(toDecimal(upgrade.value).times(level))
+      continue
+    }
+
+    multiplier = multiplier.times(toDecimal(upgrade.value).pow(level))
+  }
+
+  return multiplier
+}
+
+export function getPermanentUpgradeCost(
+  permanentUpgrades: PermanentUpgradesState,
+  key: PermanentUpgradeKey,
+): Decimal {
+  const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
+  const upgrade = PERMANENT_UPGRADE_DEFS[key]
+  return toDecimal(upgrade.baseCost).times(toDecimal(upgrade.growth).pow(level)).ceil()
+}
+
+export function applyPrestigeReset(
+  state: GameState,
+  nowMs = Date.now(),
+  options?: {
+    remainingEssence?: string
+    permanentUpgrades?: PermanentUpgradesState
+  },
+): GameState {
   const gainedEssence = getPrestigeGainForReset(state)
   if (gainedEssence.lessThanOrEqualTo(0)) {
     return state
+  }
+
+  const totalAvailableEssence = toDecimal(state.prestige.essence).plus(gainedEssence)
+  let remainingEssence = totalAvailableEssence
+  if (options?.remainingEssence !== undefined) {
+    try {
+      const parsedRemaining = toDecimal(options.remainingEssence)
+      if (parsedRemaining.greaterThanOrEqualTo(0) && parsedRemaining.lessThanOrEqualTo(totalAvailableEssence)) {
+        remainingEssence = parsedRemaining
+      }
+    } catch {
+      remainingEssence = totalAvailableEssence
+    }
+  }
+
+  const normalizedPermanentUpgrades = createInitialPermanentUpgradesState()
+  const sourcePermanentUpgrades = options?.permanentUpgrades ?? state.prestige.permanentUpgrades
+  for (const key of PERMANENT_UPGRADE_ORDER) {
+    normalizedPermanentUpgrades[key] = Math.max(0, Math.floor(sourcePermanentUpgrades[key] ?? 0))
   }
 
   const initialState = createInitialGameState(nowMs)
@@ -711,7 +830,8 @@ export function applyPrestigeReset(state: GameState, nowMs = Date.now()): GameSt
     },
     prestige: {
       resets: state.prestige.resets + 1,
-      essence: toDecimal(state.prestige.essence).plus(gainedEssence).toString(),
+      essence: remainingEssence.toString(),
+      permanentUpgrades: normalizedPermanentUpgrades,
     },
     achievements: state.achievements,
   }

@@ -44,7 +44,6 @@ export type AchievementConfigEntry = {
 export const PRESTIGE_BALANCE = {
   unlockCredits: '2500000',
   gainExponent: '0.45',
-  essenceMultiplierStep: '0.1',
 } as const
 
 export const UPGRADE_COST_MULTIPLIER_BY_TYPE = {
@@ -366,7 +365,6 @@ export function validateProgressionConfig(params: {
 
   assertDecimalString(PRESTIGE_BALANCE.unlockCredits, 'prestige.unlockCredits')
   assertDecimalString(PRESTIGE_BALANCE.gainExponent, 'prestige.gainExponent')
-  assertDecimalString(PRESTIGE_BALANCE.essenceMultiplierStep, 'prestige.essenceMultiplierStep')
 
   for (const [effectType, multiplier] of Object.entries(UPGRADE_COST_MULTIPLIER_BY_TYPE)) {
     assertDecimalString(multiplier, `upgrade cost multiplier ${effectType}`)

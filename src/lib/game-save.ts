@@ -8,8 +8,10 @@ import {
   GENERATOR_ORDER,
   getOfflineProgressCapSeconds,
   getUnlockedAchievementCount,
+  PERMANENT_UPGRADE_ORDER,
   type GameState,
   type GeneratorKey,
+  type PermanentUpgradeKey,
   syncAchievements,
   type AchievementKey,
   UPGRADE_ORDER,
@@ -113,16 +115,26 @@ function parsePrestige(value: unknown): GameState['prestige'] {
     return {
       resets: 0,
       essence: '0',
+      permanentUpgrades: PERMANENT_UPGRADE_ORDER.reduce((accumulator, key) => {
+        accumulator[key] = 0
+        return accumulator
+      }, {} as Record<PermanentUpgradeKey, number>),
     }
   }
 
   const candidate = value as Record<string, unknown>
   const resets = parseNonNegativeInt(candidate.resets) ?? 0
   const essence = parseDecimalString(candidate.essence) ?? '0'
+  const permanentUpgradesRaw = candidate.permanentUpgrades as Record<string, unknown> | undefined
+  const permanentUpgrades = PERMANENT_UPGRADE_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = parseNonNegativeInt(permanentUpgradesRaw?.[key]) ?? 0
+    return accumulator
+  }, {} as Record<PermanentUpgradeKey, number>)
 
   return {
     resets,
     essence,
+    permanentUpgrades,
   }
 }
 
