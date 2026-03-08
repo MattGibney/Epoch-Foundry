@@ -10,6 +10,7 @@ import {
   GENERATOR_ORDER,
   getGeneratorCost,
   getGeneratorProductionPerSecond,
+  isGeneratorPurchaseAllowedByContracts,
   setBuyAmount,
   type GameState,
 } from '@/lib/game-engine'
@@ -106,72 +107,82 @@ export function ProductionScreen({
           )
             .toDecimalPlaces(0, Decimal.ROUND_FLOOR)
             .toNumber()
+          const isLockedByChallenge = !isGeneratorPurchaseAllowedByContracts(game, key)
 
           return (
-            <article key={definition.key} className="py-4 first:pt-0">
-              <div className="min-w-0">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex items-center gap-2">
-                    <h3 className="truncate text-base font-semibold">{definition.label}</h3>
-                    <span className="shrink-0 rounded-full border border-border/70 px-2 py-0.5 font-mono text-xs tabular-nums text-muted-foreground">
-                      {owned}
-                    </span>
+            <article key={definition.key} className="relative py-4 first:pt-0">
+              {isLockedByChallenge && (
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+                  <span className="text-base font-bold tracking-wide text-foreground text-shadow-lg text-shadow-background">
+                    Locked by active challenge
+                  </span>
+                </div>
+              )}
+              <div className={cn(isLockedByChallenge && 'opacity-30')}>
+                <div className="min-w-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex items-center gap-2">
+                      <h3 className="truncate text-base font-semibold">{definition.label}</h3>
+                      <span className="shrink-0 rounded-full border border-border/70 px-2 py-0.5 font-mono text-xs tabular-nums text-muted-foreground">
+                        {owned}
+                      </span>
+                    </div>
+                    <p className="shrink-0 text-sm text-muted-foreground">
+                      +
+                      <span className="font-mono tabular-nums">
+                        {formatRenderedCredits(contribution)}
+                      </span>{' '}
+                      / sec
+                    </p>
                   </div>
-                  <p className="shrink-0 text-sm text-muted-foreground">
-                    +
-                    <span className="font-mono tabular-nums">
-                      {formatRenderedCredits(contribution)}
-                    </span>{' '}
-                    / sec
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {definition.description}
                   </p>
                 </div>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {definition.description}
-                </p>
-              </div>
-              <div className="mt-2 flex items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm text-muted-foreground">
-                    Cost:{' '}
-                    <span className="font-mono tabular-nums">
-                      {formatRenderedCredits(cost)}
-                    </span>{' '}
-                    credits
-                  </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={cn(
-                        'h-full rounded-full transition-all duration-75',
-                        canBuy ? 'bg-foreground/70' : 'bg-muted-foreground/60',
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-muted-foreground">
+                      Cost:{' '}
+                      <span className="font-mono tabular-nums">
+                        {formatRenderedCredits(cost)}
+                      </span>{' '}
+                      credits
+                    </div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all duration-75',
+                          canBuy ? 'bg-foreground/70' : 'bg-muted-foreground/60',
+                        )}
+                        style={{ width: `${Math.max(0, affordabilityPercent)}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {canBuy ? (
+                        'Ready to purchase'
+                      ) : (
+                        <>
+                          Need{' '}
+                          <span className="font-mono tabular-nums">
+                            {formatRenderedCredits(remainingCredits)}
+                          </span>{' '}
+                          more
+                          {secondsUntilAffordable !== null && secondsUntilAffordable > 0
+                            ? ` (${formatAffordabilityEta(secondsUntilAffordable)})`
+                            : ''}
+                        </>
                       )}
-                      style={{ width: `${Math.max(0, affordabilityPercent)}%` }}
-                    />
+                    </p>
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {canBuy ? (
-                      'Ready to purchase'
-                    ) : (
-                      <>
-                        Need{' '}
-                        <span className="font-mono tabular-nums">
-                          {formatRenderedCredits(remainingCredits)}
-                        </span>{' '}
-                        more
-                        {secondsUntilAffordable !== null && secondsUntilAffordable > 0
-                          ? ` (${formatAffordabilityEta(secondsUntilAffordable)})`
-                          : ''}
-                      </>
-                    )}
-                  </p>
+                  <Button
+                    size="sm"
+                    className="h-10 min-w-[5.5rem] shrink-0 font-mono tabular-nums"
+                    disabled={!canBuy || isLockedByChallenge}
+                    onClick={() => onGameChange((current) => buyGenerator(current, key))}
+                  >
+                    Buy
+                  </Button>
                 </div>
-                <Button
-                  size="sm"
-                  className="h-10 min-w-[5.5rem] shrink-0 font-mono tabular-nums"
-                  disabled={!canBuy}
-                  onClick={() => onGameChange((current) => buyGenerator(current, key))}
-                >
-                  Buy
-                </Button>
               </div>
             </article>
           )
