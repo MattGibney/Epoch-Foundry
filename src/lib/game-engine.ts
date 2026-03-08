@@ -21,6 +21,16 @@ export type GeneratorKey =
   | 'dysonArrays'
   | 'singularityWells'
   | 'continuumEngines'
+  | 'voidLathes'
+  | 'entropyReactors'
+  | 'quantumFoundries'
+  | 'darkMatterSmelters'
+  | 'realityKilns'
+  | 'fractalAssemblers'
+  | 'causalLooms'
+  | 'epochMonoliths'
+  | 'omniversalFoundries'
+  | 'genesisForges'
 export type RunUpgradeKey =
   | 'minerTuning'
   | 'minerSwarm'
@@ -188,6 +198,16 @@ export interface GeneratorsState {
   dysonArrays: number
   singularityWells: number
   continuumEngines: number
+  voidLathes: number
+  entropyReactors: number
+  quantumFoundries: number
+  darkMatterSmelters: number
+  realityKilns: number
+  fractalAssemblers: number
+  causalLooms: number
+  epochMonoliths: number
+  omniversalFoundries: number
+  genesisForges: number
 }
 
 export type PurchasedUpgradesState = Record<RunUpgradeKey, boolean>
@@ -346,6 +366,16 @@ export const GENERATOR_ORDER: GeneratorKey[] = [
   'dysonArrays',
   'singularityWells',
   'continuumEngines',
+  'voidLathes',
+  'entropyReactors',
+  'quantumFoundries',
+  'darkMatterSmelters',
+  'realityKilns',
+  'fractalAssemblers',
+  'causalLooms',
+  'epochMonoliths',
+  'omniversalFoundries',
+  'genesisForges',
 ]
 
 export const UPGRADE_ORDER: RunUpgradeKey[] = [
@@ -718,6 +748,16 @@ export function createInitialGameState(nowMs = Date.now()): GameState {
       dysonArrays: 0,
       singularityWells: 0,
       continuumEngines: 0,
+      voidLathes: 0,
+      entropyReactors: 0,
+      quantumFoundries: 0,
+      darkMatterSmelters: 0,
+      realityKilns: 0,
+      fractalAssemblers: 0,
+      causalLooms: 0,
+      epochMonoliths: 0,
+      omniversalFoundries: 0,
+      genesisForges: 0,
     },
     purchasedUpgrades: createInitialPurchasedUpgrades(),
     achievements: createInitialAchievementsState(),

@@ -65,6 +65,16 @@ export function createDevBootstrapState(
       dysonArrays: 0,
       singularityWells: 0,
       continuumEngines: 0,
+      voidLathes: 0,
+      entropyReactors: 0,
+      quantumFoundries: 0,
+      darkMatterSmelters: 0,
+      realityKilns: 0,
+      fractalAssemblers: 0,
+      causalLooms: 0,
+      epochMonoliths: 0,
+      omniversalFoundries: 0,
+      genesisForges: 0,
     }
     markRunUpgrades(state, 18)
     state.buyAmount = 100
@@ -86,6 +96,16 @@ export function createDevBootstrapState(
       dysonArrays: 340,
       singularityWells: 180,
       continuumEngines: 80,
+      voidLathes: 50,
+      entropyReactors: 30,
+      quantumFoundries: 18,
+      darkMatterSmelters: 10,
+      realityKilns: 5,
+      fractalAssemblers: 2,
+      causalLooms: 1,
+      epochMonoliths: 0,
+      omniversalFoundries: 0,
+      genesisForges: 0,
     }
     markRunUpgrades(state, UPGRADE_ORDER.length)
     state.buyAmount = 100
@@ -113,6 +133,16 @@ export function createDevBootstrapState(
     dysonArrays: 25,
     singularityWells: 8,
     continuumEngines: 1,
+    voidLathes: 0,
+    entropyReactors: 0,
+    quantumFoundries: 0,
+    darkMatterSmelters: 0,
+    realityKilns: 0,
+    fractalAssemblers: 0,
+    causalLooms: 0,
+    epochMonoliths: 0,
+    omniversalFoundries: 0,
+    genesisForges: 0,
   }
   markRunUpgrades(state, 30)
   state.buyAmount = 100
