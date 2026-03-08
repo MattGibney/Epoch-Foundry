@@ -81,6 +81,12 @@ export function PrestigeScreen({
             const level = permanentUpgrades[key]
             const cost = getUpgradeCost(key)
             const canBuy = canPurchaseUpgrade(key)
+            const bonusText =
+              definition.effectType === 'productionAdditive'
+                ? `+${formatValue(new Decimal(definition.value).times(level))} production multiplier`
+                : definition.effectType === 'generatorCostDiscount'
+                  ? `${formatValue(new Decimal(1).minus(new Decimal(definition.value).pow(level)).times(100))}% generator cost reduction`
+                  : `x${formatValue(new Decimal(definition.value).pow(level))} prestige gain`
 
             return (
               <article key={key} className="py-4 first:pt-0">
@@ -91,6 +97,7 @@ export function PrestigeScreen({
                     <p className="text-xs text-muted-foreground">
                       Level <span className="font-mono tabular-nums">{level}</span>
                     </p>
+                    <p className="text-xs text-muted-foreground">{bonusText}</p>
                     <p className="text-xs text-muted-foreground">
                       Cost{' '}
                       <span className="font-mono tabular-nums text-foreground">

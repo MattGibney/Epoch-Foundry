@@ -270,7 +270,7 @@ type PermanentUpgradeDef = {
   description: string
   baseCost: string
   growth: string
-  effectType: 'additive' | 'multiplicative'
+  effectType: 'productionAdditive' | 'generatorCostDiscount' | 'prestigeGainMultiplier'
   value: string
 }
 
@@ -309,29 +309,29 @@ export const PERMANENT_UPGRADE_DEFS: Record<PermanentUpgradeKey, PermanentUpgrad
   essenceInfusion: {
     key: 'essenceInfusion',
     label: 'Essence Infusion',
-    description: 'Increase permanent production multiplier by +0.20 per level.',
-    baseCost: '5',
-    growth: '1.8',
-    effectType: 'additive',
-    value: '0.2',
+    description: 'Boost production multiplier by +0.18 per level.',
+    baseCost: '8',
+    growth: '1.85',
+    effectType: 'productionAdditive',
+    value: '0.18',
   },
   quantumLattice: {
     key: 'quantumLattice',
     label: 'Quantum Lattice',
-    description: 'Multiply permanent production multiplier by x1.12 per level.',
-    baseCost: '30',
-    growth: '2',
-    effectType: 'multiplicative',
-    value: '1.12',
+    description: 'Reduce generator costs by 3% per level.',
+    baseCost: '24',
+    growth: '2.05',
+    effectType: 'generatorCostDiscount',
+    value: '0.97',
   },
   singularityCore: {
     key: 'singularityCore',
     label: 'Singularity Core',
-    description: 'Multiply permanent production multiplier by x1.3 per level.',
-    baseCost: '200',
-    growth: '2.4',
-    effectType: 'multiplicative',
-    value: '1.3',
+    description: 'Increase prestige essence gain by 10% per level.',
+    baseCost: '180',
+    growth: '2.45',
+    effectType: 'prestigeGainMultiplier',
+    value: '1.1',
   },
 }
 
@@ -744,7 +744,8 @@ export function getPrestigeGainForReset(state: GameState): Decimal {
     return ZERO
   }
 
-  return runTotalCredits.div(PRESTIGE_UNLOCK_CREDITS).pow(PRESTIGE_GAIN_EXPONENT).floor()
+  const baseGain = runTotalCredits.div(PRESTIGE_UNLOCK_CREDITS).pow(PRESTIGE_GAIN_EXPONENT)
+  return baseGain.times(getPrestigeGainMultiplierFromPermanentUpgrades(state.prestige.permanentUpgrades)).floor()
 }
 
 export function canPrestige(state: GameState): boolean {
@@ -767,8 +768,49 @@ export function getPrestigeMultiplierFromPermanentUpgrades(
       continue
     }
 
-    if (upgrade.effectType === 'additive') {
+    if (upgrade.effectType === 'productionAdditive') {
       multiplier = multiplier.plus(toDecimal(upgrade.value).times(level))
+    }
+  }
+
+  return multiplier
+}
+
+function getGeneratorCostMultiplierFromPermanentUpgrades(
+  permanentUpgrades: PermanentUpgradesState,
+): Decimal {
+  let costMultiplier = ONE
+
+  for (const key of PERMANENT_UPGRADE_ORDER) {
+    const upgrade = PERMANENT_UPGRADE_DEFS[key]
+    if (upgrade.effectType !== 'generatorCostDiscount') {
+      continue
+    }
+
+    const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
+    if (level <= 0) {
+      continue
+    }
+
+    costMultiplier = costMultiplier.times(toDecimal(upgrade.value).pow(level))
+  }
+
+  return Decimal.max(new Decimal('0.1'), costMultiplier)
+}
+
+function getPrestigeGainMultiplierFromPermanentUpgrades(
+  permanentUpgrades: PermanentUpgradesState,
+): Decimal {
+  let multiplier = ONE
+
+  for (const key of PERMANENT_UPGRADE_ORDER) {
+    const upgrade = PERMANENT_UPGRADE_DEFS[key]
+    if (upgrade.effectType !== 'prestigeGainMultiplier') {
+      continue
+    }
+
+    const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
+    if (level <= 0) {
       continue
     }
 
@@ -887,7 +929,7 @@ export function getGeneratorCost(
     state.generators[key],
     amount,
   )
-  return baseCost
+  return baseCost.times(getGeneratorCostMultiplierFromPermanentUpgrades(state.prestige.permanentUpgrades))
 }
 
 function applyProducedCredits(
