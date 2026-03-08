@@ -1,6 +1,17 @@
+import { useState } from 'react'
 import Decimal from 'decimal.js'
 
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
   activateContract,
   claimContract,
@@ -160,148 +171,184 @@ export function ContractsScreen({
   formatRenderedCredits,
   formatDuration,
 }: ContractsScreenProps) {
+  const [abandonContractId, setAbandonContractId] = useState<string | null>(null)
+
   return (
-    <div className="space-y-6">
-      <section>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Contracts</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          High-impact objectives with optional constraints and multi-part rewards.
-        </p>
-      </section>
+    <>
+      <div className="space-y-6">
+        <section>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Contracts</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            High-impact objectives with optional constraints and multi-part rewards.
+          </p>
+        </section>
 
-      <section className="space-y-3">
-        {game.contracts.active.map((contract) => {
-          const progress = getContractProgress(game, contract)
-          const current = Decimal.min(new Decimal(progress.current), new Decimal(progress.target))
-          const target = new Decimal(progress.target)
-          const progressPercent = target.greaterThan(0)
-            ? Decimal.min(new Decimal(100), current.div(target).times(100))
-                .toDecimalPlaces(0, Decimal.ROUND_FLOOR)
-                .toNumber()
-            : 100
-          const expiresInSeconds =
-            contract.isParticipating && contract.expiresAtMs !== null
-              ? Math.max(0, Math.ceil((contract.expiresAtMs - nowMs) / 1000))
+        <section className="space-y-3">
+          {game.contracts.active.map((contract) => {
+            const progress = getContractProgress(game, contract)
+            const current = Decimal.min(new Decimal(progress.current), new Decimal(progress.target))
+            const target = new Decimal(progress.target)
+            const progressPercent = target.greaterThan(0)
+              ? Decimal.min(new Decimal(100), current.div(target).times(100))
+                  .toDecimalPlaces(0, Decimal.ROUND_FLOOR)
+                  .toNumber()
+              : 100
+            const expiresInSeconds =
+              contract.isParticipating && contract.expiresAtMs !== null
+                ? Math.max(0, Math.ceil((contract.expiresAtMs - nowMs) / 1000))
+                : null
+            const offerExpiresInSeconds = !contract.isParticipating
+              ? Math.max(0, Math.ceil((contract.offerExpiresAtMs - nowMs) / 1000))
               : null
-          const offerExpiresInSeconds = !contract.isParticipating
-            ? Math.max(0, Math.ceil((contract.offerExpiresAtMs - nowMs) / 1000))
-            : null
-          const isComplete = contract.isParticipating && progress.isComplete
-          const isActive = contract.isParticipating && !progress.isComplete
-          const description = getModifierLabel(contract.modifier) ?? getObjectiveDescription(contract)
+            const isComplete = contract.isParticipating && progress.isComplete
+            const isActive = contract.isParticipating && !progress.isComplete
+            const description = getModifierLabel(contract.modifier) ?? getObjectiveDescription(contract)
 
-          return (
-            <article key={contract.id} className="rounded-lg border border-border/70 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold">{getContractName(contract)}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+            return (
+              <article key={contract.id} className="rounded-lg border border-border/70 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">{getContractName(contract)}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+                  </div>
+                  {contract.kind === 'challenge' && (
+                    <span className="rounded-full border border-border/70 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Challenge
+                    </span>
+                  )}
                 </div>
-                {contract.kind === 'challenge' && (
-                  <span className="rounded-full border border-border/70 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-                    Challenge
-                  </span>
-                )}
-              </div>
 
-              <div className="mt-3">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Rewards</p>
-                <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
-                  {contract.rewards.map((reward, index) => {
-                    const display = getRewardDisplay(reward, formatRenderedCredits)
-                    return (
-                      <p key={`${contract.id}-reward-${index}`}>
-                        <span className="text-foreground">{display.label}</span>{' '}
-                        <span className="font-mono tabular-nums">{display.value}</span>
+                <div className="mt-3">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Rewards</p>
+                  <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
+                    {contract.rewards.map((reward, index) => {
+                      const display = getRewardDisplay(reward, formatRenderedCredits)
+                      return (
+                        <p key={`${contract.id}-reward-${index}`}>
+                          <span className="text-foreground">{display.label}</span>{' '}
+                          <span className="font-mono tabular-nums">{display.value}</span>
+                        </p>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center gap-3">
+                  {contract.isParticipating && (
+                    <div className="min-w-0 flex-1">
+                      {expiresInSeconds !== null && (
+                        <p className="text-xs text-muted-foreground">
+                          Time Remaining:{' '}
+                          <span className="font-mono tabular-nums">
+                            {expiresInSeconds > 0 ? formatDuration(expiresInSeconds) : 'Expired'}
+                          </span>
+                        </p>
+                      )}
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {isComplete ? (
+                          <span className="font-medium text-foreground">Complete</span>
+                        ) : (
+                          <>
+                            <span className="font-mono tabular-nums">
+                              {formatCompactValue(current, 2)}
+                            </span>
+                            {' / '}
+                            <span className="font-mono tabular-nums">
+                              {formatCompactValue(progress.target, 2)}
+                            </span>{' '}
+                            {progress.label}
+                          </>
+                        )}
                       </p>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-center gap-3">
-                {contract.isParticipating && (
-                  <div className="min-w-0 flex-1">
-                    {expiresInSeconds !== null && (
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            'h-full rounded-full transition-all duration-150',
+                            isComplete ? 'bg-foreground/80' : 'bg-muted-foreground/60',
+                          )}
+                          style={{ width: `${Math.max(0, progressPercent)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {!contract.isParticipating && offerExpiresInSeconds !== null && (
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs text-muted-foreground">
-                        Time Remaining:{' '}
+                        Offer Expires In:{' '}
                         <span className="font-mono tabular-nums">
-                          {expiresInSeconds > 0 ? formatDuration(expiresInSeconds) : 'Expired'}
+                          {offerExpiresInSeconds > 0 ? formatDuration(offerExpiresInSeconds) : 'Expired'}
                         </span>
                       </p>
-                    )}
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {isComplete ? (
-                        <span className="font-medium text-foreground">Complete</span>
-                      ) : (
-                        <>
-                          <span className="font-mono tabular-nums">
-                            {formatCompactValue(current, 2)}
-                          </span>
-                          {' / '}
-                          <span className="font-mono tabular-nums">
-                            {formatCompactValue(progress.target, 2)}
-                          </span>{' '}
-                          {progress.label}
-                        </>
-                      )}
-                    </p>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={cn(
-                          'h-full rounded-full transition-all duration-150',
-                          isComplete ? 'bg-foreground/80' : 'bg-muted-foreground/60',
-                        )}
-                        style={{ width: `${Math.max(0, progressPercent)}%` }}
-                      />
                     </div>
-                  </div>
-                )}
-                {!contract.isParticipating && offerExpiresInSeconds !== null && (
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-muted-foreground">
-                      Offer Expires In:{' '}
-                      <span className="font-mono tabular-nums">
-                        {offerExpiresInSeconds > 0 ? formatDuration(offerExpiresInSeconds) : 'Expired'}
-                      </span>
-                    </p>
-                  </div>
-                )}
+                  )}
 
-                {!contract.isParticipating && (
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      onGameChange((current) => activateContract(current, contract.id, Date.now()))
-                    }
-                    variant="default"
-                    className="ml-auto"
-                  >
-                    Begin
-                  </Button>
-                )}
-                {isActive && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onGameChange((current) => skipContract(current, contract.id, Date.now()))}
-                  >
-                    Abandon
-                  </Button>
-                )}
-                {isComplete && (
-                  <Button
-                    size="sm"
-                    onClick={() => onGameChange((current) => claimContract(current, contract.id, Date.now()))}
-                  >
-                    Claim Reward
-                  </Button>
-                )}
-              </div>
-            </article>
-          )
-        })}
-      </section>
-    </div>
+                  {!contract.isParticipating && (
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        onGameChange((current) => activateContract(current, contract.id, Date.now()))
+                      }
+                      variant="default"
+                      className="ml-auto"
+                    >
+                      Begin
+                    </Button>
+                  )}
+                  {isActive && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setAbandonContractId(contract.id)}
+                    >
+                      Abandon
+                    </Button>
+                  )}
+                  {isComplete && (
+                    <Button
+                      size="sm"
+                      onClick={() => onGameChange((current) => claimContract(current, contract.id, Date.now()))}
+                    >
+                      Claim Reward
+                    </Button>
+                  )}
+                </div>
+              </article>
+            )
+          })}
+        </section>
+      </div>
+
+      <AlertDialog
+        open={abandonContractId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAbandonContractId(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Abandon this challenge?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your progress on this active contract will be lost and replaced with a new one.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const contractId = abandonContractId
+                if (contractId) {
+                  onGameChange((current) => skipContract(current, contractId, Date.now()))
+                }
+                setAbandonContractId(null)
+              }}
+            >
+              Confirm Abandon
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
