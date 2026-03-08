@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import Decimal from 'decimal.js'
 
 import { Button } from '@/components/ui/button'
@@ -6,13 +5,11 @@ import {
   buyUpgrade,
   canBuyUpgrade,
   getUpgradeUnlockProgress,
-  isUpgradePurchaseAllowedByContracts,
   UPGRADE_DEFS,
   UPGRADE_ORDER,
   type GameState,
   type RunUpgradeKey,
 } from '@/lib/game-engine'
-import { cn } from '@/lib/utils'
 
 const UPGRADE_SECTIONS: {
   effectType: (typeof UPGRADE_DEFS)[RunUpgradeKey]['effectType']
@@ -30,24 +27,6 @@ interface UpgradesScreenProps {
 }
 
 export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: UpgradesScreenProps) {
-  const isDisabledByChallenge = !isUpgradePurchaseAllowedByContracts(game)
-
-  useEffect(() => {
-    if (!isDisabledByChallenge) {
-      return
-    }
-
-    const previousBodyOverflow = document.body.style.overflow
-    const previousHtmlOverflow = document.documentElement.style.overflow
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
-
-    return () => {
-      document.body.style.overflow = previousBodyOverflow
-      document.documentElement.style.overflow = previousHtmlOverflow
-    }
-  }, [isDisabledByChallenge])
-
   const visibleUpgradeKeys = UPGRADE_ORDER.filter((key) => {
     if (game.settings.showPurchasedUpgrades) {
       return true
@@ -110,15 +89,7 @@ export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: Up
   }
 
   return (
-    <div className="relative">
-      {isDisabledByChallenge && (
-        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
-          <span className="text-base font-bold tracking-wide text-foreground text-shadow-lg text-shadow-white/90">
-            Disabled by Challenge
-          </span>
-        </div>
-      )}
-      <div className={cn('space-y-8', isDisabledByChallenge && 'opacity-30')}>
+    <div className="space-y-8">
         {UPGRADE_SECTIONS.map((section) => {
           const sectionUpgrades = visibleUpgradeKeys.filter(
             (key) => UPGRADE_DEFS[key].effectType === section.effectType,
@@ -146,7 +117,6 @@ export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: Up
               </p>
             </section>
           )}
-      </div>
     </div>
   )
 }

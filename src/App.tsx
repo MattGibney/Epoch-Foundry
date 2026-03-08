@@ -5,7 +5,6 @@ import {
   Factory,
   MoreHorizontal,
   ChartNoAxesColumn,
-  Target,
   type LucideIcon,
   Wrench,
 } from 'lucide-react'
@@ -40,14 +39,11 @@ import {
   ACHIEVEMENT_DEFS,
   ACHIEVEMENT_ORDER,
   applyPrestigeReset,
-  areContractsUnlocked,
   canPrestige,
   canBuyUpgrade,
   createInitialGameState,
   GENERATOR_ORDER,
   getGeneratorCost,
-  isGeneratorPurchaseAllowedByContracts,
-  getContractProgress,
   getOfflineProgressCapSeconds,
   getPrestigeGainForReset,
   getPrestigeMultiplier,
@@ -70,7 +66,6 @@ import { formatIdleNumber } from '@/lib/number-format'
 import {
   AboutTabView,
   AchievementsTabView,
-  ContractsTabView,
   HelpTabView,
   ProductionTabView,
   SettingsTabView,
@@ -85,25 +80,23 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'upgrades', label: 'Upgrades' },
   { key: 'stats', label: 'Stats' },
   { key: 'achievements', label: 'Achievements' },
-  { key: 'contracts', label: 'Contracts' },
   { key: 'help', label: 'Help' },
   { key: 'settings', label: 'Settings' },
   { key: 'about', label: 'About' },
 ]
 
 const PRIMARY_NAV_ITEMS: {
-  key: 'production' | 'upgrades' | 'stats' | 'contracts'
+  key: 'production' | 'upgrades' | 'stats'
   label: string
   icon: LucideIcon
 }[] = [
   { key: 'production', label: 'Production', icon: Factory },
   { key: 'upgrades', label: 'Upgrades', icon: Wrench },
   { key: 'stats', label: 'Stats', icon: ChartNoAxesColumn },
-  { key: 'contracts', label: 'Challenges', icon: Target },
 ]
 
-function isPrimaryTab(tab: TabKey): tab is 'production' | 'upgrades' | 'stats' | 'contracts' {
-  return tab === 'production' || tab === 'upgrades' || tab === 'stats' || tab === 'contracts'
+function isPrimaryTab(tab: TabKey): tab is 'production' | 'upgrades' | 'stats' {
+  return tab === 'production' || tab === 'upgrades' || tab === 'stats'
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -443,7 +436,6 @@ function App() {
   }, [activeTab, floatingAnchorElement])
 
   const creditsPerSecond = useMemo(() => getTotalProductionPerSecond(game), [game])
-  const contractsUnlocked = useMemo(() => areContractsUnlocked(game), [game])
   const prestigeGain = useMemo(() => getPrestigeGainForReset(game), [game])
   const prestigeMultiplier = useMemo(() => getPrestigeMultiplier(game), [game])
   const canPrestigeNow = useMemo(() => canPrestige(game), [game])
@@ -455,25 +447,9 @@ function App() {
     () => UPGRADE_ORDER.reduce((count, key) => count + (canBuyUpgrade(game, key) ? 1 : 0), 0),
     [game],
   )
-  const claimableChallengeCount = useMemo(
-    () =>
-      contractsUnlocked
-        ? game.contracts.active.reduce((count, contract) => {
-            if (!contract.isParticipating) {
-              return count
-            }
-            const progress = getContractProgress(game, contract)
-            return count + (progress.isComplete ? 1 : 0)
-          }, 0)
-        : 0,
-    [contractsUnlocked, game],
-  )
   const purchasableGeneratorCount = useMemo(
     () =>
       GENERATOR_ORDER.reduce((count, key) => {
-        if (!isGeneratorPurchaseAllowedByContracts(game, key)) {
-          return count
-        }
         const cost = getGeneratorCost(game, key)
         return count + (new Decimal(game.credits).greaterThanOrEqualTo(cost) ? 1 : 0)
       }, 0),
@@ -488,14 +464,8 @@ function App() {
     [game.prestige.essence, prestigeGain],
   )
   const runDuration = Math.max(0, Math.floor((nowMs - game.stats.startedAtMs) / 1_000))
-  const overflowTabs = TABS.filter((tab) => {
-    if (tab.key === 'contracts' && !contractsUnlocked) {
-      return false
-    }
-    return !isPrimaryTab(tab.key)
-  })
-  const isOtherActive =
-    !isPrimaryTab(activeTab) || (activeTab === 'contracts' && !contractsUnlocked)
+  const overflowTabs = TABS.filter((tab) => !isPrimaryTab(tab.key))
+  const isOtherActive = !isPrimaryTab(activeTab)
   const shouldShowFloatingSummary =
     activeTab !== 'about' && activeTab !== 'help' && showFloatingSummary
 
@@ -554,17 +524,6 @@ function App() {
           <AchievementsTabView
             {...sharedTabProps}
             unlockedAchievementCount={unlockedAchievementCount}
-          />
-        )
-      case 'contracts':
-        if (!contractsUnlocked) {
-          return <UpgradesTabView {...sharedTabProps} />
-        }
-        return (
-          <ContractsTabView
-            {...sharedTabProps}
-            nowMs={nowMs}
-            formatDuration={formatDuration}
           />
         )
       case 'settings':
@@ -645,26 +604,18 @@ function App() {
       >
         <div className="mx-auto w-full max-w-lg">
           <div className="rounded-xl border border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
-            <div className={cn('grid gap-1', contractsUnlocked ? 'grid-cols-5' : 'grid-cols-4')}>
+            <div className="grid grid-cols-4 gap-1">
               {PRIMARY_NAV_ITEMS.map((item) => {
-                if (item.key === 'contracts' && !contractsUnlocked) {
-                  return null
-                }
-
                 const Icon = item.icon
                 const showUpgradeBadge =
                   item.key === 'upgrades' && purchasableUpgradeCount > 0
                 const showProductionBadge =
                   item.key === 'production' && purchasableGeneratorCount > 0
-                const showChallengesBadge =
-                  item.key === 'contracts' && claimableChallengeCount > 0
                 const badgeCount =
                   item.key === 'upgrades'
                     ? purchasableUpgradeCount
                     : item.key === 'production'
                       ? purchasableGeneratorCount
-                      : item.key === 'contracts'
-                        ? claimableChallengeCount
                       : 0
 
                 return (
@@ -681,7 +632,7 @@ function App() {
                   >
                     <span className="relative">
                       <Icon className="size-7" />
-                      {(showUpgradeBadge || showProductionBadge || showChallengesBadge) && (
+                      {(showUpgradeBadge || showProductionBadge) && (
                         <span className="absolute -right-4 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-none text-background">
                           {badgeCount > 99 ? '99+' : badgeCount}
                         </span>

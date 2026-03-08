@@ -10,7 +10,6 @@ import {
   GENERATOR_ORDER,
   getGeneratorCost,
   getGeneratorProductionPerSecond,
-  isGeneratorPurchaseAllowedByContracts,
   setBuyAmount,
   type GameState,
 } from '@/lib/game-engine'
@@ -107,18 +106,10 @@ export function ProductionScreen({
           )
             .toDecimalPlaces(0, Decimal.ROUND_FLOOR)
             .toNumber()
-          const isLockedByChallenge = !isGeneratorPurchaseAllowedByContracts(game, key)
 
           return (
-            <article key={definition.key} className="relative py-4 first:pt-0">
-              {isLockedByChallenge && (
-                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-                  <span className="text-base font-bold tracking-wide text-foreground text-shadow-lg text-shadow-background">
-                    Locked by active challenge
-                  </span>
-                </div>
-              )}
-              <div className={cn(isLockedByChallenge && 'opacity-30')}>
+            <article key={definition.key} className="py-4 first:pt-0">
+              <div>
                 <div className="min-w-0">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex items-center gap-2">
@@ -177,7 +168,7 @@ export function ProductionScreen({
                   <Button
                     size="sm"
                     className="h-10 min-w-[5.5rem] shrink-0 font-mono tabular-nums"
-                    disabled={!canBuy || isLockedByChallenge}
+                    disabled={!canBuy}
                     onClick={() => onGameChange((current) => buyGenerator(current, key))}
                   >
                     Buy

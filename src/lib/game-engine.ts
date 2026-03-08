@@ -9,7 +9,6 @@ import {
   type AchievementConfigEntry,
   type UpgradeConfigEntry,
 } from '@/lib/progression-config'
-import { CHALLENGE_QUALITY_WEIGHTS } from '@/lib/consts'
 
 export type GeneratorKey =
   | 'miners'
@@ -23,7 +22,6 @@ export type GeneratorKey =
   | 'singularityWells'
   | 'continuumEngines'
 export type RunUpgradeKey =
-  | 'challengeProtocols'
   | 'minerTuning'
   | 'minerSwarm'
   | 'minerFoundries'
@@ -216,63 +214,6 @@ export interface RandomState {
   worldSeed: string
 }
 
-export type ContractBand = 'short' | 'medium' | 'long'
-export type ContractQuality = 'common' | 'rare' | 'elite'
-
-export type ContractObjective =
-  | { type: 'runCredits'; target: string }
-  | { type: 'owned'; generator: GeneratorKey; target: number }
-  | { type: 'purchasedUpgrades'; target: number }
-  | { type: 'creditsPerSecond'; target: string }
-
-export type ContractModifier =
-  | { type: 'blockGenerator'; generator: GeneratorKey }
-  | { type: 'onlyGenerator'; generator: GeneratorKey }
-  | { type: 'upgradesDisabled' }
-  | { type: 'minTier'; minimumTierIndex: number }
-  | { type: 'buyAmountLocked'; amount: number }
-  | { type: 'noPrestige' }
-
-export type ContractReward =
-  | { type: 'credits'; amount: string }
-  | { type: 'essence'; amount: string }
-  | { type: 'productionBoost'; multiplier: string; durationSeconds: number }
-  | { type: 'costDiscountCharges'; multiplier: string; charges: number }
-  | { type: 'nextRewardMultiplier'; multiplier: string }
-
-export interface ContractState {
-  id: string
-  kind: 'objective' | 'challenge'
-  band: ContractBand
-  quality: ContractQuality
-  progressMode: 'absolute' | 'incremental'
-  isParticipating: boolean
-  progressStartRunCredits: string | null
-  progressStartOwnedCount: number | null
-  progressStartPurchasedUpgrades: number | null
-  objective: ContractObjective
-  rewards: ContractReward[]
-  modifier: ContractModifier | null
-  offerExpiresAtMs: number
-  challengeDurationMs: number | null
-  createdAtMs: number
-  expiresAtMs: number | null
-}
-
-export interface ContractEffectsState {
-  productionBoostMultiplier: string
-  productionBoostRemainingSeconds: number
-  costDiscountMultiplier: string
-  costDiscountRemainingPurchases: number
-  nextRewardMultiplier: string
-}
-
-export interface ContractsState {
-  active: ContractState[]
-  generationCounter: number
-  effects: ContractEffectsState
-}
-
 export interface GameState {
   credits: string
   generators: GeneratorsState
@@ -283,7 +224,6 @@ export interface GameState {
   settings: GameSettingsState
   prestige: PrestigeState
   random: RandomState
-  contracts: ContractsState
 }
 
 interface GeneratorDef {
@@ -338,9 +278,6 @@ const ONE = new Decimal(1)
 const ZERO = new Decimal(0)
 const MAX_TICK_SECONDS = 5
 const BASE_OFFLINE_PROGRESS_CAP_SECONDS = 15 * 60
-const CONTRACT_SLOT_COUNT = 1
-const CONTRACT_OFFER_WINDOW_MS = 15 * 60 * 1000
-const CONTRACT_CHALLENGE_DURATION_MULTIPLIER = 1.75
 const PRESTIGE_UNLOCK_CREDITS = new Decimal(PRESTIGE_BALANCE.unlockCredits)
 const PRESTIGE_GAIN_EXPONENT = new Decimal(PRESTIGE_BALANCE.gainExponent)
 const PRESTIGE_ESSENCE_MULTIPLIER_STEP = new Decimal(PRESTIGE_BALANCE.essenceMultiplierStep)
@@ -359,7 +296,6 @@ export const GENERATOR_ORDER: GeneratorKey[] = [
 ]
 
 export const UPGRADE_ORDER: RunUpgradeKey[] = [
-  'challengeProtocols',
   'minerTuning',
   'minerSwarm',
   'minerFoundries',
@@ -637,35 +573,6 @@ function calculateBulkCost(
   return baseCost.times(ownedScale).times(geometricSeries)
 }
 
-function hashString32(input: string): number {
-  let hash = 2166136261
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= input.charCodeAt(index)
-    hash = Math.imul(hash, 16777619)
-  }
-  return hash >>> 0
-}
-
-function randomFromSeed(seed: string, index: number): number {
-  const hashed = hashString32(`${seed}:${index}`)
-  return hashed / 4294967296
-}
-
-function randomIntFromSeed(seed: string, index: number, min: number, max: number): number {
-  const clampedMin = Math.ceil(min)
-  const clampedMax = Math.floor(max)
-  if (clampedMax <= clampedMin) {
-    return clampedMin
-  }
-  const value = randomFromSeed(seed, index)
-  return clampedMin + Math.floor(value * (clampedMax - clampedMin + 1))
-}
-
-function randomChoiceFromSeed<T>(seed: string, index: number, items: readonly T[]): T {
-  const selectedIndex = randomIntFromSeed(seed, index, 0, items.length - 1)
-  return items[selectedIndex]
-}
-
 function generateWorldSeed(nowMs = Date.now()): string {
   if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
     const bytes = new Uint32Array(2)
@@ -675,472 +582,6 @@ function generateWorldSeed(nowMs = Date.now()): string {
 
   return `${nowMs.toString(36)}-${Math.floor(Math.random() * 1e12).toString(36)}`
 }
-
-function getContractBandRangeSeconds(
-  band: ContractBand,
-): { min: number; max: number } {
-  switch (band) {
-    case 'short':
-      return { min: 5 * 60, max: 15 * 60 }
-    case 'medium':
-      return { min: 30 * 60, max: 90 * 60 }
-    case 'long':
-      return { min: 2 * 60 * 60, max: 8 * 60 * 60 }
-    default:
-      return { min: 10 * 60, max: 20 * 60 }
-  }
-}
-
-function getContractOfferDurationMs(): number {
-  return CONTRACT_OFFER_WINDOW_MS
-}
-
-function getContractActiveDurationMs(
-  band: ContractBand,
-  quality: ContractQuality,
-  kind: ContractState['kind'],
-): number {
-  const baseHours =
-    quality === 'elite'
-      ? band === 'short'
-        ? 1.5
-        : band === 'medium'
-          ? 2.5
-          : 4
-      : quality === 'rare'
-        ? band === 'short'
-          ? 3
-          : band === 'medium'
-            ? 5
-            : 8
-        : band === 'short'
-          ? 6
-          : band === 'medium'
-            ? 10
-            : 16
-
-  const kindMultiplier = kind === 'challenge' ? 0.9 : 1
-  return Math.floor(baseHours * kindMultiplier * 60 * 60 * 1000)
-}
-
-function getContractQuality(seed: string): ContractQuality {
-  const roll = randomFromSeed(seed, 10)
-  if (roll < CHALLENGE_QUALITY_WEIGHTS.elite) {
-    return 'elite'
-  }
-  if (roll < CHALLENGE_QUALITY_WEIGHTS.elite + CHALLENGE_QUALITY_WEIGHTS.rare) {
-    return 'rare'
-  }
-
-  return 'common'
-}
-
-function getQualityMultiplier(quality: ContractQuality): Decimal {
-  if (quality === 'elite') {
-    return new Decimal(2.8)
-  }
-  if (quality === 'rare') {
-    return new Decimal(1.8)
-  }
-  return ONE
-}
-
-function getContractModifier(
-  seed: string,
-  band: ContractBand,
-): ContractModifier {
-  const minimumTier = band === 'short' ? 1 : band === 'medium' ? 2 : 4
-  const lockAmount =
-    randomChoiceFromSeed(seed, 22, BUY_AMOUNT_OPTIONS) as (typeof BUY_AMOUNT_OPTIONS)[number]
-
-  const candidates: ContractModifier[] = [
-    {
-      type: 'blockGenerator',
-      generator: randomChoiceFromSeed(seed, 20, GENERATOR_ORDER),
-    },
-    {
-      type: 'onlyGenerator',
-      generator: randomChoiceFromSeed(seed, 21, GENERATOR_ORDER),
-    },
-    { type: 'upgradesDisabled' },
-    { type: 'minTier', minimumTierIndex: minimumTier },
-    { type: 'buyAmountLocked', amount: lockAmount },
-    { type: 'noPrestige' },
-  ]
-
-  return randomChoiceFromSeed(seed, 23, candidates)
-}
-
-function isGeneratorAllowedByModifier(
-  key: GeneratorKey,
-  modifier: ContractModifier | null,
-): boolean {
-  if (!modifier) {
-    return true
-  }
-
-  if (modifier.type === 'blockGenerator') {
-    return key !== modifier.generator
-  }
-
-  if (modifier.type === 'onlyGenerator') {
-    return key === modifier.generator
-  }
-
-  if (modifier.type === 'minTier') {
-    return GENERATOR_ORDER.indexOf(key) >= modifier.minimumTierIndex
-  }
-
-  return true
-}
-
-function isObjectiveCompatibleWithModifier(
-  objective: ContractObjective,
-  modifier: ContractModifier | null,
-): boolean {
-  if (!modifier) {
-    return true
-  }
-
-  if (modifier.type === 'upgradesDisabled' && objective.type === 'purchasedUpgrades') {
-    return false
-  }
-
-  if (objective.type === 'owned') {
-    return isGeneratorAllowedByModifier(objective.generator, modifier)
-  }
-
-  return true
-}
-
-function estimateSecondsForObjective(
-  state: GameState,
-  objective: ContractObjective,
-): number {
-  const credits = toDecimal(state.credits)
-  const creditsPerSecond = getTotalProductionPerSecond(state)
-  if (creditsPerSecond.lessThanOrEqualTo(0)) {
-    return Number.POSITIVE_INFINITY
-  }
-
-  if (objective.type === 'runCredits') {
-    const remaining = Decimal.max(ZERO, toDecimal(objective.target))
-    return remaining.div(creditsPerSecond).toNumber()
-  }
-
-  if (objective.type === 'owned') {
-    const owned = state.generators[objective.generator]
-    const required = Math.max(0, objective.target)
-    if (required <= 0) {
-      return 0
-    }
-
-    const definition = GENERATOR_DEFS[objective.generator]
-    const totalCost = calculateBulkCost(
-      toDecimal(definition.baseCost),
-      toDecimal(definition.growth),
-      owned,
-      required,
-    )
-    const remainingCost = Decimal.max(ZERO, totalCost.minus(credits))
-    return remainingCost.div(creditsPerSecond).toNumber()
-  }
-
-  if (objective.type === 'creditsPerSecond') {
-    const current = getTotalProductionPerSecond(state)
-    const target = toDecimal(objective.target)
-    if (current.greaterThanOrEqualTo(target)) {
-      return 0
-    }
-
-    const projectedGrowthPerSecond = Decimal.max(current.times(0.12), ONE)
-    const remaining = target.minus(current)
-    return remaining.div(projectedGrowthPerSecond).toNumber()
-  }
-
-  const requiredUpgrades = Math.max(0, objective.target)
-  if (requiredUpgrades <= 0) {
-    return 0
-  }
-
-  const pendingCosts = UPGRADE_ORDER
-    .filter((key) => !state.purchasedUpgrades[key])
-    .map((key) => toDecimal(UPGRADE_DEFS[key].cost))
-    .sort((a, b) => a.comparedTo(b))
-
-  if (pendingCosts.length < requiredUpgrades) {
-    return Number.POSITIVE_INFINITY
-  }
-
-  const projectedCost = pendingCosts
-    .slice(0, requiredUpgrades)
-    .reduce((sum, cost) => sum.plus(cost), ZERO)
-  const remainingCost = Decimal.max(ZERO, projectedCost.minus(credits))
-  return remainingCost.div(creditsPerSecond).toNumber()
-}
-
-function buildContractObjectiveCandidate(
-  state: GameState,
-  seed: string,
-  band: ContractBand,
-  targetSeconds: number,
-  quality: ContractQuality,
-  modifier: ContractModifier | null,
-  indexOffset: number,
-): ContractObjective | null {
-  const qualityScalar = quality === 'elite' ? 1.35 : quality === 'rare' ? 1.15 : 1
-  const objectiveType = randomChoiceFromSeed(
-    seed,
-    indexOffset,
-    ['runCredits', 'owned', 'purchasedUpgrades', 'creditsPerSecond'] as const,
-  )
-  const creditsPerSecond = getTotalProductionPerSecond(state)
-
-  if (objectiveType === 'runCredits') {
-    if (creditsPerSecond.lessThanOrEqualTo(0)) {
-      return null
-    }
-
-    const scale = new Decimal(0.8 + randomFromSeed(seed, indexOffset + 1) * 0.45)
-    const delta = Decimal.max(
-      creditsPerSecond.times(targetSeconds).times(scale).times(qualityScalar).ceil(),
-      new Decimal(1000),
-    )
-    const objective: ContractObjective = {
-      type: 'runCredits',
-      target: delta.toString(),
-    }
-    return isObjectiveCompatibleWithModifier(objective, modifier) ? objective : null
-  }
-
-  if (objectiveType === 'owned') {
-    const allowedGenerators = GENERATOR_ORDER.filter((key) => isGeneratorAllowedByModifier(key, modifier))
-    if (allowedGenerators.length === 0) {
-      return null
-    }
-
-    const generator = randomChoiceFromSeed(seed, indexOffset + 1, allowedGenerators)
-    const owned = state.generators[generator]
-    const definition = GENERATOR_DEFS[generator]
-    const budget = toDecimal(state.credits).plus(creditsPerSecond.times(targetSeconds))
-    let affordableUnits = 0
-
-    for (let amount = 1; amount <= 500; amount += 1) {
-      const cost = calculateBulkCost(
-        toDecimal(definition.baseCost),
-        toDecimal(definition.growth),
-        owned,
-        amount,
-      )
-      if (cost.greaterThan(budget)) {
-        break
-      }
-      affordableUnits = amount
-    }
-
-    if (affordableUnits <= 0) {
-      return null
-    }
-
-    const capByBand = band === 'short' ? 25 : band === 'medium' ? 75 : 180
-    const maxIncrement = Math.max(1, Math.min(affordableUnits, capByBand))
-    const minIncrement = Math.max(1, Math.floor(maxIncrement * 0.35))
-    const increment = randomIntFromSeed(seed, indexOffset + 2, minIncrement, maxIncrement)
-
-    const objective: ContractObjective = {
-      type: 'owned',
-      generator,
-      target: Math.ceil(increment * qualityScalar),
-    }
-    return isObjectiveCompatibleWithModifier(objective, modifier) ? objective : null
-  }
-
-  if (objectiveType === 'creditsPerSecond') {
-    const floorTarget = Decimal.max(creditsPerSecond.times(1.1), new Decimal(10))
-    const maxTarget = creditsPerSecond.times(
-      band === 'short' ? 2.2 : band === 'medium' ? 3.1 : 4.5,
-    )
-    const span = Decimal.max(maxTarget.minus(floorTarget), ONE)
-    const target = floorTarget.plus(span.times(randomFromSeed(seed, indexOffset + 4))).times(qualityScalar).ceil()
-    const objective: ContractObjective = {
-      type: 'creditsPerSecond',
-      target: target.toString(),
-    }
-    return isObjectiveCompatibleWithModifier(objective, modifier) ? objective : null
-  }
-
-  const remainingUpgrades = UPGRADE_ORDER.filter((key) => !state.purchasedUpgrades[key]).length
-  if (remainingUpgrades <= 0) {
-    return null
-  }
-
-  const maxByBand = band === 'short' ? 2 : band === 'medium' ? 4 : 6
-  const maxIncrement = Math.max(1, Math.min(remainingUpgrades, maxByBand))
-  const increment = randomIntFromSeed(seed, indexOffset + 3, 1, maxIncrement)
-  const objective: ContractObjective = {
-    type: 'purchasedUpgrades',
-    target: Math.ceil(increment * qualityScalar),
-  }
-  return isObjectiveCompatibleWithModifier(objective, modifier) ? objective : null
-}
-
-function buildContractRewards(
-  state: GameState,
-  seed: string,
-  band: ContractBand,
-  quality: ContractQuality,
-  kind: 'objective' | 'challenge',
-  targetSeconds: number,
-): ContractReward[] {
-  const qualityMultiplier = getQualityMultiplier(quality)
-  const challengeMultiplier = kind === 'challenge' ? new Decimal(1.45) : ONE
-  const rewardSeconds =
-    targetSeconds * (band === 'short' ? 0.45 : band === 'medium' ? 0.65 : 0.85)
-  const creditsReward = getTotalProductionPerSecond(state)
-    .times(rewardSeconds)
-    .plus(band === 'short' ? 2500 : band === 'medium' ? 12000 : 50000)
-    .times(qualityMultiplier)
-    .times(challengeMultiplier)
-    .ceil()
-
-  const rewards: ContractReward[] = [{ type: 'credits', amount: creditsReward.toString() }]
-  const bonusKinds: ContractReward[] = [
-    {
-      type: 'productionBoost',
-      multiplier: quality === 'elite' ? '1.65' : quality === 'rare' ? '1.4' : '1.25',
-      durationSeconds: band === 'short' ? 5 * 60 : band === 'medium' ? 10 * 60 : 20 * 60,
-    },
-    {
-      type: 'costDiscountCharges',
-      multiplier: quality === 'elite' ? '0.75' : quality === 'rare' ? '0.82' : '0.88',
-      charges: band === 'short' ? 5 : band === 'medium' ? 9 : 14,
-    },
-    {
-      type: 'nextRewardMultiplier',
-      multiplier: quality === 'elite' ? '2' : quality === 'rare' ? '1.7' : '1.45',
-    },
-    {
-      type: 'essence',
-      amount: quality === 'elite' ? '4' : quality === 'rare' ? '2' : '1',
-    },
-  ]
-
-  const chosenBonusTypes = new Set<ContractReward['type']>()
-
-  const pickUniqueBonusReward = (index: number): ContractReward | null => {
-    const available = bonusKinds.filter((reward) => !chosenBonusTypes.has(reward.type))
-    if (available.length === 0) {
-      return null
-    }
-    const selected = randomChoiceFromSeed(seed, index, available)
-    chosenBonusTypes.add(selected.type)
-    return selected
-  }
-
-  if (kind === 'challenge' || quality !== 'common' || randomFromSeed(seed, 40) > 0.55) {
-    const selected = pickUniqueBonusReward(41)
-    if (selected) {
-      rewards.push(selected)
-    }
-  }
-
-  if (quality === 'elite' && randomFromSeed(seed, 42) > 0.35) {
-    const selected = pickUniqueBonusReward(43)
-    if (selected) {
-      rewards.push(selected)
-    }
-  }
-
-  return rewards
-}
-
-function generateContractForSlot(
-  state: GameState,
-  generationIndex: number,
-  slot: number,
-  nowMs: number,
-): ContractState {
-  const slotSeed = `${state.random.worldSeed}:contracts:${generationIndex}:${slot}`
-  const band = randomChoiceFromSeed(slotSeed, 2, ['short', 'medium', 'long'] as const)
-  const bandRange = getContractBandRangeSeconds(band)
-  const quality = getContractQuality(slotSeed)
-  const kind: ContractState['kind'] = 'challenge'
-  const modifier = getContractModifier(slotSeed, band)
-  const targetSeconds = randomIntFromSeed(slotSeed, 0, bandRange.min, bandRange.max)
-  const attemptLimit = 24
-  const fallbackObjective: ContractObjective = {
-    type: 'runCredits',
-    target: Decimal.max(
-      getTotalProductionPerSecond(state).times(Math.max(300, targetSeconds)),
-      new Decimal(1000),
-    )
-      .ceil()
-      .toString(),
-  }
-  let selectedObjective: ContractObjective = fallbackObjective
-
-  for (let attempt = 0; attempt < attemptLimit; attempt += 1) {
-    const objective = buildContractObjectiveCandidate(
-      state,
-      slotSeed,
-      band,
-      targetSeconds,
-      quality,
-      modifier,
-      100 + attempt * 10,
-    )
-    if (!objective) {
-      continue
-    }
-
-    const etaSeconds = estimateSecondsForObjective(state, objective)
-    const minBound = bandRange.min * 0.35
-    const maxBound = bandRange.max * 1.35
-    if (Number.isFinite(etaSeconds) && etaSeconds >= minBound && etaSeconds <= maxBound) {
-      selectedObjective = objective
-      break
-    }
-  }
-
-  return {
-    id: `contract-${generationIndex}-${slot}`,
-    kind,
-    band,
-    quality,
-    progressMode: 'incremental',
-    isParticipating: false,
-    progressStartRunCredits: null,
-    progressStartOwnedCount: null,
-    progressStartPurchasedUpgrades: null,
-    objective: selectedObjective,
-    rewards: buildContractRewards(state, slotSeed, band, quality, kind, targetSeconds),
-    modifier,
-    offerExpiresAtMs: nowMs + getContractOfferDurationMs(),
-    challengeDurationMs: Math.max(
-      Math.floor(targetSeconds * CONTRACT_CHALLENGE_DURATION_MULTIPLIER * 1000),
-      getContractActiveDurationMs(band, quality, kind),
-    ),
-    createdAtMs: nowMs,
-    expiresAtMs: null,
-  }
-}
-
-function generateContractSet(
-  state: GameState,
-  generationCounter: number,
-  nowMs: number,
-): { active: ContractState[]; nextGenerationCounter: number } {
-  const active: ContractState[] = []
-  let nextGenerationCounter = generationCounter
-
-  for (let slot = 0; slot < CONTRACT_SLOT_COUNT; slot += 1) {
-    active.push(generateContractForSlot(state, nextGenerationCounter, slot, nowMs))
-    nextGenerationCounter += 1
-  }
-
-  return { active, nextGenerationCounter }
-}
-
 function createInitialPurchasedUpgrades(): PurchasedUpgradesState {
   return UPGRADE_ORDER.reduce((accumulator, key) => {
     accumulator[key] = false
@@ -1202,497 +643,6 @@ function createInitialRandomState(nowMs = Date.now()): RandomState {
   }
 }
 
-function createInitialContractEffectsState(): ContractEffectsState {
-  return {
-    productionBoostMultiplier: '1',
-    productionBoostRemainingSeconds: 0,
-    costDiscountMultiplier: '1',
-    costDiscountRemainingPurchases: 0,
-    nextRewardMultiplier: '1',
-  }
-}
-
-function createInitialContractsState(state: GameState, nowMs: number): ContractsState {
-  const generated = generateContractSet(state, 0, nowMs)
-  return {
-    active: generated.active,
-    generationCounter: generated.nextGenerationCounter,
-    effects: createInitialContractEffectsState(),
-  }
-}
-
-export function getContractProgress(state: GameState, contract: ContractState) {
-  const isIncremental = contract.progressMode === 'incremental'
-
-  if (contract.objective.type === 'runCredits') {
-    const target = toDecimal(contract.objective.target)
-    const current = isIncremental
-      ? contract.isParticipating
-        ? Decimal.max(
-            ZERO,
-            toDecimal(state.stats.totalCredits).minus(
-              toDecimal(contract.progressStartRunCredits ?? state.stats.totalCredits),
-            ),
-          )
-        : ZERO
-      : toDecimal(state.stats.totalCredits)
-    return {
-      isComplete: current.greaterThanOrEqualTo(target),
-      current: current.toString(),
-      target: target.toString(),
-      label: 'Run Credits',
-    }
-  }
-
-  if (contract.objective.type === 'owned') {
-    const current = isIncremental
-      ? contract.isParticipating
-        ? Math.max(
-            0,
-            state.generators[contract.objective.generator] -
-              (contract.progressStartOwnedCount ?? state.generators[contract.objective.generator]),
-          )
-        : 0
-      : state.generators[contract.objective.generator]
-    return {
-      isComplete: current >= contract.objective.target,
-      current: current.toString(),
-      target: contract.objective.target.toString(),
-      label: GENERATOR_DEFS[contract.objective.generator].label,
-    }
-  }
-
-  if (contract.objective.type === 'creditsPerSecond') {
-    const target = toDecimal(contract.objective.target)
-    const current = getTotalProductionPerSecond(state)
-    return {
-      isComplete: current.greaterThanOrEqualTo(target),
-      current: current.toString(),
-      target: target.toString(),
-      label: 'Credits / sec',
-    }
-  }
-
-  const totalPurchased = getPurchasedUpgradeCount(state)
-  const current = isIncremental
-    ? contract.isParticipating
-      ? Math.max(0, totalPurchased - (contract.progressStartPurchasedUpgrades ?? totalPurchased))
-      : 0
-    : totalPurchased
-  return {
-    isComplete: current >= contract.objective.target,
-    current: current.toString(),
-    target: contract.objective.target.toString(),
-    label: 'Upgrades Purchased',
-  }
-}
-
-function isContractActiveNow(contract: ContractState, nowMs: number): boolean {
-  if (!contract.isParticipating) {
-    return false
-  }
-
-  return contract.expiresAtMs === null || contract.expiresAtMs > nowMs
-}
-
-function resolveContractExpiry(state: GameState, nowMs: number): GameState {
-  let nextState = state
-  let didChange = false
-
-  for (let slot = 0; slot < state.contracts.active.length; slot += 1) {
-    const contract = nextState.contracts.active[slot]
-    if (!contract) {
-      continue
-    }
-
-    const isExpiredOffer = !contract.isParticipating && contract.offerExpiresAtMs <= nowMs
-    const isExpiredActive =
-      contract.isParticipating && contract.expiresAtMs !== null && contract.expiresAtMs <= nowMs
-    if (!isExpiredOffer && !isExpiredActive) {
-      continue
-    }
-
-    const replacement = generateContractForSlot(
-      nextState,
-      nextState.contracts.generationCounter,
-      slot,
-      nowMs,
-    )
-    const nextActive = [...nextState.contracts.active]
-    nextActive[slot] = replacement
-    nextState = {
-      ...nextState,
-      contracts: {
-        ...nextState.contracts,
-        active: nextActive,
-        generationCounter: nextState.contracts.generationCounter + 1,
-      },
-    }
-    didChange = true
-  }
-
-  return didChange ? nextState : state
-}
-
-function getEffectiveContractProductionMultiplier(state: GameState): Decimal {
-  if (state.contracts.effects.productionBoostRemainingSeconds <= 0) {
-    return ONE
-  }
-  return toDecimal(state.contracts.effects.productionBoostMultiplier)
-}
-
-function getEffectiveContractCostDiscountMultiplier(state: GameState): Decimal {
-  if (state.contracts.effects.costDiscountRemainingPurchases <= 0) {
-    return ONE
-  }
-  return toDecimal(state.contracts.effects.costDiscountMultiplier)
-}
-
-function decrementContractPurchaseDiscount(state: GameState): GameState {
-  if (state.contracts.effects.costDiscountRemainingPurchases <= 0) {
-    return state
-  }
-
-  const remainingPurchases = state.contracts.effects.costDiscountRemainingPurchases - 1
-  return {
-    ...state,
-    contracts: {
-      ...state.contracts,
-      effects: {
-        ...state.contracts.effects,
-        costDiscountRemainingPurchases: remainingPurchases,
-        costDiscountMultiplier: remainingPurchases > 0
-          ? state.contracts.effects.costDiscountMultiplier
-          : '1',
-      },
-    },
-  }
-}
-
-function decrementContractTimedEffects(state: GameState, elapsedSeconds: number): GameState {
-  if (elapsedSeconds <= 0) {
-    return state
-  }
-
-  const nextRemainingSeconds = Math.max(
-    0,
-    state.contracts.effects.productionBoostRemainingSeconds - elapsedSeconds,
-  )
-  if (nextRemainingSeconds === state.contracts.effects.productionBoostRemainingSeconds) {
-    return state
-  }
-
-  return {
-    ...state,
-    contracts: {
-      ...state.contracts,
-      effects: {
-        ...state.contracts.effects,
-        productionBoostRemainingSeconds: nextRemainingSeconds,
-        productionBoostMultiplier: nextRemainingSeconds > 0
-          ? state.contracts.effects.productionBoostMultiplier
-          : '1',
-      },
-    },
-  }
-}
-
-export function getActiveContractModifiers(state: GameState, nowMs = Date.now()): ContractModifier[] {
-  if (!areContractsUnlocked(state)) {
-    return []
-  }
-
-  return state.contracts.active
-    .filter((contract) => contract.modifier && isContractActiveNow(contract, nowMs))
-    .map((contract) => contract.modifier!)
-}
-
-export function activateContract(state: GameState, contractId: string, nowMs = Date.now()): GameState {
-  if (!areContractsUnlocked(state)) {
-    return state
-  }
-
-  const contractIndex = state.contracts.active.findIndex((contract) => contract.id === contractId)
-  if (contractIndex < 0) {
-    return state
-  }
-
-  const contract = state.contracts.active[contractIndex]
-  if (contract.isParticipating) {
-    return state
-  }
-
-  if (contract.offerExpiresAtMs <= nowMs) {
-    return skipContract(state, contractId, nowMs)
-  }
-
-  const nextContracts = [...state.contracts.active]
-  nextContracts[contractIndex] = {
-    ...contract,
-    isParticipating: true,
-    progressStartRunCredits:
-      contract.progressMode === 'incremental' && contract.objective.type === 'runCredits'
-        ? state.stats.totalCredits
-        : contract.progressStartRunCredits,
-    progressStartOwnedCount:
-      contract.progressMode === 'incremental' && contract.objective.type === 'owned'
-        ? state.generators[contract.objective.generator]
-        : contract.progressStartOwnedCount,
-    progressStartPurchasedUpgrades:
-      contract.progressMode === 'incremental' && contract.objective.type === 'purchasedUpgrades'
-        ? getPurchasedUpgradeCount(state)
-        : contract.progressStartPurchasedUpgrades,
-    expiresAtMs:
-      contract.challengeDurationMs !== null
-        ? nowMs + contract.challengeDurationMs
-        : nowMs + getContractActiveDurationMs(contract.band, contract.quality, contract.kind),
-  }
-
-  return {
-    ...state,
-    contracts: {
-      ...state.contracts,
-      active: nextContracts,
-    },
-  }
-}
-
-export function isGeneratorPurchaseAllowedByContracts(
-  state: GameState,
-  key: GeneratorKey,
-  nowMs = Date.now(),
-): boolean {
-  const modifiers = getActiveContractModifiers(state, nowMs)
-  if (modifiers.some((modifier) => modifier.type === 'buyAmountLocked' && state.buyAmount !== modifier.amount)) {
-    return false
-  }
-  return modifiers.every((modifier) => isGeneratorAllowedByModifier(key, modifier))
-}
-
-export function isUpgradePurchaseAllowedByContracts(state: GameState, nowMs = Date.now()): boolean {
-  const modifiers = getActiveContractModifiers(state, nowMs)
-  return !modifiers.some((modifier) => modifier.type === 'upgradesDisabled')
-}
-
-export function isPrestigeAllowedByContracts(state: GameState, nowMs = Date.now()): boolean {
-  const modifiers = getActiveContractModifiers(state, nowMs)
-  return !modifiers.some((modifier) => modifier.type === 'noPrestige')
-}
-
-export function claimContract(state: GameState, contractId: string, nowMs = Date.now()): GameState {
-  if (!areContractsUnlocked(state)) {
-    return state
-  }
-
-  const contractIndex = state.contracts.active.findIndex((contract) => contract.id === contractId)
-  if (contractIndex < 0) {
-    return state
-  }
-
-  const contract = state.contracts.active[contractIndex]
-  if (!contract.isParticipating) {
-    return state
-  }
-  if (contract.expiresAtMs !== null && contract.expiresAtMs <= nowMs) {
-    return state
-  }
-  const progress = getContractProgress(state, contract)
-  if (!progress.isComplete) {
-    return state
-  }
-
-  let nextState = state
-  const nextRewardMultiplier = toDecimal(nextState.contracts.effects.nextRewardMultiplier)
-  const appliedRewardMultiplier = nextRewardMultiplier.greaterThan(0) ? nextRewardMultiplier : ONE
-
-  for (const reward of contract.rewards) {
-    switch (reward.type) {
-      case 'credits':
-        nextState = {
-          ...nextState,
-          credits: toDecimal(nextState.credits)
-            .plus(toDecimal(reward.amount).times(appliedRewardMultiplier))
-            .toString(),
-        }
-        break
-      case 'essence':
-        nextState = {
-          ...nextState,
-          prestige: {
-            ...nextState.prestige,
-            essence: toDecimal(nextState.prestige.essence)
-              .plus(toDecimal(reward.amount).times(appliedRewardMultiplier))
-              .toString(),
-          },
-        }
-        break
-      case 'productionBoost':
-        nextState = {
-          ...nextState,
-          contracts: {
-            ...nextState.contracts,
-            effects: {
-              ...nextState.contracts.effects,
-              productionBoostMultiplier: toDecimal(nextState.contracts.effects.productionBoostMultiplier)
-                .times(reward.multiplier)
-                .toString(),
-              productionBoostRemainingSeconds: Math.max(
-                nextState.contracts.effects.productionBoostRemainingSeconds,
-                reward.durationSeconds,
-              ),
-            },
-          },
-        }
-        break
-      case 'costDiscountCharges':
-        nextState = {
-          ...nextState,
-          contracts: {
-            ...nextState.contracts,
-            effects: {
-              ...nextState.contracts.effects,
-              costDiscountMultiplier: toDecimal(nextState.contracts.effects.costDiscountMultiplier)
-                .times(reward.multiplier)
-                .toString(),
-              costDiscountRemainingPurchases:
-                nextState.contracts.effects.costDiscountRemainingPurchases + reward.charges,
-            },
-          },
-        }
-        break
-      case 'nextRewardMultiplier':
-        nextState = {
-          ...nextState,
-          contracts: {
-            ...nextState.contracts,
-            effects: {
-              ...nextState.contracts.effects,
-              nextRewardMultiplier: toDecimal(nextState.contracts.effects.nextRewardMultiplier)
-                .times(reward.multiplier)
-                .toString(),
-            },
-          },
-        }
-        break
-      default:
-        break
-    }
-  }
-
-  if (!appliedRewardMultiplier.equals(ONE)) {
-    nextState = {
-      ...nextState,
-      contracts: {
-        ...nextState.contracts,
-        effects: {
-          ...nextState.contracts.effects,
-          nextRewardMultiplier: '1',
-        },
-      },
-    }
-  }
-
-  const generationCounter = state.contracts.generationCounter + 1
-  const nextContracts = [...nextState.contracts.active]
-  nextContracts[contractIndex] = generateContractForSlot(
-    nextState,
-    state.contracts.generationCounter,
-    contractIndex,
-    nowMs,
-  )
-
-  return syncAchievements({
-    ...nextState,
-    contracts: {
-      ...nextState.contracts,
-      active: nextContracts,
-      generationCounter,
-    },
-  })
-}
-
-export function skipContract(state: GameState, contractId: string, nowMs = Date.now()): GameState {
-  if (!areContractsUnlocked(state)) {
-    return state
-  }
-
-  const contractIndex = state.contracts.active.findIndex((contract) => contract.id === contractId)
-  if (contractIndex < 0) {
-    return state
-  }
-
-  const contract = state.contracts.active[contractIndex]
-  if (!contract) {
-    return state
-  }
-
-  // Abandoning drops active restrictions/progress and returns to the current offer
-  // unless the offer window has elapsed, in which case a new challenge is generated.
-  if (nowMs < contract.offerExpiresAtMs) {
-    const nextContracts = [...state.contracts.active]
-    nextContracts[contractIndex] = {
-      ...contract,
-      isParticipating: false,
-      progressStartRunCredits: null,
-      progressStartOwnedCount: null,
-      progressStartPurchasedUpgrades: null,
-      expiresAtMs: null,
-    }
-
-    return {
-      ...state,
-      contracts: {
-        ...state.contracts,
-        active: nextContracts,
-      },
-    }
-  }
-
-  const nextContracts = [...state.contracts.active]
-  nextContracts[contractIndex] = generateContractForSlot(
-    state,
-    state.contracts.generationCounter,
-    contractIndex,
-    nowMs,
-  )
-
-  return {
-    ...state,
-    contracts: {
-      ...state.contracts,
-      active: nextContracts,
-      generationCounter: state.contracts.generationCounter + 1,
-    },
-  }
-}
-
-export function ensureContractsState(state: GameState, nowMs = Date.now()): GameState {
-  const normalizedActive = Array.isArray(state.contracts?.active)
-    ? state.contracts.active.slice(0, CONTRACT_SLOT_COUNT)
-    : []
-  const hasValidContracts = normalizedActive.length === CONTRACT_SLOT_COUNT
-
-  if (
-    hasValidContracts &&
-    state.contracts.effects &&
-    normalizedActive.length === state.contracts.active.length
-  ) {
-    return state
-  }
-
-  const generated = generateContractSet(state, state.contracts?.generationCounter ?? 0, nowMs)
-  return {
-    ...state,
-    contracts: {
-      active: hasValidContracts ? normalizedActive : generated.active,
-      generationCounter: hasValidContracts
-        ? state.contracts.generationCounter
-        : generated.nextGenerationCounter,
-      effects: createInitialContractEffectsState(),
-    },
-  }
-}
-
 export function createInitialGameState(nowMs = Date.now()): GameState {
   const initial: GameState = {
     credits: '0',
@@ -1723,17 +673,8 @@ export function createInitialGameState(nowMs = Date.now()): GameState {
     },
     prestige: createInitialPrestigeState(),
     random: createInitialRandomState(nowMs),
-    contracts: {
-      active: [],
-      generationCounter: 0,
-      effects: createInitialContractEffectsState(),
-    },
   }
-
-  return {
-    ...initial,
-    contracts: createInitialContractsState(initial, nowMs),
-  }
+  return initial
 }
 
 export function getPrestigeGainForReset(state: GameState): Decimal {
@@ -1746,7 +687,7 @@ export function getPrestigeGainForReset(state: GameState): Decimal {
 }
 
 export function canPrestige(state: GameState): boolean {
-  return getPrestigeGainForReset(state).greaterThan(0) && isPrestigeAllowedByContracts(state)
+  return getPrestigeGainForReset(state).greaterThan(0)
 }
 
 export function getPrestigeMultiplier(state: GameState): Decimal {
@@ -1774,11 +715,7 @@ export function applyPrestigeReset(state: GameState, nowMs = Date.now()): GameSt
     },
     achievements: state.achievements,
   }
-
-  return syncAchievements({
-    ...resetBase,
-    contracts: createInitialContractsState(resetBase, nowMs),
-  })
+  return syncAchievements(resetBase)
 }
 
 export function setBuyAmount(state: GameState, amount: number): GameState {
@@ -1830,7 +767,7 @@ export function getGeneratorCost(
     state.generators[key],
     amount,
   )
-  return baseCost.times(getEffectiveContractCostDiscountMultiplier(state))
+  return baseCost
 }
 
 function applyProducedCredits(
@@ -1866,7 +803,7 @@ export function getGlobalProductionMultiplier(state: GameState): Decimal {
     }
   }
 
-  return multiplier.times(getEffectiveContractProductionMultiplier(state))
+  return multiplier
 }
 
 function getGeneratorProductionMultiplier(
@@ -1932,61 +869,46 @@ export function getOfflineProgressCapSeconds(state: GameState): number {
 }
 
 export function applyOfflineProgress(state: GameState, nowMs = Date.now()): GameState {
-  const stateWithContracts = ensureContractsState(state, nowMs)
-  const effectiveNowMs = Math.max(nowMs, stateWithContracts.stats.lastTickAtMs)
+  const effectiveNowMs = Math.max(nowMs, state.stats.lastTickAtMs)
   const elapsedSeconds = Math.max(
     0,
-    (effectiveNowMs - stateWithContracts.stats.lastTickAtMs) / 1_000,
+    (effectiveNowMs - state.stats.lastTickAtMs) / 1_000,
   )
-  const cappedSeconds = Math.min(elapsedSeconds, getOfflineProgressCapSeconds(stateWithContracts))
+  const cappedSeconds = Math.min(elapsedSeconds, getOfflineProgressCapSeconds(state))
 
   if (cappedSeconds <= 0) {
-    if (effectiveNowMs === stateWithContracts.stats.lastTickAtMs) {
-      return resolveContractExpiry(stateWithContracts, effectiveNowMs)
+    if (effectiveNowMs === state.stats.lastTickAtMs) {
+      return state
     }
 
-    const updated = {
-      ...stateWithContracts,
+    return {
+      ...state,
       stats: {
-        ...stateWithContracts.stats,
+        ...state.stats,
         lastTickAtMs: effectiveNowMs,
       },
     }
-    return resolveContractExpiry(updated, effectiveNowMs)
   }
 
-  const produced = getTotalProductionPerSecond(stateWithContracts).times(cappedSeconds)
-  const progressed = applyProducedCredits(stateWithContracts, produced, effectiveNowMs)
-  return resolveContractExpiry(
-    decrementContractTimedEffects(progressed, cappedSeconds),
-    effectiveNowMs,
-  )
+  const produced = getTotalProductionPerSecond(state).times(cappedSeconds)
+  return applyProducedCredits(state, produced, effectiveNowMs)
 }
 
 export function tickGame(state: GameState, nowMs: number): GameState {
-  const stateWithContracts = ensureContractsState(state, nowMs)
   const elapsedSeconds = Math.min(
     MAX_TICK_SECONDS,
-    Math.max(0, (nowMs - stateWithContracts.stats.lastTickAtMs) / 1_000),
+    Math.max(0, (nowMs - state.stats.lastTickAtMs) / 1_000),
   )
 
   if (elapsedSeconds <= 0) {
-    return resolveContractExpiry(stateWithContracts, nowMs)
-  }
-
-  const produced = getTotalProductionPerSecond(stateWithContracts).times(elapsedSeconds)
-  const progressed = applyProducedCredits(stateWithContracts, produced, nowMs)
-  return resolveContractExpiry(
-    decrementContractTimedEffects(progressed, elapsedSeconds),
-    nowMs,
-  )
-}
-
-export function buyGenerator(state: GameState, key: GeneratorKey): GameState {
-  if (!isGeneratorPurchaseAllowedByContracts(state, key)) {
     return state
   }
 
+  const produced = getTotalProductionPerSecond(state).times(elapsedSeconds)
+  return applyProducedCredits(state, produced, nowMs)
+}
+
+export function buyGenerator(state: GameState, key: GeneratorKey): GameState {
   const cost = getGeneratorCost(state, key, state.buyAmount)
   const credits = toDecimal(state.credits)
 
@@ -1994,14 +916,14 @@ export function buyGenerator(state: GameState, key: GeneratorKey): GameState {
     return state
   }
 
-  return syncAchievements(decrementContractPurchaseDiscount({
+  return syncAchievements({
     ...state,
     credits: credits.minus(cost).toString(),
     generators: {
       ...state.generators,
       [key]: state.generators[key] + state.buyAmount,
     },
-  }))
+  })
 }
 
 export function isUpgradeUnlocked(state: GameState, key: RunUpgradeKey): boolean {
@@ -2017,10 +939,6 @@ export function isUpgradeUnlocked(state: GameState, key: RunUpgradeKey): boolean
     !upgrade.requiresUpgrade || state.purchasedUpgrades[upgrade.requiresUpgrade]
 
   return meetsGeneratorRequirement && meetsUpgradeRequirement
-}
-
-export function areContractsUnlocked(state: GameState): boolean {
-  return state.purchasedUpgrades.challengeProtocols
 }
 
 export function getUpgradeUnlockProgress(state: GameState, key: RunUpgradeKey) {
@@ -2059,14 +977,12 @@ export function canBuyUpgrade(state: GameState, key: RunUpgradeKey): boolean {
   if (
     !upgrade ||
     state.purchasedUpgrades[key] ||
-    !isUpgradeUnlocked(state, key) ||
-    !isUpgradePurchaseAllowedByContracts(state)
+    !isUpgradeUnlocked(state, key)
   ) {
     return false
   }
 
-  const discountedCost = toDecimal(upgrade.cost).times(getEffectiveContractCostDiscountMultiplier(state))
-  return toDecimal(state.credits).greaterThanOrEqualTo(discountedCost)
+  return toDecimal(state.credits).greaterThanOrEqualTo(upgrade.cost)
 }
 
 export function buyUpgrade(state: GameState, key: RunUpgradeKey): GameState {
@@ -2075,14 +991,12 @@ export function buyUpgrade(state: GameState, key: RunUpgradeKey): GameState {
     return state
   }
 
-  const discountedCost = toDecimal(upgrade.cost).times(getEffectiveContractCostDiscountMultiplier(state))
-
-  return syncAchievements(decrementContractPurchaseDiscount({
+  return syncAchievements({
     ...state,
-    credits: toDecimal(state.credits).minus(discountedCost).toString(),
+    credits: toDecimal(state.credits).minus(upgrade.cost).toString(),
     purchasedUpgrades: {
       ...state.purchasedUpgrades,
       [key]: true,
     },
-  }))
+  })
 }

@@ -16,7 +16,7 @@ export function AboutScreen() {
       </section>
       <section className="space-y-3 border-t border-border/70 pt-6">
         <p className="text-sm leading-7 text-muted-foreground">
-          For full gameplay systems, challenge mechanics, rewards, and save details, open the Help
+          For full gameplay systems, progression guidance, and save details, open the Help
           section from Other.
         </p>
       </section>

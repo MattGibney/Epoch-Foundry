@@ -137,7 +137,6 @@ export const GENERATOR_CONFIG: Record<string, GeneratorConfigEntry> = {
 }
 
 export const UPGRADE_CONFIG: Record<string, UpgradeConfigEntry> = {
-  challengeProtocols: { key: 'challengeProtocols', label: 'Challenge Protocols', description: 'Unlock Challenges and contracts.', cost: '2500000', effectType: 'global', multiplier: '1', requiresOwned: { generator: 'extractors', count: 25 } },
   minerTuning: { key: 'minerTuning', label: 'Miner Tuning', description: 'Double Miner output.', cost: '120', effectType: 'generator', target: 'miners', multiplier: '2', requiresOwned: { generator: 'miners', count: 10 } },
   minerSwarm: { key: 'minerSwarm', label: 'Miner Swarm Logic', description: 'Triple Miner output.', cost: '1800', effectType: 'generator', target: 'miners', multiplier: '3', requiresOwned: { generator: 'miners', count: 50 }, requiresUpgrade: 'minerTuning' },
   minerFoundries: { key: 'minerFoundries', label: 'Miner Foundries', description: 'Quadruple Miner output.', cost: '25000', effectType: 'generator', target: 'miners', multiplier: '4', requiresOwned: { generator: 'miners', count: 120 }, requiresUpgrade: 'minerSwarm' },
