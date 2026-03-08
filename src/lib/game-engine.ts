@@ -9,6 +9,7 @@ import {
   type AchievementConfigEntry,
   type UpgradeConfigEntry,
 } from '@/lib/progression-config'
+import { CHALLENGE_QUALITY_WEIGHTS } from '@/lib/consts'
 
 export type GeneratorKey =
   | 'miners'
@@ -340,11 +341,6 @@ const BASE_OFFLINE_PROGRESS_CAP_SECONDS = 15 * 60
 const CONTRACT_SLOT_COUNT = 1
 const CONTRACT_OFFER_WINDOW_MS = 15 * 60 * 1000
 const CONTRACT_CHALLENGE_DURATION_MULTIPLIER = 1.75
-const CONTRACT_QUALITY_WEIGHTS: Array<{ quality: ContractQuality; weight: number }> = [
-  { quality: 'common', weight: 0.62 },
-  { quality: 'rare', weight: 0.28 },
-  { quality: 'elite', weight: 0.1 },
-]
 const PRESTIGE_UNLOCK_CREDITS = new Decimal(PRESTIGE_BALANCE.unlockCredits)
 const PRESTIGE_GAIN_EXPONENT = new Decimal(PRESTIGE_BALANCE.gainExponent)
 const PRESTIGE_ESSENCE_MULTIPLIER_STEP = new Decimal(PRESTIGE_BALANCE.essenceMultiplierStep)
@@ -729,13 +725,11 @@ function getContractActiveDurationMs(
 
 function getContractQuality(seed: string): ContractQuality {
   const roll = randomFromSeed(seed, 10)
-  let cursor = 0
-
-  for (const entry of CONTRACT_QUALITY_WEIGHTS) {
-    cursor += entry.weight
-    if (roll <= cursor) {
-      return entry.quality
-    }
+  if (roll < CHALLENGE_QUALITY_WEIGHTS.elite) {
+    return 'elite'
+  }
+  if (roll < CHALLENGE_QUALITY_WEIGHTS.elite + CHALLENGE_QUALITY_WEIGHTS.rare) {
+    return 'rare'
   }
 
   return 'common'
