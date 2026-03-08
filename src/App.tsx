@@ -69,6 +69,7 @@ import {
   AboutTabView,
   AchievementsTabView,
   ContractsTabView,
+  HelpTabView,
   ProductionTabView,
   SettingsTabView,
   StatsTabView,
@@ -83,6 +84,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'stats', label: 'Stats' },
   { key: 'achievements', label: 'Achievements' },
   { key: 'contracts', label: 'Contracts' },
+  { key: 'help', label: 'Help' },
   { key: 'settings', label: 'Settings' },
   { key: 'about', label: 'About' },
 ]
@@ -476,7 +478,8 @@ function App() {
   })
   const isOtherActive =
     !isPrimaryTab(activeTab) || (activeTab === 'contracts' && !contractsUnlocked)
-  const shouldShowFloatingSummary = activeTab !== 'about' && showFloatingSummary
+  const shouldShowFloatingSummary =
+    activeTab !== 'about' && activeTab !== 'help' && showFloatingSummary
 
   const prestigeReset = useCallback(() => {
     const now = Date.now()
@@ -556,6 +559,8 @@ function App() {
             onResetGame={resetGame}
           />
         )
+      case 'help':
+        return <HelpTabView />
       case 'about':
         return <AboutTabView />
       default:

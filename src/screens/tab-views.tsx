@@ -6,6 +6,7 @@ import { formatIdleNumber } from '@/lib/number-format'
 import { AboutScreen } from '@/screens/about-screen'
 import { AchievementsScreen } from '@/screens/achievements-screen'
 import { ContractsScreen } from '@/screens/contracts-screen'
+import { HelpScreen } from '@/screens/help-screen'
 import { ProductionScreen } from '@/screens/production-screen'
 import { SettingsScreen } from '@/screens/settings-screen'
 import { StatsScreen } from '@/screens/stats-screen'
@@ -17,6 +18,7 @@ export type TabKey =
   | 'stats'
   | 'achievements'
   | 'contracts'
+  | 'help'
   | 'settings'
   | 'about'
 
@@ -207,4 +209,8 @@ export function SettingsTabView(props: SettingsTabViewProps) {
 
 export function AboutTabView() {
   return <AboutScreen />
+}
+
+export function HelpTabView() {
+  return <HelpScreen />
 }
