@@ -24,7 +24,9 @@ export function AchievementsScreen({ game, unlockedAchievementCount }: Achieveme
   return (
     <div className="space-y-6">
       <section>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Progress</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Progress
+        </p>
         <p className="mt-2 flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Unlocked</span>
           <span className="font-mono tabular-nums">
