@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import Decimal from 'decimal.js'
 
 import { Button } from '@/components/ui/button'
@@ -5,11 +6,13 @@ import {
   buyUpgrade,
   canBuyUpgrade,
   getUpgradeUnlockProgress,
+  isUpgradePurchaseAllowedByContracts,
   UPGRADE_DEFS,
   UPGRADE_ORDER,
   type GameState,
   type RunUpgradeKey,
 } from '@/lib/game-engine'
+import { cn } from '@/lib/utils'
 
 const UPGRADE_SECTIONS: {
   effectType: (typeof UPGRADE_DEFS)[RunUpgradeKey]['effectType']
@@ -27,6 +30,24 @@ interface UpgradesScreenProps {
 }
 
 export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: UpgradesScreenProps) {
+  const isDisabledByChallenge = !isUpgradePurchaseAllowedByContracts(game)
+
+  useEffect(() => {
+    if (!isDisabledByChallenge) {
+      return
+    }
+
+    const previousBodyOverflow = document.body.style.overflow
+    const previousHtmlOverflow = document.documentElement.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflow = previousHtmlOverflow
+    }
+  }, [isDisabledByChallenge])
+
   const visibleUpgradeKeys = UPGRADE_ORDER.filter((key) => {
     if (game.settings.showPurchasedUpgrades) {
       return true
@@ -89,34 +110,43 @@ export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: Up
   }
 
   return (
-    <div className="space-y-8">
-      {UPGRADE_SECTIONS.map((section) => {
-        const sectionUpgrades = visibleUpgradeKeys.filter(
-          (key) => UPGRADE_DEFS[key].effectType === section.effectType,
-        )
+    <div className="relative">
+      {isDisabledByChallenge && (
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
+          <span className="text-base font-bold tracking-wide text-foreground text-shadow-lg text-shadow-white/90">
+            Disabled by Challenge
+          </span>
+        </div>
+      )}
+      <div className={cn('space-y-8', isDisabledByChallenge && 'opacity-30')}>
+        {UPGRADE_SECTIONS.map((section) => {
+          const sectionUpgrades = visibleUpgradeKeys.filter(
+            (key) => UPGRADE_DEFS[key].effectType === section.effectType,
+          )
 
-        if (sectionUpgrades.length === 0) {
-          return null
-        }
+          if (sectionUpgrades.length === 0) {
+            return null
+          }
 
-        return (
-          <section key={section.effectType} className="space-y-3 pt-2 first:pt-0">
-            <h3 className="border-b border-border/70 pb-2 text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
-              {section.heading}
-            </h3>
-            <div>{sectionUpgrades.map((key) => renderUpgradeItem(key))}</div>
-          </section>
-        )
-      })}
-      {!game.settings.showPurchasedUpgrades &&
-        UPGRADE_ORDER.every((key) => game.purchasedUpgrades[key]) && (
-          <section className="py-3">
-            <p className="text-sm text-muted-foreground">
-              All upgrades are purchased. Enable "Show Purchased Upgrades" in Settings to
-              review completed upgrades.
-            </p>
-          </section>
-        )}
+          return (
+            <section key={section.effectType} className="space-y-3 pt-2 first:pt-0">
+              <h3 className="border-b border-border/70 pb-2 text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
+                {section.heading}
+              </h3>
+              <div>{sectionUpgrades.map((key) => renderUpgradeItem(key))}</div>
+            </section>
+          )
+        })}
+        {!game.settings.showPurchasedUpgrades &&
+          UPGRADE_ORDER.every((key) => game.purchasedUpgrades[key]) && (
+            <section className="py-3">
+              <p className="text-sm text-muted-foreground">
+                All upgrades are purchased. Enable "Show Purchased Upgrades" in Settings to
+                review completed upgrades.
+              </p>
+            </section>
+          )}
+      </div>
     </div>
   )
 }
