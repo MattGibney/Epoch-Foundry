@@ -3,6 +3,7 @@ import Decimal from 'decimal.js'
 import { ChevronDown } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { UNKNOWN_PRODUCER_REVEAL_RATIO } from '@/lib/consts'
 import {
   BUY_AMOUNT_OPTIONS,
   buyGenerator,
@@ -37,6 +38,28 @@ export function ProductionScreen({
   getSecondsUntilAffordable,
 }: ProductionScreenProps) {
   const [isOptionsOpen, setIsOptionsOpen] = useState(false)
+  const credits = new Decimal(game.credits)
+  const highestOwnedIndex = GENERATOR_ORDER.reduce(
+    (highest, key, index) => (game.generators[key] > 0 ? index : highest),
+    -1,
+  )
+
+  let maxRevealedIndex = highestOwnedIndex
+  let ghostIndex: number | null = null
+
+  for (let index = highestOwnedIndex + 1; index < GENERATOR_ORDER.length; index += 1) {
+    const key = GENERATOR_ORDER[index]
+    const revealThreshold = new Decimal(GENERATOR_DEFS[key].baseCost).times(
+      UNKNOWN_PRODUCER_REVEAL_RATIO,
+    )
+    if (credits.greaterThanOrEqualTo(revealThreshold)) {
+      maxRevealedIndex = index
+      continue
+    }
+
+    ghostIndex = index
+    break
+  }
 
   return (
     <div className="space-y-4">
@@ -87,11 +110,18 @@ export function ProductionScreen({
       </section>
 
       <section className="divide-y divide-border/70">
-        {GENERATOR_ORDER.map((key) => {
+        {GENERATOR_ORDER.map((key, index) => {
+          const owned = game.generators[key]
+          const isOwned = owned > 0
+          const isRevealed = isOwned || index <= maxRevealedIndex
+          const isGhost = ghostIndex === index
+
+          if (!isRevealed && !isGhost) {
+            return null
+          }
+
           const definition = GENERATOR_DEFS[key]
           const cost = getGeneratorCost(game, key)
-          const owned = game.generators[key]
-          const credits = new Decimal(game.credits)
           const canBuy = credits.greaterThanOrEqualTo(cost)
           const contribution = getGeneratorProductionPerSecond(game, key)
           const remainingCredits = canBuy ? new Decimal(0) : cost.minus(credits)
@@ -106,6 +136,19 @@ export function ProductionScreen({
           )
             .toDecimalPlaces(0, Decimal.ROUND_FLOOR)
             .toNumber()
+
+          if (isGhost) {
+            return (
+              <article key={definition.key} className="py-4 first:pt-0">
+                <div className="space-y-2 blur-[1px]">
+                  <p className="text-base font-semibold text-muted-foreground/70">Unknown Producer</p>
+                  <p className="text-sm text-muted-foreground/70">
+                    ??? ??? ??? ??? ??? ??? ???.
+                  </p>
+                </div>
+              </article>
+            )
+          }
 
           return (
             <article key={definition.key} className="py-4 first:pt-0">
