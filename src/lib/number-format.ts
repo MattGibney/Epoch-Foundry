@@ -49,7 +49,9 @@ const fixedTwoDecimalFormatter = new Intl.NumberFormat('en-GB', {
 })
 
 function formatMantissa(value: Decimal): string {
-  return value.toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toFixed(0)
+  const rounded = value.toDecimalPlaces(1, Decimal.ROUND_HALF_UP)
+  const fixed = rounded.toFixed(1)
+  return fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed
 }
 
 function toScientific(value: Decimal): string {
