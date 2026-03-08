@@ -337,7 +337,8 @@ const ONE = new Decimal(1)
 const ZERO = new Decimal(0)
 const MAX_TICK_SECONDS = 5
 const BASE_OFFLINE_PROGRESS_CAP_SECONDS = 15 * 60
-const CONTRACT_SLOT_COUNT = 3
+const CONTRACT_SLOT_COUNT = 1
+const CONTRACT_OFFER_WINDOW_MS = 15 * 60 * 1000
 const CONTRACT_CHALLENGE_DURATION_MULTIPLIER = 1.75
 const CONTRACT_QUALITY_WEIGHTS: Array<{ quality: ContractQuality; weight: number }> = [
   { quality: 'common', weight: 0.62 },
@@ -694,24 +695,8 @@ function getContractBandRangeSeconds(
   }
 }
 
-function getContractBandBySlot(slot: number): ContractBand {
-  if (slot === 0) {
-    return 'short'
-  }
-  if (slot === 1) {
-    return 'medium'
-  }
-  return 'long'
-}
-
-function getContractOfferDurationMs(band: ContractBand): number {
-  if (band === 'short') {
-    return 15 * 60 * 1000
-  }
-  if (band === 'medium') {
-    return 20 * 60 * 1000
-  }
-  return 25 * 60 * 1000
+function getContractOfferDurationMs(): number {
+  return CONTRACT_OFFER_WINDOW_MS
 }
 
 function getContractActiveDurationMs(
@@ -1081,14 +1066,12 @@ function generateContractForSlot(
   slot: number,
   nowMs: number,
 ): ContractState {
-  const band = getContractBandBySlot(slot)
-  const bandRange = getContractBandRangeSeconds(band)
   const slotSeed = `${state.random.worldSeed}:contracts:${generationIndex}:${slot}`
+  const band = randomChoiceFromSeed(slotSeed, 2, ['short', 'medium', 'long'] as const)
+  const bandRange = getContractBandRangeSeconds(band)
   const quality = getContractQuality(slotSeed)
-  const challengeChance = band === 'short' ? 0.3 : band === 'medium' ? 0.55 : 0.75
-  const isChallenge = randomFromSeed(slotSeed, 1) < challengeChance
-  const kind: ContractState['kind'] = isChallenge ? 'challenge' : 'objective'
-  const modifier = isChallenge ? getContractModifier(slotSeed, band) : null
+  const kind: ContractState['kind'] = 'challenge'
+  const modifier = getContractModifier(slotSeed, band)
   const targetSeconds = randomIntFromSeed(slotSeed, 0, bandRange.min, bandRange.max)
   const attemptLimit = 24
   const fallbackObjective: ContractObjective = {
@@ -1138,7 +1121,7 @@ function generateContractForSlot(
     objective: selectedObjective,
     rewards: buildContractRewards(state, slotSeed, band, quality, kind, targetSeconds),
     modifier,
-    offerExpiresAtMs: nowMs + getContractOfferDurationMs(band),
+    offerExpiresAtMs: nowMs + getContractOfferDurationMs(),
     challengeDurationMs: Math.max(
       Math.floor(targetSeconds * CONTRACT_CHALLENGE_DURATION_MULTIPLIER * 1000),
       getContractActiveDurationMs(band, quality, kind),
@@ -1644,6 +1627,33 @@ export function skipContract(state: GameState, contractId: string, nowMs = Date.
     return state
   }
 
+  const contract = state.contracts.active[contractIndex]
+  if (!contract) {
+    return state
+  }
+
+  // Abandoning drops active restrictions/progress and returns to the current offer
+  // unless the offer window has elapsed, in which case a new challenge is generated.
+  if (nowMs < contract.offerExpiresAtMs) {
+    const nextContracts = [...state.contracts.active]
+    nextContracts[contractIndex] = {
+      ...contract,
+      isParticipating: false,
+      progressStartRunCredits: null,
+      progressStartOwnedCount: null,
+      progressStartPurchasedUpgrades: null,
+      expiresAtMs: null,
+    }
+
+    return {
+      ...state,
+      contracts: {
+        ...state.contracts,
+        active: nextContracts,
+      },
+    }
+  }
+
   const nextContracts = [...state.contracts.active]
   nextContracts[contractIndex] = generateContractForSlot(
     state,
@@ -1663,10 +1673,16 @@ export function skipContract(state: GameState, contractId: string, nowMs = Date.
 }
 
 export function ensureContractsState(state: GameState, nowMs = Date.now()): GameState {
-  const hasValidContracts =
-    Array.isArray(state.contracts?.active) &&
-    state.contracts.active.length === CONTRACT_SLOT_COUNT
-  if (hasValidContracts && state.contracts.effects) {
+  const normalizedActive = Array.isArray(state.contracts?.active)
+    ? state.contracts.active.slice(0, CONTRACT_SLOT_COUNT)
+    : []
+  const hasValidContracts = normalizedActive.length === CONTRACT_SLOT_COUNT
+
+  if (
+    hasValidContracts &&
+    state.contracts.effects &&
+    normalizedActive.length === state.contracts.active.length
+  ) {
     return state
   }
 
@@ -1674,7 +1690,7 @@ export function ensureContractsState(state: GameState, nowMs = Date.now()): Game
   return {
     ...state,
     contracts: {
-      active: hasValidContracts ? state.contracts.active : generated.active,
+      active: hasValidContracts ? normalizedActive : generated.active,
       generationCounter: hasValidContracts
         ? state.contracts.generationCounter
         : generated.nextGenerationCounter,

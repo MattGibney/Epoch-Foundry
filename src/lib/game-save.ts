@@ -144,14 +144,8 @@ function parseContractBand(value: unknown): ContractBand | null {
   return null
 }
 
-function getDefaultOfferDurationMs(band: ContractBand): number {
-  if (band === 'short') {
-    return 15 * 60 * 1000
-  }
-  if (band === 'medium') {
-    return 20 * 60 * 1000
-  }
-  return 25 * 60 * 1000
+function getDefaultOfferDurationMs(): number {
+  return 15 * 60 * 1000
 }
 
 function parseContractState(value: unknown): ContractState | null {
@@ -185,7 +179,7 @@ function parseContractState(value: unknown): ContractState | null {
   const expiresAtMs =
     expiresAtMsRaw !== null ? expiresAtMsRaw : candidate.expiresAtMs === null ? null : null
   const offerExpiresAtMs =
-    parseNonNegativeInt(candidate.offerExpiresAtMs) ?? createdAtMs + getDefaultOfferDurationMs(band)
+    parseNonNegativeInt(candidate.offerExpiresAtMs) ?? createdAtMs + getDefaultOfferDurationMs()
   const progressStartRunCredits = parseDecimalString(candidate.progressStartRunCredits)
   const progressStartOwnedCount = parseNonNegativeInt(candidate.progressStartOwnedCount)
   const progressStartPurchasedUpgrades = parseNonNegativeInt(candidate.progressStartPurchasedUpgrades)
@@ -490,7 +484,7 @@ function parseModernState(value: unknown): GameState | null {
       worldSeed,
     },
     contracts: {
-      active: parsedContracts,
+      active: parsedContracts.slice(0, 1),
       generationCounter,
       effects: {
         productionBoostMultiplier,

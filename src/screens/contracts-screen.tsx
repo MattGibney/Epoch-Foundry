@@ -172,6 +172,14 @@ export function ContractsScreen({
   formatDuration,
 }: ContractsScreenProps) {
   const [abandonContractId, setAbandonContractId] = useState<string | null>(null)
+  const currentContract = game.contracts.active[0] ?? null
+  const refreshCountdownSeconds = currentContract
+    ? currentContract.isParticipating
+      ? currentContract.expiresAtMs !== null
+        ? Math.max(0, Math.ceil((currentContract.expiresAtMs - nowMs) / 1000))
+        : null
+      : Math.max(0, Math.ceil((currentContract.offerExpiresAtMs - nowMs) / 1000))
+    : null
 
   return (
     <>
@@ -181,10 +189,20 @@ export function ContractsScreen({
           <p className="mt-1 text-sm text-muted-foreground">
             High-impact objectives with optional constraints and multi-part rewards.
           </p>
+          {currentContract && refreshCountdownSeconds !== null && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {currentContract.isParticipating
+                ? 'Challenge refreshes when current run ends in '
+                : 'Challenge refreshes in '}
+              <span className="font-mono tabular-nums text-foreground">
+                {formatDuration(refreshCountdownSeconds)}
+              </span>
+            </p>
+          )}
         </section>
 
         <section className="space-y-3">
-          {game.contracts.active.map((contract) => {
+          {game.contracts.active.slice(0, 1).map((contract) => {
             const progress = getContractProgress(game, contract)
             const current = Decimal.min(new Decimal(progress.current), new Decimal(progress.target))
             const target = new Decimal(progress.target)
