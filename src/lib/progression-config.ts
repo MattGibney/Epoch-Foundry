@@ -137,6 +137,7 @@ export const GENERATOR_CONFIG: Record<string, GeneratorConfigEntry> = {
 }
 
 export const UPGRADE_CONFIG: Record<string, UpgradeConfigEntry> = {
+  challengeProtocols: { key: 'challengeProtocols', label: 'Challenge Protocols', description: 'Unlock Challenges and contracts.', cost: '2500000', effectType: 'global', multiplier: '1', requiresOwned: { generator: 'extractors', count: 25 } },
   minerTuning: { key: 'minerTuning', label: 'Miner Tuning', description: 'Double Miner output.', cost: '120', effectType: 'generator', target: 'miners', multiplier: '2', requiresOwned: { generator: 'miners', count: 10 } },
   minerSwarm: { key: 'minerSwarm', label: 'Miner Swarm Logic', description: 'Triple Miner output.', cost: '1800', effectType: 'generator', target: 'miners', multiplier: '3', requiresOwned: { generator: 'miners', count: 50 }, requiresUpgrade: 'minerTuning' },
   minerFoundries: { key: 'minerFoundries', label: 'Miner Foundries', description: 'Quadruple Miner output.', cost: '25000', effectType: 'generator', target: 'miners', multiplier: '4', requiresOwned: { generator: 'miners', count: 120 }, requiresUpgrade: 'minerSwarm' },
@@ -282,7 +283,7 @@ export const ACHIEVEMENT_CONFIG: Record<string, AchievementConfigEntry> = {
   upgrades20: { key: 'upgrades20', label: 'Workshop Online', description: 'Purchase 20 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 20 } },
   upgrades28: { key: 'upgrades28', label: 'Workshop Tuned', description: 'Purchase 28 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 28 } },
   upgrades35: { key: 'upgrades35', label: 'Workshop Expanded', description: 'Purchase 35 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 35 } },
-  upgrades38: { key: 'upgrades38', label: 'Workshop Complete', description: 'Purchase all 38 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 38 } },
+  upgrades38: { key: 'upgrades38', label: 'Workshop Complete', description: 'Purchase all 39 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 39 } },
   offlineCap1h: { key: 'offlineCap1h', label: 'Extended Shift', description: 'Increase offline cap to at least 1 hour.', requirement: { type: 'offlineCapSeconds', seconds: 1 * 60 * 60 } },
   offlineCap4h: { key: 'offlineCap4h', label: 'Deep Shift', description: 'Increase offline cap to at least 4 hours.', requirement: { type: 'offlineCapSeconds', seconds: 4 * 60 * 60 } },
   offlineCap12h: { key: 'offlineCap12h', label: 'Long Shift', description: 'Increase offline cap to at least 2 hours.', requirement: { type: 'offlineCapSeconds', seconds: 2 * 60 * 60 } },

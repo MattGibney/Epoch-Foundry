@@ -22,6 +22,7 @@ export type GeneratorKey =
   | 'singularityWells'
   | 'continuumEngines'
 export type RunUpgradeKey =
+  | 'challengeProtocols'
   | 'minerTuning'
   | 'minerSwarm'
   | 'minerFoundries'
@@ -357,6 +358,7 @@ export const GENERATOR_ORDER: GeneratorKey[] = [
 ]
 
 export const UPGRADE_ORDER: RunUpgradeKey[] = [
+  'challengeProtocols',
   'minerTuning',
   'minerSwarm',
   'minerFoundries',
@@ -1395,12 +1397,20 @@ function decrementContractTimedEffects(state: GameState, elapsedSeconds: number)
 }
 
 export function getActiveContractModifiers(state: GameState, nowMs = Date.now()): ContractModifier[] {
+  if (!areContractsUnlocked(state)) {
+    return []
+  }
+
   return state.contracts.active
     .filter((contract) => contract.modifier && isContractActiveNow(contract, nowMs))
     .map((contract) => contract.modifier!)
 }
 
 export function activateContract(state: GameState, contractId: string, nowMs = Date.now()): GameState {
+  if (!areContractsUnlocked(state)) {
+    return state
+  }
+
   const contractIndex = state.contracts.active.findIndex((contract) => contract.id === contractId)
   if (contractIndex < 0) {
     return state
@@ -1457,6 +1467,10 @@ export function isPrestigeAllowedByContracts(state: GameState, nowMs = Date.now(
 }
 
 export function claimContract(state: GameState, contractId: string, nowMs = Date.now()): GameState {
+  if (!areContractsUnlocked(state)) {
+    return state
+  }
+
   const contractIndex = state.contracts.active.findIndex((contract) => contract.id === contractId)
   if (contractIndex < 0) {
     return state
@@ -1585,6 +1599,10 @@ export function claimContract(state: GameState, contractId: string, nowMs = Date
 }
 
 export function skipContract(state: GameState, contractId: string, nowMs = Date.now()): GameState {
+  if (!areContractsUnlocked(state)) {
+    return state
+  }
+
   const contractIndex = state.contracts.active.findIndex((contract) => contract.id === contractId)
   if (contractIndex < 0) {
     return state
@@ -1953,6 +1971,10 @@ export function isUpgradeUnlocked(state: GameState, key: RunUpgradeKey): boolean
     !upgrade.requiresUpgrade || state.purchasedUpgrades[upgrade.requiresUpgrade]
 
   return meetsGeneratorRequirement && meetsUpgradeRequirement
+}
+
+export function areContractsUnlocked(state: GameState): boolean {
+  return state.purchasedUpgrades.challengeProtocols
 }
 
 export function getUpgradeUnlockProgress(state: GameState, key: RunUpgradeKey) {

@@ -40,6 +40,7 @@ import {
   ACHIEVEMENT_DEFS,
   ACHIEVEMENT_ORDER,
   applyPrestigeReset,
+  areContractsUnlocked,
   canPrestige,
   canBuyUpgrade,
   createInitialGameState,
@@ -438,6 +439,7 @@ function App() {
   }, [activeTab, floatingAnchorElement])
 
   const creditsPerSecond = useMemo(() => getTotalProductionPerSecond(game), [game])
+  const contractsUnlocked = useMemo(() => areContractsUnlocked(game), [game])
   const prestigeGain = useMemo(() => getPrestigeGainForReset(game), [game])
   const prestigeMultiplier = useMemo(() => getPrestigeMultiplier(game), [game])
   const canPrestigeNow = useMemo(() => canPrestige(game), [game])
@@ -466,8 +468,14 @@ function App() {
     [game.prestige.essence, prestigeGain],
   )
   const runDuration = Math.max(0, Math.floor((nowMs - game.stats.startedAtMs) / 1_000))
-  const overflowTabs = TABS.filter((tab) => !isPrimaryTab(tab.key))
-  const isOtherActive = !isPrimaryTab(activeTab)
+  const overflowTabs = TABS.filter((tab) => {
+    if (tab.key === 'contracts' && !contractsUnlocked) {
+      return false
+    }
+    return !isPrimaryTab(tab.key)
+  })
+  const isOtherActive =
+    !isPrimaryTab(activeTab) || (activeTab === 'contracts' && !contractsUnlocked)
   const shouldShowFloatingSummary = activeTab !== 'about' && showFloatingSummary
 
   const prestigeReset = useCallback(() => {
@@ -528,6 +536,9 @@ function App() {
           />
         )
       case 'contracts':
+        if (!contractsUnlocked) {
+          return <UpgradesTabView {...sharedTabProps} />
+        }
         return (
           <ContractsTabView
             {...sharedTabProps}
@@ -611,8 +622,12 @@ function App() {
       >
         <div className="mx-auto w-full max-w-lg">
           <div className="rounded-xl border border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
-            <div className="grid grid-cols-5 gap-1">
+            <div className={cn('grid gap-1', contractsUnlocked ? 'grid-cols-5' : 'grid-cols-4')}>
               {PRIMARY_NAV_ITEMS.map((item) => {
+                if (item.key === 'contracts' && !contractsUnlocked) {
+                  return null
+                }
+
                 const Icon = item.icon
                 const showUpgradeBadge =
                   item.key === 'upgrades' && purchasableUpgradeCount > 0
