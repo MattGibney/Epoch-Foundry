@@ -31,45 +31,89 @@ export type GeneratorKey =
   | 'epochMonoliths'
   | 'omniversalFoundries'
   | 'genesisForges'
-export type RunUpgradeKey =
-  | 'minerTuning'
-  | 'minerSwarm'
-  | 'minerFoundries'
-  | 'drillGrease'
-  | 'drillAI'
-  | 'drillHypercut'
-  | 'extractorCooling'
-  | 'extractorClusters'
-  | 'extractorMatrices'
-  | 'refineryCatalysts'
-  | 'refineryOverdrive'
-  | 'refinerySingularities'
-  | 'megaRigServos'
-  | 'megaRigNanites'
-  | 'megaRigSentience'
-  | 'orbitalDrones'
-  | 'orbitalCommand'
-  | 'orbitalAnchors'
-  | 'stellarFlux'
-  | 'stellarLattices'
-  | 'stellarAscension'
-  | 'dysonPhasing'
-  | 'dysonHarmonics'
-  | 'dysonDominion'
-  | 'singularityContainment'
-  | 'singularityLensing'
-  | 'singularityTranscendence'
-  | 'continuumStabilizers'
-  | 'continuumRecursion'
-  | 'continuumParadoxCore'
-  | 'automationLoops'
-  | 'quantumForecasts'
-  | 'fractalEconomies'
-  | 'causalOverclock'
-  | 'archiveBatteries'
-  | 'temporalVaults'
-  | 'deepArchive'
-  | 'chronoReserves'
+
+export const UPGRADE_ORDER = [
+  'minerTuning',
+  'minerSwarm',
+  'minerFoundries',
+  'minerOvermind',
+  'drillGrease',
+  'drillAI',
+  'drillHypercut',
+  'drillSingularity',
+  'extractorCooling',
+  'extractorClusters',
+  'extractorMatrices',
+  'extractorHypergrid',
+  'refineryCatalysts',
+  'refineryOverdrive',
+  'refinerySingularities',
+  'refineryTransmutation',
+  'megaRigServos',
+  'megaRigNanites',
+  'megaRigSentience',
+  'megaRigDominion',
+  'orbitalDrones',
+  'orbitalCommand',
+  'orbitalAnchors',
+  'orbitalEmpyrean',
+  'stellarFlux',
+  'stellarLattices',
+  'stellarAscension',
+  'stellarParagon',
+  'dysonPhasing',
+  'dysonHarmonics',
+  'dysonDominion',
+  'dysonZenith',
+  'singularityContainment',
+  'singularityLensing',
+  'singularityTranscendence',
+  'singularityAxiom',
+  'continuumStabilizers',
+  'continuumRecursion',
+  'continuumParadoxCore',
+  'continuumEternity',
+  'voidTuning',
+  'voidResonance',
+  'voidApotheosis',
+  'entropyBaffles',
+  'entropyRecapture',
+  'entropyHorizon',
+  'quantumSpools',
+  'quantumEntanglement',
+  'quantumConfluence',
+  'darkMatterCompression',
+  'darkMatterFusion',
+  'darkMatterTranscendence',
+  'realityTempering',
+  'realityRecasting',
+  'realityAscendancy',
+  'fractalRecursion',
+  'fractalAmplification',
+  'fractalInfinity',
+  'causalThreading',
+  'causalBraiding',
+  'causalApex',
+  'epochInscription',
+  'epochResonance',
+  'epochImperative',
+  'omniversalBridges',
+  'omniversalConcord',
+  'omniversalSupremacy',
+  'genesisKindling',
+  'genesisProliferation',
+  'genesisCrowning',
+  'automationLoops',
+  'quantumForecasts',
+  'fractalEconomies',
+  'causalOverclock',
+  'archiveBatteries',
+  'temporalVaults',
+  'deepArchive',
+  'chronoReserves',
+] as const
+
+export type RunUpgradeKey = (typeof UPGRADE_ORDER)[number]
 
 export const ACHIEVEMENT_ORDER = [
   'allCredits5m',
@@ -115,51 +159,111 @@ export const ACHIEVEMENT_ORDER = [
   'miners600',
   'miners1000',
   'miners2000',
+  'miners3500',
   'drills75',
   'drills200',
   'drills400',
   'drills750',
   'drills1500',
+  'drills2500',
   'extractors50',
   'extractors120',
   'extractors250',
   'extractors500',
   'extractors1000',
+  'extractors1800',
   'refineries40',
   'refineries90',
   'refineries200',
   'refineries400',
   'refineries800',
+  'refineries1200',
   'megaRigs30',
   'megaRigs75',
   'megaRigs150',
   'megaRigs300',
   'megaRigs600',
+  'megaRigs900',
   'orbitalPlatforms20',
   'orbitalPlatforms50',
   'orbitalPlatforms100',
   'orbitalPlatforms200',
   'orbitalPlatforms400',
+  'orbitalPlatforms600',
   'stellarForges15',
   'stellarForges35',
   'stellarForges75',
   'stellarForges150',
   'stellarForges300',
+  'stellarForges450',
   'dysonArrays10',
   'dysonArrays25',
   'dysonArrays50',
   'dysonArrays100',
   'dysonArrays200',
+  'dysonArrays300',
   'singularityWells8',
   'singularityWells20',
   'singularityWells40',
   'singularityWells80',
   'singularityWells160',
+  'singularityWells220',
   'continuumEngines5',
   'continuumEngines12',
   'continuumEngines25',
   'continuumEngines50',
   'continuumEngines100',
+  'continuumEngines140',
+  'voidLathes3',
+  'voidLathes8',
+  'voidLathes16',
+  'voidLathes32',
+  'voidLathes64',
+  'entropyReactors2',
+  'entropyReactors5',
+  'entropyReactors12',
+  'entropyReactors24',
+  'entropyReactors48',
+  'quantumFoundries1',
+  'quantumFoundries4',
+  'quantumFoundries10',
+  'quantumFoundries20',
+  'quantumFoundries40',
+  'darkMatterSmelters1',
+  'darkMatterSmelters3',
+  'darkMatterSmelters8',
+  'darkMatterSmelters16',
+  'darkMatterSmelters32',
+  'realityKilns1',
+  'realityKilns3',
+  'realityKilns7',
+  'realityKilns14',
+  'realityKilns28',
+  'fractalAssemblers1',
+  'fractalAssemblers2',
+  'fractalAssemblers6',
+  'fractalAssemblers12',
+  'fractalAssemblers24',
+  'causalLooms1',
+  'causalLooms2',
+  'causalLooms5',
+  'causalLooms10',
+  'causalLooms20',
+  'epochMonoliths1',
+  'epochMonoliths2',
+  'epochMonoliths4',
+  'epochMonoliths8',
+  'epochMonoliths16',
+  'omniversalFoundries1',
+  'omniversalFoundries2',
+  'omniversalFoundries4',
+  'omniversalFoundries7',
+  'omniversalFoundries14',
+  'genesisForges1',
+  'genesisForges2',
+  'genesisForges3',
+  'genesisForges6',
+  'genesisForges12',
   'firstPrestige',
   'prestige3',
   'prestige10',
@@ -376,47 +480,6 @@ export const GENERATOR_ORDER: GeneratorKey[] = [
   'epochMonoliths',
   'omniversalFoundries',
   'genesisForges',
-]
-
-export const UPGRADE_ORDER: RunUpgradeKey[] = [
-  'minerTuning',
-  'minerSwarm',
-  'minerFoundries',
-  'drillGrease',
-  'drillAI',
-  'drillHypercut',
-  'extractorCooling',
-  'extractorClusters',
-  'extractorMatrices',
-  'refineryCatalysts',
-  'refineryOverdrive',
-  'refinerySingularities',
-  'megaRigServos',
-  'megaRigNanites',
-  'megaRigSentience',
-  'orbitalDrones',
-  'orbitalCommand',
-  'orbitalAnchors',
-  'stellarFlux',
-  'stellarLattices',
-  'stellarAscension',
-  'dysonPhasing',
-  'dysonHarmonics',
-  'dysonDominion',
-  'singularityContainment',
-  'singularityLensing',
-  'singularityTranscendence',
-  'continuumStabilizers',
-  'continuumRecursion',
-  'continuumParadoxCore',
-  'automationLoops',
-  'quantumForecasts',
-  'fractalEconomies',
-  'causalOverclock',
-  'archiveBatteries',
-  'temporalVaults',
-  'deepArchive',
-  'chronoReserves',
 ]
 
 validateProgressionConfig({
