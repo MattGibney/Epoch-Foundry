@@ -46,6 +46,7 @@ import {
   createInitialGameState,
   GENERATOR_ORDER,
   getGeneratorCost,
+  isGeneratorPurchaseAllowedByContracts,
   getContractProgress,
   getOfflineProgressCapSeconds,
   getPrestigeGainForReset,
@@ -470,6 +471,9 @@ function App() {
   const purchasableGeneratorCount = useMemo(
     () =>
       GENERATOR_ORDER.reduce((count, key) => {
+        if (!isGeneratorPurchaseAllowedByContracts(game, key)) {
+          return count
+        }
         const cost = getGeneratorCost(game, key)
         return count + (new Decimal(game.credits).greaterThanOrEqualTo(cost) ? 1 : 0)
       }, 0),
