@@ -168,6 +168,8 @@ function parseContractState(value: unknown): ContractState | null {
     candidate.kind === 'challenge' || candidate.kind === 'objective'
       ? candidate.kind
       : 'objective'
+  const progressMode =
+    candidate.progressMode === 'incremental' ? 'incremental' : 'absolute'
   const isParticipating = candidate.isParticipating === true
   const band = parseContractBand(candidate.band)
   const quality =
@@ -184,6 +186,9 @@ function parseContractState(value: unknown): ContractState | null {
     expiresAtMsRaw !== null ? expiresAtMsRaw : candidate.expiresAtMs === null ? null : null
   const offerExpiresAtMs =
     parseNonNegativeInt(candidate.offerExpiresAtMs) ?? createdAtMs + getDefaultOfferDurationMs(band)
+  const progressStartRunCredits = parseDecimalString(candidate.progressStartRunCredits)
+  const progressStartOwnedCount = parseNonNegativeInt(candidate.progressStartOwnedCount)
+  const progressStartPurchasedUpgrades = parseNonNegativeInt(candidate.progressStartPurchasedUpgrades)
   const challengeDurationMsRaw = parseNonNegativeInt(candidate.challengeDurationMs)
   const challengeDurationMs =
     challengeDurationMsRaw !== null
@@ -291,7 +296,11 @@ function parseContractState(value: unknown): ContractState | null {
       kind,
       band,
       quality,
+      progressMode,
       isParticipating,
+      progressStartRunCredits,
+      progressStartOwnedCount,
+      progressStartPurchasedUpgrades,
       objective: { type: 'runCredits', target },
       rewards,
       modifier,
@@ -315,7 +324,11 @@ function parseContractState(value: unknown): ContractState | null {
       kind,
       band,
       quality,
+      progressMode,
       isParticipating,
+      progressStartRunCredits,
+      progressStartOwnedCount,
+      progressStartPurchasedUpgrades,
       objective: {
         type: 'owned',
         generator: objective.generator as GeneratorKey,
@@ -340,7 +353,11 @@ function parseContractState(value: unknown): ContractState | null {
       kind,
       band,
       quality,
+      progressMode,
       isParticipating,
+      progressStartRunCredits,
+      progressStartOwnedCount,
+      progressStartPurchasedUpgrades,
       objective: { type: 'creditsPerSecond', target },
       rewards,
       modifier,
@@ -361,7 +378,11 @@ function parseContractState(value: unknown): ContractState | null {
       kind,
       band,
       quality,
+      progressMode,
       isParticipating,
+      progressStartRunCredits,
+      progressStartOwnedCount,
+      progressStartPurchasedUpgrades,
       objective: { type: 'purchasedUpgrades', target },
       rewards,
       modifier,

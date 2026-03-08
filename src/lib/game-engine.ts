@@ -244,7 +244,11 @@ export interface ContractState {
   kind: 'objective' | 'challenge'
   band: ContractBand
   quality: ContractQuality
+  progressMode: 'absolute' | 'incremental'
   isParticipating: boolean
+  progressStartRunCredits: string | null
+  progressStartOwnedCount: number | null
+  progressStartPurchasedUpgrades: number | null
   objective: ContractObjective
   rewards: ContractReward[]
   modifier: ContractModifier | null
@@ -841,16 +845,13 @@ function estimateSecondsForObjective(
   }
 
   if (objective.type === 'runCredits') {
-    const remaining = Decimal.max(
-      ZERO,
-      toDecimal(objective.target).minus(state.stats.totalCredits),
-    )
+    const remaining = Decimal.max(ZERO, toDecimal(objective.target))
     return remaining.div(creditsPerSecond).toNumber()
   }
 
   if (objective.type === 'owned') {
     const owned = state.generators[objective.generator]
-    const required = Math.max(0, objective.target - owned)
+    const required = Math.max(0, objective.target)
     if (required <= 0) {
       return 0
     }
@@ -878,8 +879,7 @@ function estimateSecondsForObjective(
     return remaining.div(projectedGrowthPerSecond).toNumber()
   }
 
-  const currentPurchased = getPurchasedUpgradeCount(state)
-  const requiredUpgrades = Math.max(0, objective.target - currentPurchased)
+  const requiredUpgrades = Math.max(0, objective.target)
   if (requiredUpgrades <= 0) {
     return 0
   }
@@ -929,7 +929,7 @@ function buildContractObjectiveCandidate(
     )
     const objective: ContractObjective = {
       type: 'runCredits',
-      target: toDecimal(state.stats.totalCredits).plus(delta).toString(),
+      target: delta.toString(),
     }
     return isObjectiveCompatibleWithModifier(objective, modifier) ? objective : null
   }
@@ -971,7 +971,7 @@ function buildContractObjectiveCandidate(
     const objective: ContractObjective = {
       type: 'owned',
       generator,
-      target: owned + Math.ceil(increment * qualityScalar),
+      target: Math.ceil(increment * qualityScalar),
     }
     return isObjectiveCompatibleWithModifier(objective, modifier) ? objective : null
   }
@@ -990,7 +990,6 @@ function buildContractObjectiveCandidate(
     return isObjectiveCompatibleWithModifier(objective, modifier) ? objective : null
   }
 
-  const currentUpgrades = getPurchasedUpgradeCount(state)
   const remainingUpgrades = UPGRADE_ORDER.filter((key) => !state.purchasedUpgrades[key]).length
   if (remainingUpgrades <= 0) {
     return null
@@ -1001,7 +1000,7 @@ function buildContractObjectiveCandidate(
   const increment = randomIntFromSeed(seed, indexOffset + 3, 1, maxIncrement)
   const objective: ContractObjective = {
     type: 'purchasedUpgrades',
-    target: currentUpgrades + Math.ceil(increment * qualityScalar),
+    target: Math.ceil(increment * qualityScalar),
   }
   return isObjectiveCompatibleWithModifier(objective, modifier) ? objective : null
 }
@@ -1094,13 +1093,10 @@ function generateContractForSlot(
   const attemptLimit = 24
   const fallbackObjective: ContractObjective = {
     type: 'runCredits',
-    target: toDecimal(state.stats.totalCredits)
-      .plus(
-        Decimal.max(
-          getTotalProductionPerSecond(state).times(Math.max(300, targetSeconds)),
-          new Decimal(1000),
-        ),
-      )
+    target: Decimal.max(
+      getTotalProductionPerSecond(state).times(Math.max(300, targetSeconds)),
+      new Decimal(1000),
+    )
       .ceil()
       .toString(),
   }
@@ -1134,7 +1130,11 @@ function generateContractForSlot(
     kind,
     band,
     quality,
+    progressMode: 'incremental',
     isParticipating: false,
+    progressStartRunCredits: null,
+    progressStartOwnedCount: null,
+    progressStartPurchasedUpgrades: null,
     objective: selectedObjective,
     rewards: buildContractRewards(state, slotSeed, band, quality, kind, targetSeconds),
     modifier,
@@ -1245,9 +1245,20 @@ function createInitialContractsState(state: GameState, nowMs: number): Contracts
 }
 
 export function getContractProgress(state: GameState, contract: ContractState) {
+  const isIncremental = contract.progressMode === 'incremental'
+
   if (contract.objective.type === 'runCredits') {
     const target = toDecimal(contract.objective.target)
-    const current = toDecimal(state.stats.totalCredits)
+    const current = isIncremental
+      ? contract.isParticipating
+        ? Decimal.max(
+            ZERO,
+            toDecimal(state.stats.totalCredits).minus(
+              toDecimal(contract.progressStartRunCredits ?? state.stats.totalCredits),
+            ),
+          )
+        : ZERO
+      : toDecimal(state.stats.totalCredits)
     return {
       isComplete: current.greaterThanOrEqualTo(target),
       current: current.toString(),
@@ -1257,7 +1268,15 @@ export function getContractProgress(state: GameState, contract: ContractState) {
   }
 
   if (contract.objective.type === 'owned') {
-    const current = state.generators[contract.objective.generator]
+    const current = isIncremental
+      ? contract.isParticipating
+        ? Math.max(
+            0,
+            state.generators[contract.objective.generator] -
+              (contract.progressStartOwnedCount ?? state.generators[contract.objective.generator]),
+          )
+        : 0
+      : state.generators[contract.objective.generator]
     return {
       isComplete: current >= contract.objective.target,
       current: current.toString(),
@@ -1277,7 +1296,12 @@ export function getContractProgress(state: GameState, contract: ContractState) {
     }
   }
 
-  const current = getPurchasedUpgradeCount(state)
+  const totalPurchased = getPurchasedUpgradeCount(state)
+  const current = isIncremental
+    ? contract.isParticipating
+      ? Math.max(0, totalPurchased - (contract.progressStartPurchasedUpgrades ?? totalPurchased))
+      : 0
+    : totalPurchased
   return {
     isComplete: current >= contract.objective.target,
     current: current.toString(),
@@ -1429,6 +1453,18 @@ export function activateContract(state: GameState, contractId: string, nowMs = D
   nextContracts[contractIndex] = {
     ...contract,
     isParticipating: true,
+    progressStartRunCredits:
+      contract.progressMode === 'incremental' && contract.objective.type === 'runCredits'
+        ? state.stats.totalCredits
+        : contract.progressStartRunCredits,
+    progressStartOwnedCount:
+      contract.progressMode === 'incremental' && contract.objective.type === 'owned'
+        ? state.generators[contract.objective.generator]
+        : contract.progressStartOwnedCount,
+    progressStartPurchasedUpgrades:
+      contract.progressMode === 'incremental' && contract.objective.type === 'purchasedUpgrades'
+        ? getPurchasedUpgradeCount(state)
+        : contract.progressStartPurchasedUpgrades,
     expiresAtMs:
       contract.challengeDurationMs !== null
         ? nowMs + contract.challengeDurationMs
