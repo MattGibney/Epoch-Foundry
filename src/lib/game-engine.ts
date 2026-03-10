@@ -2,13 +2,19 @@ import Decimal from 'decimal.js'
 import {
   ACHIEVEMENT_CONFIG,
   GENERATOR_CONFIG,
+  MINER_SUBSYSTEM_CONFIG,
+  MINER_SUBSYSTEM_GENERATOR_CONFIG,
+  MINER_SUBSYSTEM_UPGRADE_CONFIG,
   PERMANENT_UPGRADE_CONFIG,
   PRESTIGE_BALANCE,
   UPGRADE_CONFIG,
   UPGRADE_COST_MULTIPLIER_BY_TYPE,
   validateProgressionConfig,
   type AchievementConfigEntry,
+  type MinerSubsystemGeneratorConfigEntry,
+  type MinerSubsystemUpgradeConfigEntry,
   type PermanentUpgradeConfigEntry,
+  type SubsystemKey,
   type UpgradeConfigEntry,
 } from '@/lib/progression-config'
 
@@ -341,6 +347,43 @@ export type AchievementKey = (typeof ACHIEVEMENT_ORDER)[number]
 
 export const BUY_AMOUNT_OPTIONS = [1, 10, 100] as const
 
+export const MINER_SUBSYSTEM_UPGRADE_ORDER = [
+  'scoutTraining',
+  'scoutRelays',
+  'scoutNetwork',
+  'campPlanning',
+  'campRouting',
+  'campAtlas',
+  'shaftCalibration',
+  'shaftServos',
+  'shaftDominion',
+  'freightDispatch',
+  'freightConvoys',
+  'freightLattice',
+  'labModeling',
+  'labForecasting',
+  'labSynthesis',
+  'commandPlanning',
+  'commandAutomation',
+  'commandSingularity',
+  'fieldProtocols',
+  'networkFusion',
+  'oreAlgorithms',
+] as const
+
+export type MinerSubsystemUpgradeKey = (typeof MINER_SUBSYSTEM_UPGRADE_ORDER)[number]
+
+export const MINER_SUBSYSTEM_GENERATOR_ORDER = [
+  'scouts',
+  'surveyCamps',
+  'testShafts',
+  'freightTeams',
+  'geologyLabs',
+  'commandCenters',
+] as const
+
+export type MinerSubsystemGeneratorKey = (typeof MINER_SUBSYSTEM_GENERATOR_ORDER)[number]
+
 export interface GeneratorsState {
   miners: number
   drills: number
@@ -389,6 +432,20 @@ export interface RandomState {
   worldSeed: string
 }
 
+export type MinerSubsystemGeneratorsState = Record<MinerSubsystemGeneratorKey, number>
+export type MinerSubsystemPurchasedUpgradesState = Record<MinerSubsystemUpgradeKey, boolean>
+
+export interface MinerSubsystemState {
+  oreData: string
+  totalOreData: string
+  generators: MinerSubsystemGeneratorsState
+  purchasedUpgrades: MinerSubsystemPurchasedUpgradesState
+}
+
+export interface SubsystemsState {
+  miners: MinerSubsystemState
+}
+
 export interface GameState {
   credits: string
   generators: GeneratorsState
@@ -399,6 +456,7 @@ export interface GameState {
   settings: GameSettingsState
   prestige: PrestigeState
   random: RandomState
+  subsystems: SubsystemsState
 }
 
 interface GeneratorDef {
@@ -431,6 +489,17 @@ interface AchievementDef {
   isUnlocked: (state: GameState) => boolean
 }
 
+type MinerSubsystemUpgradeDef = MinerSubsystemUpgradeConfigEntry & {
+  key: MinerSubsystemUpgradeKey
+  cost: string
+  multiplier: string
+  requiresUpgrade?: MinerSubsystemUpgradeKey
+}
+
+type MinerSubsystemGeneratorDef = MinerSubsystemGeneratorConfigEntry & {
+  key: MinerSubsystemGeneratorKey
+}
+
 export type PermanentUpgradeKey =
   | 'essenceInfusion'
   | 'bootstrapCache'
@@ -460,7 +529,16 @@ type OfflineCapUpgradeDef = UpgradeBaseDef & {
   offlineCapSeconds: number
 }
 
-type UpgradeDef = GlobalUpgradeDef | GeneratorUpgradeDef | OfflineCapUpgradeDef
+type SubsystemUnlockUpgradeDef = UpgradeBaseDef & {
+  effectType: 'subsystemUnlock'
+  subsystem: SubsystemKey
+}
+
+type UpgradeDef =
+  | GlobalUpgradeDef
+  | GeneratorUpgradeDef
+  | OfflineCapUpgradeDef
+  | SubsystemUnlockUpgradeDef
 
 const ONE = new Decimal(1)
 const ZERO = new Decimal(0)
@@ -470,6 +548,15 @@ const PRESTIGE_UNLOCK_CREDITS = new Decimal(PRESTIGE_BALANCE.unlockCredits)
 const PRESTIGE_GAIN_EXPONENT = new Decimal(PRESTIGE_BALANCE.gainExponent)
 const PRESTIGE_RESET_PRODUCTION_BONUS = new Decimal(PRESTIGE_BALANCE.productionPerReset)
 const PRESTIGE_RESET_GAIN_BONUS = new Decimal(PRESTIGE_BALANCE.gainPerReset)
+const MINER_SUBSYSTEM_MULTIPLIER_EXPONENT = new Decimal(MINER_SUBSYSTEM_CONFIG.multiplierExponent)
+
+export const SUBSYSTEM_UNLOCK_UPGRADES: Record<SubsystemKey, RunUpgradeKey> = {
+  miners: MINER_SUBSYSTEM_CONFIG.unlockUpgrade as RunUpgradeKey,
+}
+
+export const GENERATOR_SUBSYSTEMS: Partial<Record<GeneratorKey, SubsystemKey>> = {
+  miners: 'miners',
+}
 
 export const PERMANENT_UPGRADE_ORDER: PermanentUpgradeKey[] = [
   'essenceInfusion',
@@ -517,6 +604,8 @@ validateProgressionConfig({
   upgradeOrder: UPGRADE_ORDER,
   achievementOrder: ACHIEVEMENT_ORDER,
   permanentUpgradeOrder: PERMANENT_UPGRADE_ORDER,
+  minerSubsystemGeneratorOrder: MINER_SUBSYSTEM_GENERATOR_ORDER,
+  minerSubsystemUpgradeOrder: MINER_SUBSYSTEM_UPGRADE_ORDER,
 })
 
 function getRequiredGenerator(entry: UpgradeConfigEntry): GeneratorKey | undefined {
@@ -586,6 +675,20 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = UPGRADE_ORDER.red
       return accumulator
     }
 
+    if (entry.effectType === 'subsystemUnlock') {
+      accumulator[key] = {
+        key,
+        label: entry.label,
+        description: entry.description,
+        cost: getUpgradeCost(entry),
+        effectType: 'subsystemUnlock',
+        subsystem: entry.subsystem!,
+        requiresOwned,
+        requiresUpgrade: entry.requiresUpgrade as RunUpgradeKey | undefined,
+      }
+      return accumulator
+    }
+
     accumulator[key] = {
       key,
       label: entry.label,
@@ -600,6 +703,33 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = UPGRADE_ORDER.red
   },
   {} as Record<RunUpgradeKey, UpgradeDef>,
 )
+
+export const MINER_SUBSYSTEM_UPGRADE_DEFS: Record<
+  MinerSubsystemUpgradeKey,
+  MinerSubsystemUpgradeDef
+> = MINER_SUBSYSTEM_UPGRADE_ORDER.reduce((accumulator, key) => {
+  const entry = MINER_SUBSYSTEM_UPGRADE_CONFIG[key]
+  accumulator[key] = {
+    ...entry,
+    key,
+    cost: entry.cost,
+    multiplier: entry.multiplier,
+    requiresUpgrade: entry.requiresUpgrade as MinerSubsystemUpgradeKey | undefined,
+  }
+  return accumulator
+}, {} as Record<MinerSubsystemUpgradeKey, MinerSubsystemUpgradeDef>)
+
+export const MINER_SUBSYSTEM_GENERATOR_DEFS: Record<
+  MinerSubsystemGeneratorKey,
+  MinerSubsystemGeneratorDef
+> = MINER_SUBSYSTEM_GENERATOR_ORDER.reduce((accumulator, key) => {
+  const entry = MINER_SUBSYSTEM_GENERATOR_CONFIG[key]
+  accumulator[key] = {
+    ...entry,
+    key,
+  }
+  return accumulator
+}, {} as Record<MinerSubsystemGeneratorKey, MinerSubsystemGeneratorDef>)
 
 function isAchievementUnlockedFromRequirement(
   state: GameState,
@@ -854,6 +984,35 @@ function createInitialRandomState(nowMs = Date.now()): RandomState {
   }
 }
 
+function createInitialMinerSubsystemGeneratorsState(): MinerSubsystemGeneratorsState {
+  return MINER_SUBSYSTEM_GENERATOR_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = 0
+    return accumulator
+  }, {} as MinerSubsystemGeneratorsState)
+}
+
+function createInitialMinerSubsystemPurchasedUpgradesState(): MinerSubsystemPurchasedUpgradesState {
+  return MINER_SUBSYSTEM_UPGRADE_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = false
+    return accumulator
+  }, {} as MinerSubsystemPurchasedUpgradesState)
+}
+
+function createInitialMinerSubsystemState(): MinerSubsystemState {
+  return {
+    oreData: '0',
+    totalOreData: '0',
+    generators: createInitialMinerSubsystemGeneratorsState(),
+    purchasedUpgrades: createInitialMinerSubsystemPurchasedUpgradesState(),
+  }
+}
+
+function createInitialSubsystemsState(): SubsystemsState {
+  return {
+    miners: createInitialMinerSubsystemState(),
+  }
+}
+
 export function createInitialGameState(nowMs = Date.now()): GameState {
   const initial: GameState = {
     credits: '0',
@@ -894,8 +1053,340 @@ export function createInitialGameState(nowMs = Date.now()): GameState {
     },
     prestige: createInitialPrestigeState(),
     random: createInitialRandomState(nowMs),
+    subsystems: createInitialSubsystemsState(),
   }
   return initial
+}
+
+export function isSubsystemUnlocked(state: GameState, subsystem: SubsystemKey): boolean {
+  return state.purchasedUpgrades[SUBSYSTEM_UNLOCK_UPGRADES[subsystem]]
+}
+
+export function getSubsystemForGenerator(key: GeneratorKey): SubsystemKey | null {
+  return GENERATOR_SUBSYSTEMS[key] ?? null
+}
+
+export function isGeneratorManagedBySubsystem(state: GameState, key: GeneratorKey): boolean {
+  const subsystem = getSubsystemForGenerator(key)
+  return subsystem ? isSubsystemUnlocked(state, subsystem) : false
+}
+
+function normalizeMinerSubsystemGeneratorsState(
+  generators: Partial<Record<MinerSubsystemGeneratorKey, number>> | undefined,
+): MinerSubsystemGeneratorsState {
+  return MINER_SUBSYSTEM_GENERATOR_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = Math.max(0, Math.floor(generators?.[key] ?? 0))
+    return accumulator
+  }, {} as MinerSubsystemGeneratorsState)
+}
+
+function normalizeMinerSubsystemPurchasedUpgradesState(
+  purchasedUpgrades: Partial<Record<MinerSubsystemUpgradeKey, boolean>> | undefined,
+): MinerSubsystemPurchasedUpgradesState {
+  return MINER_SUBSYSTEM_UPGRADE_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = Boolean(purchasedUpgrades?.[key])
+    return accumulator
+  }, {} as MinerSubsystemPurchasedUpgradesState)
+}
+
+function getNormalizedMinerSubsystemState(state: GameState): MinerSubsystemState {
+  return {
+    oreData: state.subsystems.miners.oreData ?? '0',
+    totalOreData: state.subsystems.miners.totalOreData ?? state.subsystems.miners.oreData ?? '0',
+    generators: normalizeMinerSubsystemGeneratorsState(state.subsystems.miners.generators),
+    purchasedUpgrades: normalizeMinerSubsystemPurchasedUpgradesState(
+      state.subsystems.miners.purchasedUpgrades,
+    ),
+  }
+}
+
+export function getMinerOreData(state: GameState): Decimal {
+  return toDecimal(getNormalizedMinerSubsystemState(state).oreData)
+}
+
+export function getMinerTotalOreData(state: GameState): Decimal {
+  return toDecimal(getNormalizedMinerSubsystemState(state).totalOreData)
+}
+
+function getMinerSubsystemGlobalProductionMultiplier(state: GameState): Decimal {
+  const subsystem = getNormalizedMinerSubsystemState(state)
+
+  return MINER_SUBSYSTEM_UPGRADE_ORDER.reduce((multiplier, key) => {
+    const upgrade = MINER_SUBSYSTEM_UPGRADE_DEFS[key]
+    if (!subsystem.purchasedUpgrades[key] || upgrade.effectType !== 'global') {
+      return multiplier
+    }
+
+    return multiplier.times(upgrade.multiplier)
+  }, ONE)
+}
+
+function getMinerSubsystemGeneratorProductionMultiplier(
+  state: GameState,
+  generatorKey: MinerSubsystemGeneratorKey,
+): Decimal {
+  const subsystem = getNormalizedMinerSubsystemState(state)
+
+  return MINER_SUBSYSTEM_UPGRADE_ORDER.reduce((multiplier, key) => {
+    const upgrade = MINER_SUBSYSTEM_UPGRADE_DEFS[key]
+    if (
+      !subsystem.purchasedUpgrades[key] ||
+      upgrade.effectType !== 'generator' ||
+      upgrade.target !== generatorKey
+    ) {
+      return multiplier
+    }
+
+    return multiplier.times(upgrade.multiplier)
+  }, ONE)
+}
+
+export function getMinerSubsystemGeneratorCost(
+  state: GameState,
+  key: MinerSubsystemGeneratorKey,
+  amount = state.buyAmount,
+): Decimal {
+  const definition = MINER_SUBSYSTEM_GENERATOR_DEFS[key]
+  return calculateBulkCost(
+    toDecimal(definition.baseCost),
+    toDecimal(definition.growth),
+    getNormalizedMinerSubsystemState(state).generators[key],
+    amount,
+  )
+}
+
+export function getMinerSubsystemGeneratorProductionPerSecond(
+  state: GameState,
+  key: MinerSubsystemGeneratorKey,
+): Decimal {
+  if (!isSubsystemUnlocked(state, 'miners')) {
+    return ZERO
+  }
+
+  const owned = getNormalizedMinerSubsystemState(state).generators[key]
+  if (owned <= 0) {
+    return ZERO
+  }
+
+  return toDecimal(MINER_SUBSYSTEM_GENERATOR_DEFS[key].baseProduction)
+    .times(owned)
+    .times(getMinerSubsystemGeneratorProductionMultiplier(state, key))
+    .times(getMinerSubsystemGlobalProductionMultiplier(state))
+}
+
+export function getMinerSubsystemTotalProductionPerSecond(state: GameState): Decimal {
+  if (!isSubsystemUnlocked(state, 'miners')) {
+    return ZERO
+  }
+
+  return MINER_SUBSYSTEM_GENERATOR_ORDER.reduce(
+    (total, key) => total.plus(getMinerSubsystemGeneratorProductionPerSecond(state, key)),
+    ZERO,
+  )
+}
+
+export function getMinerSubsystemMultiplier(state: GameState): Decimal {
+  if (!isSubsystemUnlocked(state, 'miners')) {
+    return ONE
+  }
+
+  const totalProduction = getMinerSubsystemTotalProductionPerSecond(state)
+  if (totalProduction.lessThanOrEqualTo(0)) {
+    return ONE
+  }
+
+  return totalProduction.plus(ONE).pow(MINER_SUBSYSTEM_MULTIPLIER_EXPONENT)
+}
+
+function applySubsystemTimeProgress(
+  state: GameState,
+  elapsedSeconds: number,
+): SubsystemsState {
+  const normalizedMinerSubsystem = getNormalizedMinerSubsystemState(state)
+  if (elapsedSeconds <= 0 || !isSubsystemUnlocked(state, 'miners')) {
+    return {
+      ...state.subsystems,
+      miners: normalizedMinerSubsystem,
+    }
+  }
+
+  const oreGain = getMinerSubsystemTotalProductionPerSecond(state).times(elapsedSeconds)
+  return {
+    ...state.subsystems,
+    miners: {
+      ...normalizedMinerSubsystem,
+      oreData: getMinerOreData(state).plus(oreGain).toString(),
+      totalOreData: getMinerTotalOreData(state).plus(oreGain).toString(),
+    },
+  }
+}
+
+function getActionReadyMinerState(
+  state: GameState,
+  nowMs: number,
+): GameState {
+  const advancedState = nowMs > state.stats.lastTickAtMs ? tickGame(state, nowMs) : state
+  const effectiveNowMs = Math.max(nowMs, advancedState.stats.lastTickAtMs)
+
+  return {
+    ...advancedState,
+    stats: {
+      ...advancedState.stats,
+      lastTickAtMs: effectiveNowMs,
+    },
+    subsystems: {
+      ...advancedState.subsystems,
+      miners: getNormalizedMinerSubsystemState(advancedState),
+    },
+  }
+}
+
+export function buyMinerSubsystemGenerator(
+  state: GameState,
+  key: MinerSubsystemGeneratorKey,
+  nowMs = Date.now(),
+): GameState {
+  if (!isSubsystemUnlocked(state, 'miners')) {
+    return state
+  }
+
+  const normalizedState = getActionReadyMinerState(state, nowMs)
+  const cost = getMinerSubsystemGeneratorCost(normalizedState, key)
+  const oreData = getMinerOreData(normalizedState)
+  if (oreData.lessThan(cost)) {
+    return state
+  }
+
+  return {
+    ...normalizedState,
+    subsystems: {
+      ...normalizedState.subsystems,
+      miners: {
+        ...normalizedState.subsystems.miners,
+        oreData: oreData.minus(cost).toString(),
+        generators: {
+          ...normalizedState.subsystems.miners.generators,
+          [key]: normalizedState.subsystems.miners.generators[key] + normalizedState.buyAmount,
+        },
+      },
+    },
+  }
+}
+
+export function isMinerSubsystemUpgradeUnlocked(
+  state: GameState,
+  key: MinerSubsystemUpgradeKey,
+): boolean {
+  if (!isSubsystemUnlocked(state, 'miners')) {
+    return false
+  }
+
+  const upgrade = MINER_SUBSYSTEM_UPGRADE_DEFS[key]
+  const subsystem = getNormalizedMinerSubsystemState(state)
+  const meetsGeneratorRequirement =
+    !upgrade.requiresOwned ||
+    subsystem.generators[upgrade.requiresOwned.generator as MinerSubsystemGeneratorKey] >=
+      upgrade.requiresOwned.count
+  const meetsUpgradeRequirement =
+    !upgrade.requiresUpgrade || subsystem.purchasedUpgrades[upgrade.requiresUpgrade]
+
+  return meetsGeneratorRequirement && meetsUpgradeRequirement
+}
+
+export function getMinerSubsystemUpgradeUnlockProgress(
+  state: GameState,
+  key: MinerSubsystemUpgradeKey,
+) {
+  if (!isSubsystemUnlocked(state, 'miners')) {
+    return null
+  }
+
+  const upgrade = MINER_SUBSYSTEM_UPGRADE_DEFS[key]
+  const subsystem = getNormalizedMinerSubsystemState(state)
+
+  if (upgrade.requiresOwned) {
+    const currentOwned = subsystem.generators[upgrade.requiresOwned.generator as MinerSubsystemGeneratorKey]
+    if (currentOwned < upgrade.requiresOwned.count) {
+      return {
+        current: currentOwned,
+        required: upgrade.requiresOwned.count,
+        label: MINER_SUBSYSTEM_GENERATOR_DEFS[
+          upgrade.requiresOwned.generator as MinerSubsystemGeneratorKey
+        ].label,
+      }
+    }
+  }
+
+  if (upgrade.requiresUpgrade && !subsystem.purchasedUpgrades[upgrade.requiresUpgrade]) {
+    return {
+      current: 0,
+      required: 1,
+      label: MINER_SUBSYSTEM_UPGRADE_DEFS[upgrade.requiresUpgrade].label,
+    }
+  }
+
+  return null
+}
+
+export function getMinerSubsystemUpgradeCost(
+  _state: GameState,
+  key: MinerSubsystemUpgradeKey,
+): Decimal {
+  return toDecimal(MINER_SUBSYSTEM_UPGRADE_DEFS[key].cost)
+}
+
+export function canBuyMinerSubsystemUpgrade(
+  state: GameState,
+  key: MinerSubsystemUpgradeKey,
+): boolean {
+  const subsystem = getNormalizedMinerSubsystemState(state)
+  if (
+    subsystem.purchasedUpgrades[key] ||
+    !isMinerSubsystemUpgradeUnlocked(state, key)
+  ) {
+    return false
+  }
+
+  return getMinerOreData(state).greaterThanOrEqualTo(getMinerSubsystemUpgradeCost(state, key))
+}
+
+export function buyMinerSubsystemUpgrade(
+  state: GameState,
+  key: MinerSubsystemUpgradeKey,
+  nowMs = Date.now(),
+): GameState {
+  if (!isSubsystemUnlocked(state, 'miners')) {
+    return state
+  }
+
+  const normalizedState = getActionReadyMinerState(state, nowMs)
+  if (!canBuyMinerSubsystemUpgrade(normalizedState, key)) {
+    return state
+  }
+
+  const cost = getMinerSubsystemUpgradeCost(normalizedState, key)
+  return {
+    ...normalizedState,
+    subsystems: {
+      ...normalizedState.subsystems,
+      miners: {
+        ...normalizedState.subsystems.miners,
+        oreData: getMinerOreData(normalizedState).minus(cost).toString(),
+        purchasedUpgrades: {
+          ...normalizedState.subsystems.miners.purchasedUpgrades,
+          [key]: true,
+        },
+      },
+    },
+  }
+}
+
+export function getMinerSubsystemPurchasedUpgradeCount(state: GameState): number {
+  return MINER_SUBSYSTEM_UPGRADE_ORDER.reduce(
+    (count, key) =>
+      count + (getNormalizedMinerSubsystemState(state).purchasedUpgrades[key] ? 1 : 0),
+    0,
+  )
 }
 
 export function getPrestigeGainForReset(state: GameState): Decimal {
@@ -1182,10 +1673,23 @@ export function getGeneratorCost(
   return baseCost.times(getGeneratorCostMultiplierFromPermanentUpgrades(state.prestige.permanentUpgrades))
 }
 
+export function canBuyGenerator(
+  state: GameState,
+  key: GeneratorKey,
+  amount = state.buyAmount,
+): boolean {
+  if (isGeneratorManagedBySubsystem(state, key)) {
+    return false
+  }
+
+  return toDecimal(state.credits).greaterThanOrEqualTo(getGeneratorCost(state, key, amount))
+}
+
 function applyProducedCredits(
   state: GameState,
   produced: Decimal,
   nextLastTickAtMs: number,
+  elapsedSeconds: number,
 ): GameState {
   return syncAchievements({
     ...state,
@@ -1198,6 +1702,7 @@ function applyProducedCredits(
         .plus(produced)
         .toString(),
     },
+    subsystems: applySubsystemTimeProgress(state, elapsedSeconds),
   })
 }
 
@@ -1249,11 +1754,15 @@ export function getGeneratorProductionPerSecond(
     return ZERO
   }
 
+  const subsystemMultiplier =
+    generatorKey === 'miners' ? getMinerSubsystemMultiplier(state) : ONE
+
   return toDecimal(definition.baseProduction)
     .times(owned)
     .times(getGeneratorProductionMultiplier(state, generatorKey))
     .times(getGlobalProductionMultiplier(state))
     .times(getPrestigeMultiplier(state))
+    .times(subsystemMultiplier)
 }
 
 export function getTotalProductionPerSecond(state: GameState): Decimal {
@@ -1303,7 +1812,7 @@ export function applyOfflineProgress(state: GameState, nowMs = Date.now()): Game
   }
 
   const produced = getTotalProductionPerSecond(state).times(cappedSeconds)
-  return applyProducedCredits(state, produced, effectiveNowMs)
+  return applyProducedCredits(state, produced, effectiveNowMs, cappedSeconds)
 }
 
 export function tickGame(state: GameState, nowMs: number): GameState {
@@ -1317,16 +1826,16 @@ export function tickGame(state: GameState, nowMs: number): GameState {
   }
 
   const produced = getTotalProductionPerSecond(state).times(elapsedSeconds)
-  return applyProducedCredits(state, produced, nowMs)
+  return applyProducedCredits(state, produced, nowMs, elapsedSeconds)
 }
 
 export function buyGenerator(state: GameState, key: GeneratorKey): GameState {
-  const cost = getGeneratorCost(state, key, state.buyAmount)
-  const credits = toDecimal(state.credits)
-
-  if (credits.lessThan(cost)) {
+  if (!canBuyGenerator(state, key)) {
     return state
   }
+
+  const cost = getGeneratorCost(state, key, state.buyAmount)
+  const credits = toDecimal(state.credits)
 
   return syncAchievements({
     ...state,

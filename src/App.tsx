@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Decimal from 'decimal.js'
 import {
+  ArrowLeft,
   Coins,
   Factory,
   MoreHorizontal,
+  Pickaxe,
   ChartNoAxesColumn,
   type LucideIcon,
   Wrench,
@@ -26,11 +28,15 @@ import {
   ACHIEVEMENT_DEFS,
   ACHIEVEMENT_ORDER,
   applyPrestigeReset,
+  canBuyGenerator,
+  canBuyMinerSubsystemUpgrade,
   canBuyUpgrade,
   canPrestige,
   createInitialGameState,
   GENERATOR_ORDER,
-  getGeneratorCost,
+  getMinerOreData,
+  getMinerSubsystemGeneratorCost,
+  getMinerSubsystemTotalProductionPerSecond,
   getOfflineProgressCapSeconds,
   getPermanentUpgradeBulkCost,
   getPrestigeGainForReset,
@@ -38,6 +44,8 @@ import {
   getPrestigeMultiplierFromPermanentUpgrades,
   getTotalProductionPerSecond,
   getUnlockedAchievementCount,
+  MINER_SUBSYSTEM_GENERATOR_ORDER,
+  MINER_SUBSYSTEM_UPGRADE_ORDER,
   PERMANENT_UPGRADE_ORDER,
   tickGame,
   UPGRADE_ORDER,
@@ -53,11 +61,14 @@ import {
   UPDATE_FPS_BY_MODE,
 } from '@/lib/consts'
 import { formatIdleNumber } from '@/lib/number-format'
+import { MINER_SUBSYSTEM_CONFIG, type SubsystemKey } from '@/lib/progression-config'
 import { PrestigeScreen } from '@/screens/prestige-screen'
 import {
   AboutTabView,
   AchievementsTabView,
   HelpTabView,
+  MinerSubsystemProductionTabView,
+  MinerSubsystemUpgradesTabView,
   ProductionTabView,
   SettingsTabView,
   StatsTabView,
@@ -84,6 +95,15 @@ const PRIMARY_NAV_ITEMS: {
   { key: 'production', label: 'Production', icon: Factory },
   { key: 'upgrades', label: 'Upgrades', icon: Wrench },
   { key: 'stats', label: 'Stats', icon: ChartNoAxesColumn },
+]
+
+const FOCUSED_SUBSYSTEM_NAV_ITEMS: {
+  key: 'production' | 'upgrades'
+  label: string
+  icon: LucideIcon
+}[] = [
+  { key: 'production', label: 'Production', icon: Factory },
+  { key: 'upgrades', label: 'Upgrades', icon: Wrench },
 ]
 
 function isPrimaryTab(tab: TabKey): tab is 'production' | 'upgrades' | 'stats' {
@@ -212,6 +232,7 @@ function App() {
   const [game, setGame] = useState<GameState>(() => createInitialGameState(Date.now()))
   const [isHydrated, setIsHydrated] = useState(false)
   const [activeTab, setActiveTab] = useState<TabKey>('production')
+  const [focusedSubsystem, setFocusedSubsystem] = useState<SubsystemKey | null>(null)
   const [isSectionsOpen, setIsSectionsOpen] = useState(false)
   const [nowMs, setNowMs] = useState<number>(() => Date.now())
   const [showFloatingSummary, setShowFloatingSummary] = useState(false)
@@ -315,6 +336,7 @@ function App() {
     setGame(nextState)
     setNowMs(now)
     setActiveTab('production')
+    setFocusedSubsystem(null)
     setPrestigePlan(null)
 
     void (async () => {
@@ -357,6 +379,7 @@ function App() {
     setGame(nextState)
     setNowMs(now)
     setActiveTab('production')
+    setFocusedSubsystem(null)
     setPrestigePlan(null)
     toast(`Loaded dev preset: ${preset}`)
 
@@ -470,11 +493,30 @@ function App() {
   const purchasableGeneratorCount = useMemo(
     () =>
       GENERATOR_ORDER.reduce((count, key) => {
-        const cost = getGeneratorCost(game, key)
-        return count + (new Decimal(game.credits).greaterThanOrEqualTo(cost) ? 1 : 0)
+        return count + (canBuyGenerator(game, key) ? 1 : 0)
       }, 0),
     [game],
   )
+  const purchasableMinerSubsystemGeneratorCount = useMemo(() => {
+    if (!game.purchasedUpgrades[MINER_SUBSYSTEM_CONFIG.unlockUpgrade]) {
+      return 0
+    }
+
+    const oreData = getMinerOreData(game)
+    return MINER_SUBSYSTEM_GENERATOR_ORDER.reduce((count, key) => {
+      return count + (oreData.greaterThanOrEqualTo(getMinerSubsystemGeneratorCost(game, key)) ? 1 : 0)
+    }, 0)
+  }, [game])
+  const purchasableMinerSubsystemUpgradeCount = useMemo(() => {
+    if (!game.purchasedUpgrades[MINER_SUBSYSTEM_CONFIG.unlockUpgrade]) {
+      return 0
+    }
+
+    return MINER_SUBSYSTEM_UPGRADE_ORDER.reduce(
+      (count, key) => count + (canBuyMinerSubsystemUpgrade(game, key) ? 1 : 0),
+      0,
+    )
+  }, [game])
   const unlockedAchievementCount = useMemo(() => getUnlockedAchievementCount(game), [game])
   const plannedPrestigeMultiplier = useMemo(
     () =>
@@ -490,8 +532,25 @@ function App() {
   const overflowTabs = TABS.filter((tab) => !isPrimaryTab(tab.key))
   const isOtherActive = !isPrimaryTab(activeTab)
   const isPrestigeMode = prestigePlan !== null
+  const isSubsystemFocused = focusedSubsystem !== null
+  const subsystemHeaderValue =
+    focusedSubsystem === 'miners' ? getMinerOreData(game) : new Decimal(0)
+  const subsystemHeaderPerSecond =
+    focusedSubsystem === 'miners' ? getMinerSubsystemTotalProductionPerSecond(game) : new Decimal(0)
   const shouldShowFloatingSummary =
     !isPrestigeMode && activeTab !== 'about' && activeTab !== 'help' && showFloatingSummary
+
+  const enterSubsystem = useCallback((subsystem: SubsystemKey) => {
+    setFocusedSubsystem(subsystem)
+    setActiveTab('production')
+    setIsSectionsOpen(false)
+  }, [])
+
+  const exitSubsystem = useCallback(() => {
+    setFocusedSubsystem(null)
+    setActiveTab('production')
+    setIsSectionsOpen(false)
+  }, [])
 
   const startPrestigePlanning = useCallback(() => {
     const current = gameRef.current
@@ -568,6 +627,7 @@ function App() {
     setGame(nextState)
     setNowMs(now)
     setActiveTab('production')
+    setFocusedSubsystem(null)
     setPrestigePlan(null)
 
     void saveGameState(nextState)
@@ -583,6 +643,24 @@ function App() {
       onGameChange: setGame,
     }
 
+    if (focusedSubsystem === 'miners') {
+      if (activeTab === 'upgrades') {
+        return (
+          <MinerSubsystemUpgradesTabView
+            {...sharedTabProps}
+            onExitSubsystem={exitSubsystem}
+          />
+        )
+      }
+
+      return (
+        <MinerSubsystemProductionTabView
+          {...sharedTabProps}
+          onExitSubsystem={exitSubsystem}
+        />
+      )
+    }
+
     switch (activeTab) {
       case 'production':
         return (
@@ -590,6 +668,7 @@ function App() {
             {...sharedTabProps}
             formatAffordabilityEta={formatAffordabilityEta}
             getSecondsUntilAffordable={getSecondsUntilAffordable}
+            onOpenSubsystem={enterSubsystem}
           />
         )
       case 'upgrades':
@@ -687,11 +766,38 @@ function App() {
                 )}
               >
                 <div className="flex items-center justify-between gap-3 whitespace-nowrap">
-                  <p className="flex items-center gap-1.5 font-mono tabular-nums font-semibold">
-                    <Coins className="size-4 text-muted-foreground" aria-hidden />
-                    <span>{formatRenderedCredits(game.credits)}</span>
+                  <div className="flex items-center gap-3">
+                    {isSubsystemFocused && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="pointer-events-auto h-8 px-2"
+                        onClick={exitSubsystem}
+                      >
+                        <ArrowLeft className="size-4" aria-hidden />
+                        Main Game
+                      </Button>
+                    )}
+                    <p className="flex items-center gap-1.5 font-mono tabular-nums font-semibold">
+                      {isSubsystemFocused ? (
+                        <Pickaxe className="size-4 text-muted-foreground" aria-hidden />
+                      ) : (
+                        <Coins className="size-4 text-muted-foreground" aria-hidden />
+                      )}
+                      <span>
+                        {formatRenderedCredits(
+                          isSubsystemFocused ? subsystemHeaderValue : game.credits,
+                        )}
+                      </span>
+                    </p>
+                  </div>
+                  <p className="font-mono tabular-nums">
+                    +
+                    {formatRenderedCredits(
+                      isSubsystemFocused ? subsystemHeaderPerSecond : creditsPerSecond,
+                    )}{' '}
+                    / sec
                   </p>
-                  <p className="font-mono tabular-nums">+{formatRenderedCredits(creditsPerSecond)} / sec</p>
                 </div>
               </div>
             </div>
@@ -709,16 +815,27 @@ function App() {
             >
               <div className="mx-auto w-full max-w-lg">
                 <div className="rounded-xl border border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
-                  <div className="grid grid-cols-4 gap-1">
-                    {PRIMARY_NAV_ITEMS.map((item) => {
+                  <div
+                    className={cn(
+                      'grid gap-1',
+                      isSubsystemFocused ? 'grid-cols-2' : 'grid-cols-4',
+                    )}
+                  >
+                    {(isSubsystemFocused ? FOCUSED_SUBSYSTEM_NAV_ITEMS : PRIMARY_NAV_ITEMS).map((item) => {
                       const Icon = item.icon
-                      const showUpgradeBadge = item.key === 'upgrades' && purchasableUpgradeCount > 0
-                      const showProductionBadge = item.key === 'production' && purchasableGeneratorCount > 0
+                      const productionBadgeCount = isSubsystemFocused
+                        ? purchasableMinerSubsystemGeneratorCount
+                        : purchasableGeneratorCount
+                      const upgradeBadgeCount = isSubsystemFocused
+                        ? purchasableMinerSubsystemUpgradeCount
+                        : purchasableUpgradeCount
+                      const showUpgradeBadge = item.key === 'upgrades' && upgradeBadgeCount > 0
+                      const showProductionBadge = item.key === 'production' && productionBadgeCount > 0
                       const badgeCount =
                         item.key === 'upgrades'
-                          ? purchasableUpgradeCount
+                          ? upgradeBadgeCount
                           : item.key === 'production'
-                            ? purchasableGeneratorCount
+                            ? productionBadgeCount
                             : 0
 
                       return (
@@ -745,46 +862,48 @@ function App() {
                         </Button>
                       )
                     })}
-                    <Sheet open={isSectionsOpen} onOpenChange={setIsSectionsOpen}>
-                      <SheetTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className={cn(
-                            'h-12 flex-col gap-1.5 rounded-lg bg-transparent px-0.5 shadow-none hover:bg-transparent active:bg-transparent',
-                            isOtherActive ? 'text-foreground' : 'text-muted-foreground/70',
-                          )}
-                          aria-label="Other sections"
-                        >
-                          <MoreHorizontal className="size-7" />
-                          <span className="text-[10px] leading-none">Other</span>
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent side="bottom" className="max-h-[80vh] rounded-t-xl px-0 pb-6">
-                        <SheetHeader className="px-4 pb-1">
-                          <SheetTitle>Other Sections</SheetTitle>
-                          <SheetDescription>Additional navigation options.</SheetDescription>
-                        </SheetHeader>
-                        <div className="mt-2 space-y-1 px-4">
-                          {overflowTabs.map((tab) => (
-                            <Button
-                              key={tab.key}
-                              variant={activeTab === tab.key ? 'default' : 'ghost'}
-                              className="h-10 w-full justify-start"
-                              onClick={() => {
-                                setActiveTab(tab.key)
-                                setIsSectionsOpen(false)
-                              }}
-                            >
-                              {tab.label}
-                            </Button>
-                          ))}
-                          {overflowTabs.length === 0 && (
-                            <p className="px-2 py-1 text-sm text-muted-foreground">No additional sections yet.</p>
-                          )}
-                        </div>
-                      </SheetContent>
-                    </Sheet>
+                    {!isSubsystemFocused && (
+                      <Sheet open={isSectionsOpen} onOpenChange={setIsSectionsOpen}>
+                        <SheetTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className={cn(
+                              'h-12 flex-col gap-1.5 rounded-lg bg-transparent px-0.5 shadow-none hover:bg-transparent active:bg-transparent',
+                              isOtherActive ? 'text-foreground' : 'text-muted-foreground/70',
+                            )}
+                            aria-label="Other sections"
+                          >
+                            <MoreHorizontal className="size-7" />
+                            <span className="text-[10px] leading-none">Other</span>
+                          </Button>
+                        </SheetTrigger>
+                        <SheetContent side="bottom" className="max-h-[80vh] rounded-t-xl px-0 pb-6">
+                          <SheetHeader className="px-4 pb-1">
+                            <SheetTitle>Other Sections</SheetTitle>
+                            <SheetDescription>Additional navigation options.</SheetDescription>
+                          </SheetHeader>
+                          <div className="mt-2 space-y-1 px-4">
+                            {overflowTabs.map((tab) => (
+                              <Button
+                                key={tab.key}
+                                variant={activeTab === tab.key ? 'default' : 'ghost'}
+                                className="h-10 w-full justify-start"
+                                onClick={() => {
+                                  setActiveTab(tab.key)
+                                  setIsSectionsOpen(false)
+                                }}
+                              >
+                                {tab.label}
+                              </Button>
+                            ))}
+                            {overflowTabs.length === 0 && (
+                              <p className="px-2 py-1 text-sm text-muted-foreground">No additional sections yet.</p>
+                            )}
+                          </div>
+                        </SheetContent>
+                      </Sheet>
+                    )}
                   </div>
                 </div>
               </div>

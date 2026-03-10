@@ -8,9 +8,13 @@ import {
   GENERATOR_ORDER,
   getOfflineProgressCapSeconds,
   getUnlockedAchievementCount,
+  MINER_SUBSYSTEM_GENERATOR_ORDER,
+  MINER_SUBSYSTEM_UPGRADE_ORDER,
   PERMANENT_UPGRADE_ORDER,
   type GameState,
   type GeneratorKey,
+  type MinerSubsystemGeneratorKey,
+  type MinerSubsystemUpgradeKey,
   type PermanentUpgradeKey,
   syncAchievements,
   type AchievementKey,
@@ -138,6 +142,71 @@ function parsePrestige(value: unknown): GameState['prestige'] {
   }
 }
 
+function normalizeParsedMinerSubsystemGenerators(
+  value: unknown,
+): GameState['subsystems']['miners']['generators'] {
+  const candidate =
+    value && typeof value === 'object'
+      ? (value as Record<string, unknown>)
+      : undefined
+
+  return MINER_SUBSYSTEM_GENERATOR_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = Math.max(0, Math.floor(parseNonNegativeInt(candidate?.[key]) ?? 0))
+    return accumulator
+  }, {} as Record<MinerSubsystemGeneratorKey, number>)
+}
+
+function normalizeParsedMinerSubsystemPurchasedUpgrades(
+  value: unknown,
+): GameState['subsystems']['miners']['purchasedUpgrades'] {
+  const candidate =
+    value && typeof value === 'object'
+      ? (value as Record<string, unknown>)
+      : undefined
+
+  return MINER_SUBSYSTEM_UPGRADE_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = parseBool(candidate?.[key]) ?? false
+    return accumulator
+  }, {} as Record<MinerSubsystemUpgradeKey, boolean>)
+}
+
+function parseSubsystems(
+  value: unknown,
+  nowMs: number,
+): GameState['subsystems'] {
+  const initialSubsystems = createInitialGameState(nowMs).subsystems
+  if (!value || typeof value !== 'object') {
+    return initialSubsystems
+  }
+
+  const candidate = value as Record<string, unknown>
+  const minerCandidate = candidate.miners as Record<string, unknown> | undefined
+  if (!minerCandidate || typeof minerCandidate !== 'object') {
+    return initialSubsystems
+  }
+
+  const oreData =
+    parseDecimalString(minerCandidate.oreData) ??
+    parseDecimalString(minerCandidate.surveyData) ??
+    initialSubsystems.miners.oreData
+  const totalOreData =
+    parseDecimalString(minerCandidate.totalOreData) ??
+    oreData
+  const generators = normalizeParsedMinerSubsystemGenerators(minerCandidate.generators)
+  const purchasedUpgrades = normalizeParsedMinerSubsystemPurchasedUpgrades(
+    minerCandidate.purchasedUpgrades,
+  )
+
+  return {
+    miners: {
+      oreData,
+      totalOreData,
+      generators,
+      purchasedUpgrades,
+    },
+  }
+}
+
 function parseWorldSeed(value: unknown, fallbackStartedAtMs: number): string {
   if (typeof value === 'string' && value.length > 0) {
     return value
@@ -179,6 +248,8 @@ function parseModernState(value: unknown): GameState | null {
     const parsed = parseNonNegativeInt(generators?.[key])
     parsedGenerators[key] = parsed ?? initial.generators[key]
   }
+
+  const subsystems = parseSubsystems(candidate.subsystems, normalizedLastTickAtMs)
 
   const parsedUpgrades = {} as Record<RunUpgradeKey, boolean>
   for (const key of UPGRADE_ORDER) {
@@ -225,6 +296,7 @@ function parseModernState(value: unknown): GameState | null {
     random: {
       worldSeed,
     },
+    subsystems,
   }
 
   return parsedState

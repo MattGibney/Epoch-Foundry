@@ -20,6 +20,7 @@ const UPGRADE_SECTIONS: {
   heading: string
 }[] = [
   { effectType: 'generator', heading: 'Generator Upgrades' },
+  { effectType: 'subsystemUnlock', heading: 'Subsystem Unlocks' },
   { effectType: 'global', heading: 'Global Upgrades' },
   { effectType: 'offlineCap', heading: 'Offline Upgrades' },
 ]

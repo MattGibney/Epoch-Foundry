@@ -42,4 +42,8 @@
 - Keep gameplay randomness deterministic from a persisted run seed (`worldSeed`) and shared RNG utilities; avoid direct `Math.random()` in game systems.
 - Structure progression in two phases: a simple producer-and-prestige opening game first, then a broader systems game after a roughly `10-24` hour unlock.
 - Treat producer-specific subsystems as the main phase-two expansion path; later mini-games and economy layers should interconnect with those subsystems rather than sit as isolated side features.
+- Gate new producer subsystems behind explicit in-run unlock upgrades so new systems arrive as earned progression beats instead of day-one UI clutter.
+- Design each producer subsystem as its own long-running idle progression track with a local currency and upgrade ladder, so it continues scaling after the main producer upgrade chain runs out and remains a meaningful source of that producer's output growth.
+- Prefer subsystem designs that mirror the core game loop closely: local currency, local producers, local upgrades, and a clear multiplier exported back to the parent producer. Avoid bespoke mechanics unless they materially improve the game over a simpler idle-loop variant.
+- When a producer subsystem is in focused view, let it temporarily take over the main shell: show the subsystem currency in the header, remap the core production/upgrades tabs to the subsystem, and provide an explicit path back to the main game.
 - When designing producer subsystems, vary attention styles across the roster; mix passive optimization, timing, routing, maintenance/risk, probabilistic, and market-linked play so phase two deepens the game without turning into repeated chores.

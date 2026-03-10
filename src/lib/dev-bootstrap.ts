@@ -120,6 +120,41 @@ export function createDevBootstrapState(
       calibrationMatrix: 5,
       singularityCore: 3,
     })
+    state.subsystems.miners = {
+      oreData: '3500000',
+      totalOreData: '125000000',
+      generators: {
+        scouts: 220,
+        surveyCamps: 160,
+        testShafts: 110,
+        freightTeams: 70,
+        geologyLabs: 35,
+        commandCenters: 12,
+      },
+      purchasedUpgrades: {
+        scoutTraining: true,
+        scoutRelays: true,
+        scoutNetwork: true,
+        campPlanning: true,
+        campRouting: true,
+        campAtlas: true,
+        shaftCalibration: true,
+        shaftServos: true,
+        shaftDominion: true,
+        freightDispatch: true,
+        freightConvoys: true,
+        freightLattice: true,
+        labModeling: true,
+        labForecasting: true,
+        labSynthesis: false,
+        commandPlanning: true,
+        commandAutomation: false,
+        commandSingularity: false,
+        fieldProtocols: true,
+        networkFusion: true,
+        oreAlgorithms: false,
+      },
+    }
     return state
   }
 

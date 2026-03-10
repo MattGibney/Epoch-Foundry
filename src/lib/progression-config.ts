@@ -9,13 +9,18 @@ export type GeneratorConfigEntry = {
   baseProduction: string
 }
 
+export const SUBSYSTEM_KEYS = ['miners'] as const
+
+export type SubsystemKey = (typeof SUBSYSTEM_KEYS)[number]
+
 export type UpgradeConfigEntry = {
   key: string
   label: string
   description: string
   cost: string
-  effectType: 'generator' | 'global' | 'offlineCap'
+  effectType: 'generator' | 'global' | 'offlineCap' | 'subsystemUnlock'
   target?: string
+  subsystem?: SubsystemKey
   multiplier?: string
   offlineCapSeconds?: number
   requiresOwned?: {
@@ -58,6 +63,38 @@ export type PermanentUpgradeConfigEntry = {
   value: string
 }
 
+export type MinerSubsystemMilestoneConfigEntry = {
+  surveyedCount: number
+  label: string
+  description: string
+  shaftCapacityBonus?: number
+  productionMultiplier?: string
+}
+
+export type MinerSubsystemGeneratorConfigEntry = {
+  key: string
+  label: string
+  description: string
+  baseCost: string
+  growth: string
+  baseProduction: string
+}
+
+export type MinerSubsystemUpgradeConfigEntry = {
+  key: string
+  label: string
+  description: string
+  cost: string
+  effectType: 'generator' | 'global'
+  target?: string
+  multiplier: string
+  requiresOwned?: {
+    generator: string
+    count: number
+  }
+  requiresUpgrade?: string
+}
+
 export const PRESTIGE_BALANCE = {
   unlockCredits: '750000',
   gainExponent: '0.72',
@@ -65,10 +102,301 @@ export const PRESTIGE_BALANCE = {
   gainPerReset: '0.1',
 } as const
 
+export const MINER_SUBSYSTEM_CONFIG = {
+  label: 'Mining Network',
+  description:
+    'Run a parallel mining support economy that generates Ore Data and feeds a multiplier back into Miners.',
+  currencyLabel: 'Ore Data',
+  unlockUpgrade: 'minerConstellation',
+  multiplierExponent: '0.14',
+} as const
+
+export const MINER_SUBSYSTEM_UPGRADE_CONFIG: Record<
+  string,
+  MinerSubsystemUpgradeConfigEntry
+> = {
+  scoutTraining: {
+    key: 'scoutTraining',
+    label: 'Scout Training',
+    description: 'Double Scout output.',
+    cost: '80',
+    effectType: 'generator',
+    target: 'scouts',
+    multiplier: '2',
+    requiresOwned: { generator: 'scouts', count: 10 },
+  },
+  scoutRelays: {
+    key: 'scoutRelays',
+    label: 'Scout Relays',
+    description: 'Double Scout output.',
+    cost: '450',
+    effectType: 'generator',
+    target: 'scouts',
+    multiplier: '2',
+    requiresOwned: { generator: 'scouts', count: 25 },
+    requiresUpgrade: 'scoutTraining',
+  },
+  scoutNetwork: {
+    key: 'scoutNetwork',
+    label: 'Scout Network',
+    description: 'Quadruple Scout output.',
+    cost: '3200',
+    effectType: 'generator',
+    target: 'scouts',
+    multiplier: '4',
+    requiresOwned: { generator: 'scouts', count: 50 },
+    requiresUpgrade: 'scoutRelays',
+  },
+  campPlanning: {
+    key: 'campPlanning',
+    label: 'Camp Planning',
+    description: 'Double Survey Camp output.',
+    cost: '650',
+    effectType: 'generator',
+    target: 'surveyCamps',
+    multiplier: '2',
+    requiresOwned: { generator: 'surveyCamps', count: 10 },
+  },
+  campRouting: {
+    key: 'campRouting',
+    label: 'Camp Routing',
+    description: 'Double Survey Camp output.',
+    cost: '3600',
+    effectType: 'generator',
+    target: 'surveyCamps',
+    multiplier: '2',
+    requiresOwned: { generator: 'surveyCamps', count: 25 },
+    requiresUpgrade: 'campPlanning',
+  },
+  campAtlas: {
+    key: 'campAtlas',
+    label: 'Camp Atlas',
+    description: 'Quadruple Survey Camp output.',
+    cost: '26000',
+    effectType: 'generator',
+    target: 'surveyCamps',
+    multiplier: '4',
+    requiresOwned: { generator: 'surveyCamps', count: 50 },
+    requiresUpgrade: 'campRouting',
+  },
+  shaftCalibration: {
+    key: 'shaftCalibration',
+    label: 'Shaft Calibration',
+    description: 'Double Test Shaft output.',
+    cost: '5000',
+    effectType: 'generator',
+    target: 'testShafts',
+    multiplier: '2',
+    requiresOwned: { generator: 'testShafts', count: 10 },
+  },
+  shaftServos: {
+    key: 'shaftServos',
+    label: 'Shaft Servos',
+    description: 'Double Test Shaft output.',
+    cost: '28000',
+    effectType: 'generator',
+    target: 'testShafts',
+    multiplier: '2',
+    requiresOwned: { generator: 'testShafts', count: 25 },
+    requiresUpgrade: 'shaftCalibration',
+  },
+  shaftDominion: {
+    key: 'shaftDominion',
+    label: 'Shaft Dominion',
+    description: 'Quadruple Test Shaft output.',
+    cost: '200000',
+    effectType: 'generator',
+    target: 'testShafts',
+    multiplier: '4',
+    requiresOwned: { generator: 'testShafts', count: 50 },
+    requiresUpgrade: 'shaftServos',
+  },
+  freightDispatch: {
+    key: 'freightDispatch',
+    label: 'Freight Dispatch',
+    description: 'Double Freight Team output.',
+    cost: '38000',
+    effectType: 'generator',
+    target: 'freightTeams',
+    multiplier: '2',
+    requiresOwned: { generator: 'freightTeams', count: 10 },
+  },
+  freightConvoys: {
+    key: 'freightConvoys',
+    label: 'Freight Convoys',
+    description: 'Double Freight Team output.',
+    cost: '220000',
+    effectType: 'generator',
+    target: 'freightTeams',
+    multiplier: '2',
+    requiresOwned: { generator: 'freightTeams', count: 25 },
+    requiresUpgrade: 'freightDispatch',
+  },
+  freightLattice: {
+    key: 'freightLattice',
+    label: 'Freight Lattice',
+    description: 'Quadruple Freight Team output.',
+    cost: '1600000',
+    effectType: 'generator',
+    target: 'freightTeams',
+    multiplier: '4',
+    requiresOwned: { generator: 'freightTeams', count: 50 },
+    requiresUpgrade: 'freightConvoys',
+  },
+  labModeling: {
+    key: 'labModeling',
+    label: 'Lab Modeling',
+    description: 'Double Geology Lab output.',
+    cost: '250000',
+    effectType: 'generator',
+    target: 'geologyLabs',
+    multiplier: '2',
+    requiresOwned: { generator: 'geologyLabs', count: 10 },
+  },
+  labForecasting: {
+    key: 'labForecasting',
+    label: 'Lab Forecasting',
+    description: 'Double Geology Lab output.',
+    cost: '1400000',
+    effectType: 'generator',
+    target: 'geologyLabs',
+    multiplier: '2',
+    requiresOwned: { generator: 'geologyLabs', count: 25 },
+    requiresUpgrade: 'labModeling',
+  },
+  labSynthesis: {
+    key: 'labSynthesis',
+    label: 'Lab Synthesis',
+    description: 'Quadruple Geology Lab output.',
+    cost: '9800000',
+    effectType: 'generator',
+    target: 'geologyLabs',
+    multiplier: '4',
+    requiresOwned: { generator: 'geologyLabs', count: 50 },
+    requiresUpgrade: 'labForecasting',
+  },
+  commandPlanning: {
+    key: 'commandPlanning',
+    label: 'Command Planning',
+    description: 'Double Command Center output.',
+    cost: '1800000',
+    effectType: 'generator',
+    target: 'commandCenters',
+    multiplier: '2',
+    requiresOwned: { generator: 'commandCenters', count: 10 },
+  },
+  commandAutomation: {
+    key: 'commandAutomation',
+    label: 'Command Automation',
+    description: 'Double Command Center output.',
+    cost: '10000000',
+    effectType: 'generator',
+    target: 'commandCenters',
+    multiplier: '2',
+    requiresOwned: { generator: 'commandCenters', count: 25 },
+    requiresUpgrade: 'commandPlanning',
+  },
+  commandSingularity: {
+    key: 'commandSingularity',
+    label: 'Command Singularity',
+    description: 'Quadruple Command Center output.',
+    cost: '72000000',
+    effectType: 'generator',
+    target: 'commandCenters',
+    multiplier: '4',
+    requiresOwned: { generator: 'commandCenters', count: 50 },
+    requiresUpgrade: 'commandAutomation',
+  },
+  fieldProtocols: {
+    key: 'fieldProtocols',
+    label: 'Field Protocols',
+    description: 'Double all Mining Network production.',
+    cost: '12000',
+    effectType: 'global',
+    multiplier: '2',
+    requiresOwned: { generator: 'scouts', count: 50 },
+  },
+  networkFusion: {
+    key: 'networkFusion',
+    label: 'Network Fusion',
+    description: 'Double all Mining Network production.',
+    cost: '750000',
+    effectType: 'global',
+    multiplier: '2',
+    requiresOwned: { generator: 'freightTeams', count: 25 },
+    requiresUpgrade: 'fieldProtocols',
+  },
+  oreAlgorithms: {
+    key: 'oreAlgorithms',
+    label: 'Ore Algorithms',
+    description: 'Triple all Mining Network production.',
+    cost: '45000000',
+    effectType: 'global',
+    multiplier: '3',
+    requiresOwned: { generator: 'commandCenters', count: 10 },
+    requiresUpgrade: 'networkFusion',
+  },
+}
+
+export const MINER_SUBSYSTEM_GENERATOR_CONFIG: Record<
+  string,
+  MinerSubsystemGeneratorConfigEntry
+> = {
+  scouts: {
+    key: 'scouts',
+    label: 'Scouts',
+    description: 'Field crews collecting the first layers of ore intelligence.',
+    baseCost: '10',
+    growth: '1.15',
+    baseProduction: '1',
+  },
+  surveyCamps: {
+    key: 'surveyCamps',
+    label: 'Survey Camps',
+    description: 'Forward bases that standardize and expand exploration output.',
+    baseCost: '80',
+    growth: '1.16',
+    baseProduction: '6',
+  },
+  testShafts: {
+    key: 'testShafts',
+    label: 'Test Shafts',
+    description: 'Small pilot digs that rapidly convert finds into actionable data.',
+    baseCost: '650',
+    growth: '1.17',
+    baseProduction: '35',
+  },
+  freightTeams: {
+    key: 'freightTeams',
+    label: 'Freight Teams',
+    description: 'Logistics crews moving samples and reports between sites.',
+    baseCost: '5200',
+    growth: '1.18',
+    baseProduction: '190',
+  },
+  geologyLabs: {
+    key: 'geologyLabs',
+    label: 'Geology Labs',
+    description: 'Analytical centers that turn raw samples into predictive models.',
+    baseCost: '42000',
+    growth: '1.19',
+    baseProduction: '1050',
+  },
+  commandCenters: {
+    key: 'commandCenters',
+    label: 'Command Centers',
+    description: 'Strategic headquarters coordinating the full mining network.',
+    baseCost: '360000',
+    growth: '1.2',
+    baseProduction: '6200',
+  },
+}
+
 export const UPGRADE_COST_MULTIPLIER_BY_TYPE = {
   generator: '1.2',
   global: '1.35',
   offlineCap: '1.45',
+  subsystemUnlock: '1.25',
 } as const
 
 export const GENERATOR_CONFIG: Record<string, GeneratorConfigEntry> = {
@@ -599,8 +927,17 @@ export function validateProgressionConfig(params: {
   upgradeOrder: readonly string[]
   achievementOrder: readonly string[]
   permanentUpgradeOrder: readonly string[]
+  minerSubsystemGeneratorOrder: readonly string[]
+  minerSubsystemUpgradeOrder: readonly string[]
 }): void {
-  const { generatorOrder, upgradeOrder, achievementOrder, permanentUpgradeOrder } = params
+  const {
+    generatorOrder,
+    upgradeOrder,
+    achievementOrder,
+    permanentUpgradeOrder,
+    minerSubsystemGeneratorOrder,
+    minerSubsystemUpgradeOrder,
+  } = params
 
   for (const key of generatorOrder) {
     const entry = GENERATOR_CONFIG[key]
@@ -651,6 +988,10 @@ export function validateProgressionConfig(params: {
         throw new Error(`Offline cap upgrade missing positive seconds: ${key}`)
       }
     }
+
+    if (entry.effectType === 'subsystemUnlock' && (!entry.subsystem || !SUBSYSTEM_KEYS.includes(entry.subsystem))) {
+      throw new Error(`Subsystem unlock missing valid subsystem: ${key}`)
+    }
   }
 
   for (const key of achievementOrder) {
@@ -674,6 +1015,49 @@ export function validateProgressionConfig(params: {
   assertDecimalString(PRESTIGE_BALANCE.gainExponent, 'prestige.gainExponent')
   assertDecimalString(PRESTIGE_BALANCE.productionPerReset, 'prestige.productionPerReset')
   assertDecimalString(PRESTIGE_BALANCE.gainPerReset, 'prestige.gainPerReset')
+  assertDecimalString(MINER_SUBSYSTEM_CONFIG.multiplierExponent, 'miner subsystem multiplier exponent')
+
+  if (!upgradeOrder.includes(MINER_SUBSYSTEM_CONFIG.unlockUpgrade)) {
+    throw new Error('Miner subsystem unlockUpgrade must reference a valid run upgrade')
+  }
+
+  for (const key of minerSubsystemGeneratorOrder) {
+    const entry = MINER_SUBSYSTEM_GENERATOR_CONFIG[key]
+    if (!entry) {
+      throw new Error(`Missing miner subsystem generator config for key: ${key}`)
+    }
+
+    assertDecimalString(entry.baseCost, `miner subsystem generator ${key}.baseCost`)
+    assertDecimalString(entry.growth, `miner subsystem generator ${key}.growth`)
+    assertDecimalString(entry.baseProduction, `miner subsystem generator ${key}.baseProduction`)
+  }
+
+  for (const key of minerSubsystemUpgradeOrder) {
+    const entry = MINER_SUBSYSTEM_UPGRADE_CONFIG[key]
+    if (!entry) {
+      throw new Error(`Missing miner subsystem upgrade config for key: ${key}`)
+    }
+
+    assertDecimalString(entry.cost, `miner subsystem upgrade ${key}.cost`)
+    assertDecimalString(entry.multiplier, `miner subsystem upgrade ${key}.multiplier`)
+
+    if (entry.requiresOwned && !minerSubsystemGeneratorOrder.includes(entry.requiresOwned.generator)) {
+      throw new Error(`Invalid miner subsystem requiresOwned generator for upgrade ${key}`)
+    }
+
+    if (
+      entry.requiresUpgrade &&
+      !minerSubsystemUpgradeOrder.includes(entry.requiresUpgrade)
+    ) {
+      throw new Error(`Invalid miner subsystem requiresUpgrade reference: ${key}`)
+    }
+
+    if (entry.effectType === 'generator') {
+      if (!entry.target || !minerSubsystemGeneratorOrder.includes(entry.target)) {
+        throw new Error(`Miner subsystem generator upgrade missing valid target: ${key}`)
+      }
+    }
+  }
 
   for (const [effectType, multiplier] of Object.entries(UPGRADE_COST_MULTIPLIER_BY_TYPE)) {
     assertDecimalString(multiplier, `upgrade cost multiplier ${effectType}`)

@@ -1,12 +1,25 @@
 import type Decimal from 'decimal.js'
 
-import { CreditsHeader } from '@/components/game/credits-header'
+import { Pickaxe } from 'lucide-react'
+
+import { ResourceHeader } from '@/components/game/credits-header'
 import type { DevBootstrapPresetKey } from '@/lib/dev-bootstrap'
-import type { GameState } from '@/lib/game-engine'
+import {
+  GENERATOR_DEFS,
+  getGeneratorProductionPerSecond,
+  getMinerOreData,
+  getMinerSubsystemTotalProductionPerSecond,
+  type GameState,
+} from '@/lib/game-engine'
 import { formatIdleNumber } from '@/lib/number-format'
+import { MINER_SUBSYSTEM_CONFIG, type SubsystemKey } from '@/lib/progression-config'
 import { AboutScreen } from '@/screens/about-screen'
 import { AchievementsScreen } from '@/screens/achievements-screen'
 import { HelpScreen } from '@/screens/help-screen'
+import {
+  MinerSubsystemProductionScreen,
+  MinerSubsystemUpgradesScreen,
+} from '@/screens/operations-screen'
 import { ProductionScreen } from '@/screens/production-screen'
 import { SettingsScreen } from '@/screens/settings-screen'
 import { StatsScreen } from '@/screens/stats-screen'
@@ -37,16 +50,18 @@ interface ProductionTabViewProps extends CommonTabProps {
     cost: Decimal,
     creditsPerSecond: Decimal,
   ) => number | null
+  onOpenSubsystem: (subsystem: SubsystemKey) => void
 }
 
 export function ProductionTabView(props: ProductionTabViewProps) {
   return (
     <>
-      <CreditsHeader
-        credits={props.game.credits}
-        creditsPerSecond={props.creditsPerSecond}
-        formatTopCreditsDisplay={props.formatTopCreditsDisplay}
-        formatRenderedCredits={props.formatRenderedCredits}
+      <ResourceHeader
+        label="Credits"
+        value={props.game.credits}
+        valuePerSecond={props.creditsPerSecond}
+        formatTopValueDisplay={props.formatTopCreditsDisplay}
+        formatRenderedValue={props.formatRenderedCredits}
         onAnchorRefChange={props.onAnchorRefChange}
       />
       <section className="mt-5">
@@ -57,6 +72,7 @@ export function ProductionTabView(props: ProductionTabViewProps) {
           formatRenderedCredits={props.formatRenderedCredits}
           formatAffordabilityEta={props.formatAffordabilityEta}
           getSecondsUntilAffordable={props.getSecondsUntilAffordable}
+          onOpenSubsystem={props.onOpenSubsystem}
         />
       </section>
     </>
@@ -66,11 +82,12 @@ export function ProductionTabView(props: ProductionTabViewProps) {
 export function UpgradesTabView(props: CommonTabProps) {
   return (
     <>
-      <CreditsHeader
-        credits={props.game.credits}
-        creditsPerSecond={props.creditsPerSecond}
-        formatTopCreditsDisplay={props.formatTopCreditsDisplay}
-        formatRenderedCredits={props.formatRenderedCredits}
+      <ResourceHeader
+        label="Credits"
+        value={props.game.credits}
+        valuePerSecond={props.creditsPerSecond}
+        formatTopValueDisplay={props.formatTopCreditsDisplay}
+        formatRenderedValue={props.formatRenderedCredits}
         onAnchorRefChange={props.onAnchorRefChange}
       />
       <section className="mt-5">
@@ -78,6 +95,72 @@ export function UpgradesTabView(props: CommonTabProps) {
           game={props.game}
           onGameChange={props.onGameChange}
           formatRenderedCredits={props.formatRenderedCredits}
+        />
+      </section>
+    </>
+  )
+}
+
+interface MinerSubsystemTabViewProps extends CommonTabProps {
+  onExitSubsystem: () => void
+}
+
+export function MinerSubsystemProductionTabView(props: MinerSubsystemTabViewProps) {
+  const oreData = getMinerOreData(props.game)
+  const oreDataPerSecond = getMinerSubsystemTotalProductionPerSecond(props.game)
+  const minerProductionPerSecond = getGeneratorProductionPerSecond(props.game, 'miners')
+
+  return (
+    <>
+      <ResourceHeader
+        contextLabel={GENERATOR_DEFS.miners.label}
+        contextValuePerSecond={minerProductionPerSecond}
+        label={MINER_SUBSYSTEM_CONFIG.currencyLabel}
+        value={oreData}
+        valuePerSecond={oreDataPerSecond}
+        icon={Pickaxe}
+        actionLabel="Main Game"
+        onAction={props.onExitSubsystem}
+        formatTopValueDisplay={props.formatTopCreditsDisplay}
+        formatRenderedValue={props.formatRenderedCredits}
+        onAnchorRefChange={props.onAnchorRefChange}
+      />
+      <section className="mt-5">
+        <MinerSubsystemProductionScreen
+          game={props.game}
+          onGameChange={props.onGameChange}
+          formatRenderedValue={props.formatRenderedCredits}
+        />
+      </section>
+    </>
+  )
+}
+
+export function MinerSubsystemUpgradesTabView(props: MinerSubsystemTabViewProps) {
+  const oreData = getMinerOreData(props.game)
+  const oreDataPerSecond = getMinerSubsystemTotalProductionPerSecond(props.game)
+  const minerProductionPerSecond = getGeneratorProductionPerSecond(props.game, 'miners')
+
+  return (
+    <>
+      <ResourceHeader
+        contextLabel={GENERATOR_DEFS.miners.label}
+        contextValuePerSecond={minerProductionPerSecond}
+        label={MINER_SUBSYSTEM_CONFIG.currencyLabel}
+        value={oreData}
+        valuePerSecond={oreDataPerSecond}
+        icon={Pickaxe}
+        actionLabel="Main Game"
+        onAction={props.onExitSubsystem}
+        formatTopValueDisplay={props.formatTopCreditsDisplay}
+        formatRenderedValue={props.formatRenderedCredits}
+        onAnchorRefChange={props.onAnchorRefChange}
+      />
+      <section className="mt-5">
+        <MinerSubsystemUpgradesScreen
+          game={props.game}
+          onGameChange={props.onGameChange}
+          formatRenderedValue={props.formatRenderedCredits}
         />
       </section>
     </>
@@ -97,11 +180,12 @@ interface StatsTabViewProps extends CommonTabProps {
 export function StatsTabView(props: StatsTabViewProps) {
   return (
     <>
-      <CreditsHeader
-        credits={props.game.credits}
-        creditsPerSecond={props.creditsPerSecond}
-        formatTopCreditsDisplay={props.formatTopCreditsDisplay}
-        formatRenderedCredits={props.formatRenderedCredits}
+      <ResourceHeader
+        label="Credits"
+        value={props.game.credits}
+        valuePerSecond={props.creditsPerSecond}
+        formatTopValueDisplay={props.formatTopCreditsDisplay}
+        formatRenderedValue={props.formatRenderedCredits}
         onAnchorRefChange={props.onAnchorRefChange}
       />
       <section className="mt-5">
@@ -130,11 +214,12 @@ interface AchievementsTabViewProps extends CommonTabProps {
 export function AchievementsTabView(props: AchievementsTabViewProps) {
   return (
     <>
-      <CreditsHeader
-        credits={props.game.credits}
-        creditsPerSecond={props.creditsPerSecond}
-        formatTopCreditsDisplay={props.formatTopCreditsDisplay}
-        formatRenderedCredits={props.formatRenderedCredits}
+      <ResourceHeader
+        label="Credits"
+        value={props.game.credits}
+        valuePerSecond={props.creditsPerSecond}
+        formatTopValueDisplay={props.formatTopCreditsDisplay}
+        formatRenderedValue={props.formatRenderedCredits}
         onAnchorRefChange={props.onAnchorRefChange}
       />
       <section className="mt-5">
@@ -158,11 +243,12 @@ interface SettingsTabViewProps extends CommonTabProps {
 export function SettingsTabView(props: SettingsTabViewProps) {
   return (
     <>
-      <CreditsHeader
-        credits={props.game.credits}
-        creditsPerSecond={props.creditsPerSecond}
-        formatTopCreditsDisplay={props.formatTopCreditsDisplay}
-        formatRenderedCredits={props.formatRenderedCredits}
+      <ResourceHeader
+        label="Credits"
+        value={props.game.credits}
+        valuePerSecond={props.creditsPerSecond}
+        formatTopValueDisplay={props.formatTopCreditsDisplay}
+        formatRenderedValue={props.formatRenderedCredits}
         onAnchorRefChange={props.onAnchorRefChange}
       />
       <section className="mt-5">

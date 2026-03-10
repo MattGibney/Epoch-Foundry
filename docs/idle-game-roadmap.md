@@ -81,7 +81,7 @@ Prove the phase-two concept with a small but representative set of producer subs
 
 - Pick the first `3-5` producers that players interact with most and design distinct subsystem archetypes for them. Each one should boost that producer in a different way rather than repeating the same local upgrade tree.
 - Recommended first-wave candidates:
-  - `Miners`: vein mapping and shaft placement
+  - `Miners`: a prospecting-network idle loop with local producers, local upgrades, and a direct Miner multiplier
   - `Refineries`: recipe blending and catalyst tuning
   - `Orbital Platforms`: orbital slotting and timing windows
   - `Singularity Wells`: containment balancing and risk management
@@ -121,7 +121,7 @@ Once every producer has a subsystem, the game has enough surface area to support
 
 ### Producer subsystem concept map
 
-- `Miners`: Vein Mapping. Reveal a mine grid, place shafts, and decide when to exhaust rich seams versus expand for long-term yield.
+- `Miners`: Prospecting Network. Build out scouts, survey camps, test shafts, and command infrastructure that generate local exploration data and multiply Miner output.
 - `Drills`: Heat and RPM Control. Push drill speed for bursts while managing overheating, wear, and cooldown timing.
 - `Extractors`: Pipeline Routing. Balance pressure and flow across a small network to maximize extraction efficiency.
 - `Refineries`: Recipe Blending. Choose refining recipes and catalyst mixes that trade throughput, stability, and byproduct value.

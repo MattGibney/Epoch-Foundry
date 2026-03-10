@@ -4,13 +4,17 @@ import { ChevronDown } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { UNKNOWN_PRODUCER_REVEAL_RATIO } from '@/lib/consts'
+import { MINER_SUBSYSTEM_CONFIG, type SubsystemKey } from '@/lib/progression-config'
 import {
   BUY_AMOUNT_OPTIONS,
   buyGenerator,
+  canBuyGenerator,
   GENERATOR_DEFS,
   GENERATOR_ORDER,
+  getSubsystemForGenerator,
   getGeneratorCost,
   getGeneratorProductionPerSecond,
+  isGeneratorManagedBySubsystem,
   setBuyAmount,
   type GameState,
 } from '@/lib/game-engine'
@@ -27,6 +31,7 @@ interface ProductionScreenProps {
     cost: Decimal,
     creditsPerSecond: Decimal,
   ) => number | null
+  onOpenSubsystem: (subsystem: SubsystemKey) => void
 }
 
 export function ProductionScreen({
@@ -36,6 +41,7 @@ export function ProductionScreen({
   formatRenderedCredits,
   formatAffordabilityEta,
   getSecondsUntilAffordable,
+  onOpenSubsystem,
 }: ProductionScreenProps) {
   const [isOptionsOpen, setIsOptionsOpen] = useState(false)
   const credits = new Decimal(game.credits)
@@ -122,7 +128,9 @@ export function ProductionScreen({
 
           const definition = GENERATOR_DEFS[key]
           const cost = getGeneratorCost(game, key)
-          const canBuy = credits.greaterThanOrEqualTo(cost)
+          const subsystem = getSubsystemForGenerator(key)
+          const isSubsystemEntry = isGeneratorManagedBySubsystem(game, key)
+          const canBuy = canBuyGenerator(game, key)
           const contribution = getGeneratorProductionPerSecond(game, key)
           const remainingCredits = canBuy ? new Decimal(0) : cost.minus(credits)
           const secondsUntilAffordable = getSecondsUntilAffordable(
@@ -136,6 +144,8 @@ export function ProductionScreen({
           )
             .toDecimalPlaces(0, Decimal.ROUND_FLOOR)
             .toNumber()
+          const subsystemLabel =
+            subsystem === 'miners' ? MINER_SUBSYSTEM_CONFIG.label : 'Subsystem'
 
           if (isGhost) {
             return (
@@ -175,46 +185,67 @@ export function ProductionScreen({
                 </div>
                 <div className="mt-2 flex items-center gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm text-muted-foreground">
-                      Cost:{' '}
-                      <span className="font-mono tabular-nums">
-                        {formatRenderedCredits(cost)}
-                      </span>{' '}
-                      credits
-                    </div>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={cn(
-                          'h-full rounded-full transition-all duration-75',
-                          canBuy ? 'bg-foreground/70' : 'bg-muted-foreground/60',
-                        )}
-                        style={{ width: `${Math.max(0, affordabilityPercent)}%` }}
-                      />
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {canBuy ? (
-                        'Ready to purchase'
-                      ) : (
-                        <>
-                          Need{' '}
+                    {isSubsystemEntry ? (
+                      <>
+                        <div className="text-sm text-muted-foreground">
+                          Main producer complete
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Enter <span className="font-medium text-foreground">{subsystemLabel}</span>{' '}
+                          to keep scaling {definition.label} output.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-sm text-muted-foreground">
+                          Cost:{' '}
                           <span className="font-mono tabular-nums">
-                            {formatRenderedCredits(remainingCredits)}
+                            {formatRenderedCredits(cost)}
                           </span>{' '}
-                          more
-                          {secondsUntilAffordable !== null && secondsUntilAffordable > 0
-                            ? ` (${formatAffordabilityEta(secondsUntilAffordable)})`
-                            : ''}
-                        </>
-                      )}
-                    </p>
+                          credits
+                        </div>
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={cn(
+                              'h-full rounded-full transition-all duration-75',
+                              canBuy ? 'bg-foreground/70' : 'bg-muted-foreground/60',
+                            )}
+                            style={{ width: `${Math.max(0, affordabilityPercent)}%` }}
+                          />
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {canBuy ? (
+                            'Ready to purchase'
+                          ) : (
+                            <>
+                              Need{' '}
+                              <span className="font-mono tabular-nums">
+                                {formatRenderedCredits(remainingCredits)}
+                              </span>{' '}
+                              more
+                              {secondsUntilAffordable !== null && secondsUntilAffordable > 0
+                                ? ` (${formatAffordabilityEta(secondsUntilAffordable)})`
+                                : ''}
+                            </>
+                          )}
+                        </p>
+                      </>
+                    )}
                   </div>
                   <Button
                     size="sm"
                     className="h-10 min-w-[5.5rem] shrink-0 font-mono tabular-nums"
-                    disabled={!canBuy}
-                    onClick={() => onGameChange((current) => buyGenerator(current, key))}
+                    disabled={!isSubsystemEntry && !canBuy}
+                    onClick={() => {
+                      if (isSubsystemEntry && subsystem) {
+                        onOpenSubsystem(subsystem)
+                        return
+                      }
+
+                      onGameChange((current) => buyGenerator(current, key))
+                    }}
                   >
-                    Buy
+                    {isSubsystemEntry ? 'Open' : 'Buy'}
                   </Button>
                 </div>
               </div>
