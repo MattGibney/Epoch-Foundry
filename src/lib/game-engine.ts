@@ -634,7 +634,7 @@ function getRequiredGenerator(entry: UpgradeConfigEntry): GeneratorKey | undefin
   return entry.requiresOwned.generator as GeneratorKey
 }
 
-function getUpgradeCost(entry: UpgradeConfigEntry): string {
+function getConfiguredUpgradeCost(entry: UpgradeConfigEntry): string {
   const multiplier = UPGRADE_COST_MULTIPLIER_BY_TYPE[entry.effectType]
   return new Decimal(entry.cost).times(multiplier).ceil().toString()
 }
@@ -670,7 +670,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = UPGRADE_ORDER.red
         key,
         label: entry.label,
         description: entry.description,
-        cost: getUpgradeCost(entry),
+        cost: getConfiguredUpgradeCost(entry),
         effectType: 'generator',
         target: entry.target as GeneratorKey,
         multiplier: entry.multiplier!,
@@ -685,7 +685,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = UPGRADE_ORDER.red
         key,
         label: entry.label,
         description: entry.description,
-        cost: getUpgradeCost(entry),
+        cost: getConfiguredUpgradeCost(entry),
         effectType: 'global',
         multiplier: entry.multiplier!,
         requiresOwned,
@@ -699,7 +699,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = UPGRADE_ORDER.red
         key,
         label: entry.label,
         description: entry.description,
-        cost: getUpgradeCost(entry),
+        cost: getConfiguredUpgradeCost(entry),
         effectType: 'subsystemUnlock',
         subsystem: entry.subsystem!,
         requiresOwned,
@@ -712,7 +712,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = UPGRADE_ORDER.red
       key,
       label: entry.label,
       description: entry.description,
-      cost: getUpgradeCost(entry),
+      cost: getConfiguredUpgradeCost(entry),
       effectType: 'offlineCap',
       offlineCapSeconds: entry.offlineCapSeconds!,
       requiresOwned,
@@ -1109,13 +1109,37 @@ function normalizeMinerSubsystemPurchasedUpgradesState(
 }
 
 function getNormalizedMinerSubsystemState(state: GameState): MinerSubsystemState {
+  const oreData = state.subsystems.miners.oreData ?? '0'
+  const totalOreData = state.subsystems.miners.totalOreData ?? oreData
+  const generators = normalizeMinerSubsystemGeneratorsState(state.subsystems.miners.generators)
+  const purchasedUpgrades = normalizeMinerSubsystemPurchasedUpgradesState(
+    state.subsystems.miners.purchasedUpgrades,
+  )
+
+  const hasUnlockedMiningNetwork = isSubsystemUnlocked(state, 'miners')
+  const hasStartedMiningNetwork =
+    new Decimal(totalOreData).greaterThan(0) ||
+    MINER_SUBSYSTEM_GENERATOR_ORDER.some((key) => generators[key] > 0)
+
+  if (hasUnlockedMiningNetwork && !hasStartedMiningNetwork) {
+    const firstGeneratorKey = MINER_SUBSYSTEM_GENERATOR_ORDER[0]
+
+    return {
+      oreData: '0',
+      totalOreData: '0',
+      generators: {
+        ...generators,
+        [firstGeneratorKey]: 1,
+      },
+      purchasedUpgrades,
+    }
+  }
+
   return {
-    oreData: state.subsystems.miners.oreData ?? '0',
-    totalOreData: state.subsystems.miners.totalOreData ?? state.subsystems.miners.oreData ?? '0',
-    generators: normalizeMinerSubsystemGeneratorsState(state.subsystems.miners.generators),
-    purchasedUpgrades: normalizeMinerSubsystemPurchasedUpgradesState(
-      state.subsystems.miners.purchasedUpgrades,
-    ),
+    oreData,
+    totalOreData,
+    generators,
+    purchasedUpgrades,
   }
 }
 
@@ -1478,6 +1502,28 @@ function getGeneratorCostMultiplierFromPermanentUpgrades(
   return Decimal.max(new Decimal('0.1'), costMultiplier)
 }
 
+function getRunUpgradeCostMultiplierFromPermanentUpgrades(
+  permanentUpgrades: PermanentUpgradesState,
+): Decimal {
+  let costMultiplier = ONE
+
+  for (const key of PERMANENT_UPGRADE_ORDER) {
+    const upgrade = PERMANENT_UPGRADE_DEFS[key]
+    if (upgrade.effectType !== 'runUpgradeCostDiscount') {
+      continue
+    }
+
+    const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
+    if (level <= 0) {
+      continue
+    }
+
+    costMultiplier = costMultiplier.times(toDecimal(upgrade.value).pow(level))
+  }
+
+  return Decimal.max(new Decimal('0.1'), costMultiplier)
+}
+
 function getStartingCreditsFromPermanentUpgrades(
   permanentUpgrades: PermanentUpgradesState,
 ): Decimal {
@@ -1498,45 +1544,6 @@ function getStartingCreditsFromPermanentUpgrades(
   }
 
   return startingCredits
-}
-
-function getUpgradeRequirementMultiplierFromPermanentUpgrades(
-  permanentUpgrades: PermanentUpgradesState,
-): Decimal {
-  let requirementMultiplier = ONE
-
-  for (const key of PERMANENT_UPGRADE_ORDER) {
-    const upgrade = PERMANENT_UPGRADE_DEFS[key]
-    if (upgrade.effectType !== 'upgradeRequirementDiscount') {
-      continue
-    }
-
-    const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
-    if (level <= 0) {
-      continue
-    }
-
-    requirementMultiplier = requirementMultiplier.times(toDecimal(upgrade.value).pow(level))
-  }
-
-  return Decimal.max(new Decimal('0.4'), requirementMultiplier)
-}
-
-function getAdjustedUpgradeOwnedRequirement(
-  state: GameState,
-  count: number,
-): number {
-  if (count <= 1) {
-    return 1
-  }
-
-  return Math.max(
-    1,
-    new Decimal(count)
-      .times(getUpgradeRequirementMultiplierFromPermanentUpgrades(state.prestige.permanentUpgrades))
-      .ceil()
-      .toNumber(),
-  )
 }
 
 function getPrestigeGainMultiplierFromPermanentUpgrades(
@@ -1870,11 +1877,7 @@ export function isUpgradeUnlocked(state: GameState, key: RunUpgradeKey): boolean
 
   const meetsGeneratorRequirement =
     !upgrade.requiresOwned ||
-    state.generators[upgrade.requiresOwned.generator] >=
-      getAdjustedUpgradeOwnedRequirement(
-        state,
-        upgrade.requiresOwned.count,
-      )
+    state.generators[upgrade.requiresOwned.generator] >= upgrade.requiresOwned.count
   const meetsUpgradeRequirement =
     !upgrade.requiresUpgrade || state.purchasedUpgrades[upgrade.requiresUpgrade]
 
@@ -1889,10 +1892,7 @@ export function getUpgradeUnlockProgress(state: GameState, key: RunUpgradeKey) {
 
   if (upgrade.requiresOwned) {
     const currentOwned = state.generators[upgrade.requiresOwned.generator]
-    const requiredOwned = getAdjustedUpgradeOwnedRequirement(
-      state,
-      upgrade.requiresOwned.count,
-    )
+    const requiredOwned = upgrade.requiresOwned.count
     if (currentOwned < requiredOwned) {
       return {
         current: currentOwned,
@@ -1916,6 +1916,17 @@ export function getUpgradeUnlockProgress(state: GameState, key: RunUpgradeKey) {
   return null
 }
 
+export function getUpgradeCost(state: GameState, key: RunUpgradeKey): Decimal {
+  const upgrade = UPGRADE_DEFS[key]
+  if (!upgrade) {
+    return ZERO
+  }
+
+  return toDecimal(upgrade.cost).times(
+    getRunUpgradeCostMultiplierFromPermanentUpgrades(state.prestige.permanentUpgrades),
+  )
+}
+
 export function canBuyUpgrade(state: GameState, key: RunUpgradeKey): boolean {
   const upgrade = UPGRADE_DEFS[key]
   if (
@@ -1926,7 +1937,7 @@ export function canBuyUpgrade(state: GameState, key: RunUpgradeKey): boolean {
     return false
   }
 
-  return toDecimal(state.credits).greaterThanOrEqualTo(upgrade.cost)
+  return toDecimal(state.credits).greaterThanOrEqualTo(getUpgradeCost(state, key))
 }
 
 export function buyUpgrade(state: GameState, key: RunUpgradeKey): GameState {
@@ -1935,12 +1946,26 @@ export function buyUpgrade(state: GameState, key: RunUpgradeKey): GameState {
     return state
   }
 
+  const cost = getUpgradeCost(state, key)
+  const nextPurchasedUpgrades = {
+    ...state.purchasedUpgrades,
+    [key]: true,
+  }
+  const nextSubsystems =
+    key === SUBSYSTEM_UNLOCK_UPGRADES.miners
+      ? {
+          ...state.subsystems,
+          miners: getNormalizedMinerSubsystemState({
+            ...state,
+            purchasedUpgrades: nextPurchasedUpgrades,
+          }),
+        }
+      : state.subsystems
+
   return syncAchievements({
     ...state,
-    credits: toDecimal(state.credits).minus(upgrade.cost).toString(),
-    purchasedUpgrades: {
-      ...state.purchasedUpgrades,
-      [key]: true,
-    },
+    credits: toDecimal(state.credits).minus(cost).toString(),
+    purchasedUpgrades: nextPurchasedUpgrades,
+    subsystems: nextSubsystems,
   })
 }

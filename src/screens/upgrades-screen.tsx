@@ -7,6 +7,7 @@ import {
   canBuyUpgrade,
   GENERATOR_DEFS,
   GENERATOR_ORDER,
+  getUpgradeCost,
   getUpgradeUnlockProgress,
   isUpgradeUnlocked,
   UPGRADE_DEFS,
@@ -113,7 +114,7 @@ export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: Up
     const canBuy = canBuyUpgrade(game, key)
     const isUnlocked = isUpgradeUnlocked(game, key)
     const unlockProgress = getUpgradeUnlockProgress(game, key)
-    const cost = new Decimal(definition.cost)
+    const cost = getUpgradeCost(game, key)
     const creditProgress = {
       current: `${formatRenderedCredits(credits)}/${formatRenderedCredits(cost)}`,
       ratio: Decimal.min(new Decimal(1), credits.div(cost)).toNumber(),

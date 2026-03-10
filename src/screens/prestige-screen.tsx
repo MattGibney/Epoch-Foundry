@@ -115,8 +115,8 @@ export function PrestigeScreen({
                   ? `+${formatValue(new Decimal(definition.value).times(level))} starting credits`
                 : definition.effectType === 'generatorCostDiscount'
                   ? `${formatValue(new Decimal(1).minus(new Decimal(definition.value).pow(level)).times(100))}% generator cost reduction`
-                  : definition.effectType === 'upgradeRequirementDiscount'
-                    ? `${formatValue(new Decimal(1).minus(new Decimal(definition.value).pow(level)).times(100))}% lower run-upgrade requirements`
+                  : definition.effectType === 'runUpgradeCostDiscount'
+                    ? `${formatValue(new Decimal(1).minus(new Decimal(definition.value).pow(level)).times(100))}% run-upgrade cost reduction`
                   : `x${formatValue(new Decimal(definition.value).pow(level))} prestige gain`
 
             return (

@@ -42,8 +42,10 @@
 - Keep Home-screen production visualizers as standalone swappable components with data-only inputs so visual styles can be replaced without changing game/screen logic.
 - Keep gameplay randomness deterministic from a persisted run seed (`worldSeed`) and shared RNG utilities; avoid direct `Math.random()` in game systems.
 - Structure progression in two phases: a simple producer-and-prestige opening game first, then a broader systems game after a roughly `10-24` hour unlock.
+- Keep producer-owned-count milestones as stable progression gates; prestige should accelerate income and upgrade affordability, but should not lower the producer counts required to finish ladders or unlock subsystems.
 - Treat producer-specific subsystems as the main phase-two expansion path; later mini-games and economy layers should interconnect with those subsystems rather than sit as isolated side features.
 - Unlock each producer subsystem when the parent producer has completed its main upgrade ladder, so subsystem access reads as the next stage of that producer rather than as a separate side feature.
+- Bootstrap a newly unlocked subsystem with its first producer already owned rather than with free subsystem currency, so the loop starts active without skipping the opening purchase rung.
 - Keep parent producer purchasing available after a subsystem unlock; expose subsystem entry from the producer row as a dedicated full-width inline action without replacing the parent producer buy action.
 - Standardize producer subsystems as nested idle games: each one should have its own currency, producer ladder, upgrade ladder, and a multiplier or equivalent export that feeds only back into the parent producer.
 - Prefer subsystem designs that mirror the core game loop closely and reuse the same progression grammar as the main game; theme and tuning should differentiate subsystems more than bespoke mechanics or one-off control schemes.

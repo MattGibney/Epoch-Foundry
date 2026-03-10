@@ -57,9 +57,9 @@ export type PermanentUpgradeConfigEntry = {
   effectType:
     | 'productionAdditive'
     | 'generatorCostDiscount'
+    | 'runUpgradeCostDiscount'
     | 'prestigeGainMultiplier'
     | 'startingCredits'
-    | 'upgradeRequirementDiscount'
   value: string
 }
 
@@ -783,10 +783,10 @@ export const PERMANENT_UPGRADE_CONFIG: Record<string, PermanentUpgradeConfigEntr
   calibrationMatrix: {
     key: 'calibrationMatrix',
     label: 'Calibration Matrix',
-    description: 'Reduce run-upgrade ownership requirements by 4% per level.',
+    description: 'Reduce run-upgrade costs by 4% per level.',
     baseCost: '24',
     growth: '1.95',
-    effectType: 'upgradeRequirementDiscount',
+    effectType: 'runUpgradeCostDiscount',
     value: '0.96',
   },
   singularityCore: {
