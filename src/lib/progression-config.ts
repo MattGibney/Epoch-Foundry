@@ -41,9 +41,26 @@ export type AchievementConfigEntry = {
   requirement: AchievementRequirement
 }
 
+export type PermanentUpgradeConfigEntry = {
+  key: string
+  label: string
+  description: string
+  baseCost: string
+  growth: string
+  effectType:
+    | 'productionAdditive'
+    | 'generatorCostDiscount'
+    | 'prestigeGainMultiplier'
+    | 'startingCredits'
+    | 'upgradeRequirementDiscount'
+  value: string
+}
+
 export const PRESTIGE_BALANCE = {
-  unlockCredits: '1000000',
-  gainExponent: '0.6',
+  unlockCredits: '750000',
+  gainExponent: '0.72',
+  productionPerReset: '0.04',
+  gainPerReset: '0.1',
 } as const
 
 export const UPGRADE_COST_MULTIPLIER_BY_TYPE = {
@@ -58,72 +75,72 @@ export const GENERATOR_CONFIG: Record<string, GeneratorConfigEntry> = {
     label: 'Miners',
     description: 'Basic credit extraction units.',
     baseCost: '15',
-    growth: '1.15',
+    growth: '1.145',
     baseProduction: '1.25',
   },
   drills: {
     key: 'drills',
     label: 'Drills',
     description: 'Higher-throughput mining rigs.',
-    baseCost: '120',
-    growth: '1.16',
-    baseProduction: '8',
+    baseCost: '95',
+    growth: '1.15',
+    baseProduction: '7.5',
   },
   extractors: {
     key: 'extractors',
     label: 'Extractors',
     description: 'Industrial extraction platforms.',
-    baseCost: '900',
-    growth: '1.17',
-    baseProduction: '48',
+    baseCost: '650',
+    growth: '1.155',
+    baseProduction: '40',
   },
   refineries: {
     key: 'refineries',
     label: 'Refineries',
     description: 'Process raw yield into premium credits.',
-    baseCost: '9000',
-    growth: '1.18',
-    baseProduction: '280',
+    baseCost: '4800',
+    growth: '1.16',
+    baseProduction: '220',
   },
   megaRigs: {
     key: 'megaRigs',
     label: 'Mega Rigs',
     description: 'Heavy automated credit complexes.',
-    baseCost: '110000',
-    growth: '1.19',
-    baseProduction: '1700',
+    baseCost: '42000',
+    growth: '1.165',
+    baseProduction: '1250',
   },
   orbitalPlatforms: {
     key: 'orbitalPlatforms',
     label: 'Orbital Platforms',
     description: 'Massive orbital credit harvesters.',
-    baseCost: '2100000',
-    growth: '1.2',
-    baseProduction: '11000',
+    baseCost: '380000',
+    growth: '1.17',
+    baseProduction: '7200',
   },
   stellarForges: {
     key: 'stellarForges',
     label: 'Stellar Forges',
     description: 'Star-fed foundries for massive credit throughput.',
-    baseCost: '25000000',
-    growth: '1.21',
-    baseProduction: '65000',
+    baseCost: '4200000',
+    growth: '1.175',
+    baseProduction: '38000',
   },
   dysonArrays: {
     key: 'dysonArrays',
     label: 'Dyson Arrays',
     description: 'System-scale collectors that flood the ledger.',
-    baseCost: '300000000',
-    growth: '1.22',
-    baseProduction: '420000',
+    baseCost: '52000000',
+    growth: '1.18',
+    baseProduction: '200000',
   },
   singularityWells: {
     key: 'singularityWells',
     label: 'Singularity Wells',
     description: 'Gravity-compressed extraction beyond conventional limits.',
-    baseCost: '12000000000',
-    growth: '1.24',
-    baseProduction: '1500000',
+    baseCost: '750000000',
+    growth: '1.185',
+    baseProduction: '1100000',
   },
   continuumEngines: {
     key: 'continuumEngines',
@@ -215,43 +232,109 @@ export const GENERATOR_CONFIG: Record<string, GeneratorConfigEntry> = {
   },
 }
 
+export const PERMANENT_UPGRADE_CONFIG: Record<string, PermanentUpgradeConfigEntry> = {
+  essenceInfusion: {
+    key: 'essenceInfusion',
+    label: 'Essence Infusion',
+    description: 'Boost production multiplier by +0.22 per level.',
+    baseCost: '4',
+    growth: '1.6',
+    effectType: 'productionAdditive',
+    value: '0.22',
+  },
+  bootstrapCache: {
+    key: 'bootstrapCache',
+    label: 'Bootstrap Cache',
+    description: 'Start each run with +600 credits per level.',
+    baseCost: '6',
+    growth: '1.75',
+    effectType: 'startingCredits',
+    value: '600',
+  },
+  quantumLattice: {
+    key: 'quantumLattice',
+    label: 'Quantum Lattice',
+    description: 'Reduce generator costs by 4% per level.',
+    baseCost: '18',
+    growth: '1.85',
+    effectType: 'generatorCostDiscount',
+    value: '0.96',
+  },
+  calibrationMatrix: {
+    key: 'calibrationMatrix',
+    label: 'Calibration Matrix',
+    description: 'Reduce run-upgrade ownership requirements by 4% per level.',
+    baseCost: '24',
+    growth: '1.95',
+    effectType: 'upgradeRequirementDiscount',
+    value: '0.96',
+  },
+  singularityCore: {
+    key: 'singularityCore',
+    label: 'Singularity Core',
+    description: 'Increase prestige essence gain by 15% per level.',
+    baseCost: '55',
+    growth: '2.05',
+    effectType: 'prestigeGainMultiplier',
+    value: '1.15',
+  },
+}
+
 export const UPGRADE_CONFIG: Record<string, UpgradeConfigEntry> = {
-  minerTuning: { key: 'minerTuning', label: 'Miner Tuning', description: 'Double Miner output.', cost: '120', effectType: 'generator', target: 'miners', multiplier: '2', requiresOwned: { generator: 'miners', count: 10 } },
-  minerSwarm: { key: 'minerSwarm', label: 'Miner Swarm Logic', description: 'Triple Miner output.', cost: '1800', effectType: 'generator', target: 'miners', multiplier: '3', requiresOwned: { generator: 'miners', count: 50 }, requiresUpgrade: 'minerTuning' },
-  minerFoundries: { key: 'minerFoundries', label: 'Miner Foundries', description: 'Quadruple Miner output.', cost: '25000', effectType: 'generator', target: 'miners', multiplier: '4', requiresOwned: { generator: 'miners', count: 120 }, requiresUpgrade: 'minerSwarm' },
-  minerOvermind: { key: 'minerOvermind', label: 'Miner Overmind', description: 'Quintuple Miner output.', cost: '400000', effectType: 'generator', target: 'miners', multiplier: '5', requiresOwned: { generator: 'miners', count: 240 }, requiresUpgrade: 'minerFoundries' },
-  drillGrease: { key: 'drillGrease', label: 'Drill Grease', description: 'Double Drill output.', cost: '4500', effectType: 'generator', target: 'drills', multiplier: '2', requiresOwned: { generator: 'drills', count: 15 } },
-  drillAI: { key: 'drillAI', label: 'Drill AI Routing', description: 'Triple Drill output.', cost: '36000', effectType: 'generator', target: 'drills', multiplier: '3', requiresOwned: { generator: 'drills', count: 60 }, requiresUpgrade: 'drillGrease' },
-  drillHypercut: { key: 'drillHypercut', label: 'Drill Hypercut', description: 'Quadruple Drill output.', cost: '450000', effectType: 'generator', target: 'drills', multiplier: '4', requiresOwned: { generator: 'drills', count: 120 }, requiresUpgrade: 'drillAI' },
-  drillSingularity: { key: 'drillSingularity', label: 'Drill Singularity', description: 'Quintuple Drill output.', cost: '7000000', effectType: 'generator', target: 'drills', multiplier: '5', requiresOwned: { generator: 'drills', count: 240 }, requiresUpgrade: 'drillHypercut' },
-  extractorCooling: { key: 'extractorCooling', label: 'Extractor Cooling', description: 'Double Extractor output.', cost: '80000', effectType: 'generator', target: 'extractors', multiplier: '2', requiresOwned: { generator: 'extractors', count: 15 } },
-  extractorClusters: { key: 'extractorClusters', label: 'Extractor Clusters', description: 'Triple Extractor output.', cost: '650000', effectType: 'generator', target: 'extractors', multiplier: '3', requiresOwned: { generator: 'extractors', count: 60 }, requiresUpgrade: 'extractorCooling' },
-  extractorMatrices: { key: 'extractorMatrices', label: 'Extractor Matrices', description: 'Quadruple Extractor output.', cost: '9000000', effectType: 'generator', target: 'extractors', multiplier: '4', requiresOwned: { generator: 'extractors', count: 120 }, requiresUpgrade: 'extractorClusters' },
-  extractorHypergrid: { key: 'extractorHypergrid', label: 'Extractor Hypergrid', description: 'Quintuple Extractor output.', cost: '120000000', effectType: 'generator', target: 'extractors', multiplier: '5', requiresOwned: { generator: 'extractors', count: 240 }, requiresUpgrade: 'extractorMatrices' },
-  refineryCatalysts: { key: 'refineryCatalysts', label: 'Refinery Catalysts', description: 'Double Refinery output.', cost: '1400000', effectType: 'generator', target: 'refineries', multiplier: '2', requiresOwned: { generator: 'refineries', count: 15 } },
-  refineryOverdrive: { key: 'refineryOverdrive', label: 'Refinery Overdrive', description: 'Triple Refinery output.', cost: '11000000', effectType: 'generator', target: 'refineries', multiplier: '3', requiresOwned: { generator: 'refineries', count: 60 }, requiresUpgrade: 'refineryCatalysts' },
-  refinerySingularities: { key: 'refinerySingularities', label: 'Refinery Singularities', description: 'Quadruple Refinery output.', cost: '180000000', effectType: 'generator', target: 'refineries', multiplier: '4', requiresOwned: { generator: 'refineries', count: 120 }, requiresUpgrade: 'refineryOverdrive' },
-  refineryTransmutation: { key: 'refineryTransmutation', label: 'Refinery Transmutation', description: 'Quintuple Refinery output.', cost: '2400000000', effectType: 'generator', target: 'refineries', multiplier: '5', requiresOwned: { generator: 'refineries', count: 240 }, requiresUpgrade: 'refinerySingularities' },
-  megaRigServos: { key: 'megaRigServos', label: 'Mega Rig Servos', description: 'Double Mega Rig output.', cost: '22000000', effectType: 'generator', target: 'megaRigs', multiplier: '2', requiresOwned: { generator: 'megaRigs', count: 15 } },
-  megaRigNanites: { key: 'megaRigNanites', label: 'Mega Rig Nanites', description: 'Triple Mega Rig output.', cost: '165000000', effectType: 'generator', target: 'megaRigs', multiplier: '3', requiresOwned: { generator: 'megaRigs', count: 60 }, requiresUpgrade: 'megaRigServos' },
-  megaRigSentience: { key: 'megaRigSentience', label: 'Mega Rig Sentience', description: 'Quadruple Mega Rig output.', cost: '2700000000', effectType: 'generator', target: 'megaRigs', multiplier: '4', requiresOwned: { generator: 'megaRigs', count: 120 }, requiresUpgrade: 'megaRigNanites' },
-  megaRigDominion: { key: 'megaRigDominion', label: 'Mega Rig Dominion', description: 'Quintuple Mega Rig output.', cost: '36000000000', effectType: 'generator', target: 'megaRigs', multiplier: '5', requiresOwned: { generator: 'megaRigs', count: 240 }, requiresUpgrade: 'megaRigSentience' },
-  orbitalDrones: { key: 'orbitalDrones', label: 'Orbital Drone Nets', description: 'Double Orbital Platform output.', cost: '320000000', effectType: 'generator', target: 'orbitalPlatforms', multiplier: '2', requiresOwned: { generator: 'orbitalPlatforms', count: 12 } },
-  orbitalCommand: { key: 'orbitalCommand', label: 'Orbital Command AI', description: 'Triple Orbital Platform output.', cost: '2500000000', effectType: 'generator', target: 'orbitalPlatforms', multiplier: '3', requiresOwned: { generator: 'orbitalPlatforms', count: 40 }, requiresUpgrade: 'orbitalDrones' },
-  orbitalAnchors: { key: 'orbitalAnchors', label: 'Orbital Anchors', description: 'Quadruple Orbital Platform output.', cost: '42000000000', effectType: 'generator', target: 'orbitalPlatforms', multiplier: '4', requiresOwned: { generator: 'orbitalPlatforms', count: 100 }, requiresUpgrade: 'orbitalCommand' },
-  orbitalEmpyrean: { key: 'orbitalEmpyrean', label: 'Orbital Empyrean Grid', description: 'Quintuple Orbital Platform output.', cost: '550000000000', effectType: 'generator', target: 'orbitalPlatforms', multiplier: '5', requiresOwned: { generator: 'orbitalPlatforms', count: 220 }, requiresUpgrade: 'orbitalAnchors' },
-  stellarFlux: { key: 'stellarFlux', label: 'Stellar Flux Weaves', description: 'Double Stellar Forge output.', cost: '80000000000', effectType: 'generator', target: 'stellarForges', multiplier: '2', requiresOwned: { generator: 'stellarForges', count: 12 } },
-  stellarLattices: { key: 'stellarLattices', label: 'Stellar Lattices', description: 'Triple Stellar Forge output.', cost: '620000000000', effectType: 'generator', target: 'stellarForges', multiplier: '3', requiresOwned: { generator: 'stellarForges', count: 45 }, requiresUpgrade: 'stellarFlux' },
-  stellarAscension: { key: 'stellarAscension', label: 'Stellar Ascension', description: 'Quadruple Stellar Forge output.', cost: '4300000000000', effectType: 'generator', target: 'stellarForges', multiplier: '4', requiresOwned: { generator: 'stellarForges', count: 110 }, requiresUpgrade: 'stellarLattices' },
-  stellarParagon: { key: 'stellarParagon', label: 'Stellar Paragon Cells', description: 'Quintuple Stellar Forge output.', cost: '80000000000000', effectType: 'generator', target: 'stellarForges', multiplier: '5', requiresOwned: { generator: 'stellarForges', count: 220 }, requiresUpgrade: 'stellarAscension' },
-  dysonPhasing: { key: 'dysonPhasing', label: 'Dyson Phasing', description: 'Double Dyson Array output.', cost: '11000000000000', effectType: 'generator', target: 'dysonArrays', multiplier: '2', requiresOwned: { generator: 'dysonArrays', count: 12 } },
-  dysonHarmonics: { key: 'dysonHarmonics', label: 'Dyson Harmonics', description: 'Triple Dyson Array output.', cost: '78000000000000', effectType: 'generator', target: 'dysonArrays', multiplier: '3', requiresOwned: { generator: 'dysonArrays', count: 45 }, requiresUpgrade: 'dysonPhasing' },
-  dysonDominion: { key: 'dysonDominion', label: 'Dyson Dominion', description: 'Quadruple Dyson Array output.', cost: '520000000000000', effectType: 'generator', target: 'dysonArrays', multiplier: '4', requiresOwned: { generator: 'dysonArrays', count: 110 }, requiresUpgrade: 'dysonHarmonics' },
-  dysonZenith: { key: 'dysonZenith', label: 'Dyson Zenith Mesh', description: 'Quintuple Dyson Array output.', cost: '9500000000000000', effectType: 'generator', target: 'dysonArrays', multiplier: '5', requiresOwned: { generator: 'dysonArrays', count: 220 }, requiresUpgrade: 'dysonDominion' },
-  singularityContainment: { key: 'singularityContainment', label: 'Singularity Containment', description: 'Double Singularity Well output.', cost: '1400000000000000', effectType: 'generator', target: 'singularityWells', multiplier: '2', requiresOwned: { generator: 'singularityWells', count: 12 } },
-  singularityLensing: { key: 'singularityLensing', label: 'Singularity Lensing', description: 'Triple Singularity Well output.', cost: '9500000000000000', effectType: 'generator', target: 'singularityWells', multiplier: '3', requiresOwned: { generator: 'singularityWells', count: 45 }, requiresUpgrade: 'singularityContainment' },
-  singularityTranscendence: { key: 'singularityTranscendence', label: 'Singularity Transcendence', description: 'Quadruple Singularity Well output.', cost: '70000000000000000', effectType: 'generator', target: 'singularityWells', multiplier: '4', requiresOwned: { generator: 'singularityWells', count: 110 }, requiresUpgrade: 'singularityLensing' },
-  singularityAxiom: { key: 'singularityAxiom', label: 'Singularity Axiom Lens', description: 'Quintuple Singularity Well output.', cost: '1200000000000000000', effectType: 'generator', target: 'singularityWells', multiplier: '5', requiresOwned: { generator: 'singularityWells', count: 220 }, requiresUpgrade: 'singularityTranscendence' },
+  minerTuning: { key: 'minerTuning', label: 'Miner Tuning', description: 'Double Miner output.', cost: '80', effectType: 'generator', target: 'miners', multiplier: '2', requiresOwned: { generator: 'miners', count: 10 } },
+  minerCollectives: { key: 'minerCollectives', label: 'Miner Collectives', description: 'Double Miner output.', cost: '450', effectType: 'generator', target: 'miners', multiplier: '2', requiresOwned: { generator: 'miners', count: 25 }, requiresUpgrade: 'minerTuning' },
+  minerSwarm: { key: 'minerSwarm', label: 'Miner Swarm Logic', description: 'Double Miner output.', cost: '2500', effectType: 'generator', target: 'miners', multiplier: '2', requiresOwned: { generator: 'miners', count: 50 }, requiresUpgrade: 'minerCollectives' },
+  minerFoundries: { key: 'minerFoundries', label: 'Miner Foundries', description: 'Boost Miner output by x2.5.', cost: '15000', effectType: 'generator', target: 'miners', multiplier: '2.5', requiresOwned: { generator: 'miners', count: 100 }, requiresUpgrade: 'minerSwarm' },
+  minerOvermind: { key: 'minerOvermind', label: 'Miner Overmind', description: 'Triple Miner output.', cost: '100000', effectType: 'generator', target: 'miners', multiplier: '3', requiresOwned: { generator: 'miners', count: 200 }, requiresUpgrade: 'minerFoundries' },
+  minerConstellation: { key: 'minerConstellation', label: 'Miner Constellation', description: 'Quadruple Miner output.', cost: '650000', effectType: 'generator', target: 'miners', multiplier: '4', requiresOwned: { generator: 'miners', count: 350 }, requiresUpgrade: 'minerOvermind' },
+  drillGrease: { key: 'drillGrease', label: 'Drill Grease', description: 'Double Drill output.', cost: '650', effectType: 'generator', target: 'drills', multiplier: '2', requiresOwned: { generator: 'drills', count: 10 } },
+  drillAssemblies: { key: 'drillAssemblies', label: 'Drill Assemblies', description: 'Double Drill output.', cost: '3600', effectType: 'generator', target: 'drills', multiplier: '2', requiresOwned: { generator: 'drills', count: 25 }, requiresUpgrade: 'drillGrease' },
+  drillAI: { key: 'drillAI', label: 'Drill AI Routing', description: 'Double Drill output.', cost: '20000', effectType: 'generator', target: 'drills', multiplier: '2', requiresOwned: { generator: 'drills', count: 50 }, requiresUpgrade: 'drillAssemblies' },
+  drillHypercut: { key: 'drillHypercut', label: 'Drill Hypercut', description: 'Boost Drill output by x2.5.', cost: '125000', effectType: 'generator', target: 'drills', multiplier: '2.5', requiresOwned: { generator: 'drills', count: 100 }, requiresUpgrade: 'drillAI' },
+  drillSingularity: { key: 'drillSingularity', label: 'Drill Singularity', description: 'Triple Drill output.', cost: '850000', effectType: 'generator', target: 'drills', multiplier: '3', requiresOwned: { generator: 'drills', count: 200 }, requiresUpgrade: 'drillHypercut' },
+  drillEventide: { key: 'drillEventide', label: 'Drill Eventide', description: 'Quadruple Drill output.', cost: '6000000', effectType: 'generator', target: 'drills', multiplier: '4', requiresOwned: { generator: 'drills', count: 350 }, requiresUpgrade: 'drillSingularity' },
+  extractorCooling: { key: 'extractorCooling', label: 'Extractor Cooling', description: 'Double Extractor output.', cost: '5000', effectType: 'generator', target: 'extractors', multiplier: '2', requiresOwned: { generator: 'extractors', count: 10 } },
+  extractorLattices: { key: 'extractorLattices', label: 'Extractor Lattices', description: 'Double Extractor output.', cost: '32000', effectType: 'generator', target: 'extractors', multiplier: '2', requiresOwned: { generator: 'extractors', count: 25 }, requiresUpgrade: 'extractorCooling' },
+  extractorClusters: { key: 'extractorClusters', label: 'Extractor Clusters', description: 'Double Extractor output.', cost: '190000', effectType: 'generator', target: 'extractors', multiplier: '2', requiresOwned: { generator: 'extractors', count: 50 }, requiresUpgrade: 'extractorLattices' },
+  extractorMatrices: { key: 'extractorMatrices', label: 'Extractor Matrices', description: 'Boost Extractor output by x2.5.', cost: '1150000', effectType: 'generator', target: 'extractors', multiplier: '2.5', requiresOwned: { generator: 'extractors', count: 100 }, requiresUpgrade: 'extractorClusters' },
+  extractorHypergrid: { key: 'extractorHypergrid', label: 'Extractor Hypergrid', description: 'Triple Extractor output.', cost: '7800000', effectType: 'generator', target: 'extractors', multiplier: '3', requiresOwned: { generator: 'extractors', count: 200 }, requiresUpgrade: 'extractorMatrices' },
+  extractorApogee: { key: 'extractorApogee', label: 'Extractor Apogee', description: 'Quadruple Extractor output.', cost: '55000000', effectType: 'generator', target: 'extractors', multiplier: '4', requiresOwned: { generator: 'extractors', count: 350 }, requiresUpgrade: 'extractorHypergrid' },
+  refineryCatalysts: { key: 'refineryCatalysts', label: 'Refinery Catalysts', description: 'Double Refinery output.', cost: '38000', effectType: 'generator', target: 'refineries', multiplier: '2', requiresOwned: { generator: 'refineries', count: 10 } },
+  refineryDistillation: { key: 'refineryDistillation', label: 'Refinery Distillation', description: 'Double Refinery output.', cost: '240000', effectType: 'generator', target: 'refineries', multiplier: '2', requiresOwned: { generator: 'refineries', count: 25 }, requiresUpgrade: 'refineryCatalysts' },
+  refineryOverdrive: { key: 'refineryOverdrive', label: 'Refinery Overdrive', description: 'Double Refinery output.', cost: '1450000', effectType: 'generator', target: 'refineries', multiplier: '2', requiresOwned: { generator: 'refineries', count: 50 }, requiresUpgrade: 'refineryDistillation' },
+  refinerySingularities: { key: 'refinerySingularities', label: 'Refinery Singularities', description: 'Boost Refinery output by x2.5.', cost: '9000000', effectType: 'generator', target: 'refineries', multiplier: '2.5', requiresOwned: { generator: 'refineries', count: 100 }, requiresUpgrade: 'refineryOverdrive' },
+  refineryTransmutation: { key: 'refineryTransmutation', label: 'Refinery Transmutation', description: 'Triple Refinery output.', cost: '62000000', effectType: 'generator', target: 'refineries', multiplier: '3', requiresOwned: { generator: 'refineries', count: 200 }, requiresUpgrade: 'refinerySingularities' },
+  refineryPerpetuity: { key: 'refineryPerpetuity', label: 'Refinery Perpetuity', description: 'Quadruple Refinery output.', cost: '450000000', effectType: 'generator', target: 'refineries', multiplier: '4', requiresOwned: { generator: 'refineries', count: 350 }, requiresUpgrade: 'refineryTransmutation' },
+  megaRigServos: { key: 'megaRigServos', label: 'Mega Rig Servos', description: 'Double Mega Rig output.', cost: '280000', effectType: 'generator', target: 'megaRigs', multiplier: '2', requiresOwned: { generator: 'megaRigs', count: 10 } },
+  megaRigAssemblers: { key: 'megaRigAssemblers', label: 'Mega Rig Assemblers', description: 'Double Mega Rig output.', cost: '1800000', effectType: 'generator', target: 'megaRigs', multiplier: '2', requiresOwned: { generator: 'megaRigs', count: 25 }, requiresUpgrade: 'megaRigServos' },
+  megaRigNanites: { key: 'megaRigNanites', label: 'Mega Rig Nanites', description: 'Double Mega Rig output.', cost: '11000000', effectType: 'generator', target: 'megaRigs', multiplier: '2', requiresOwned: { generator: 'megaRigs', count: 50 }, requiresUpgrade: 'megaRigAssemblers' },
+  megaRigSentience: { key: 'megaRigSentience', label: 'Mega Rig Sentience', description: 'Boost Mega Rig output by x2.5.', cost: '72000000', effectType: 'generator', target: 'megaRigs', multiplier: '2.5', requiresOwned: { generator: 'megaRigs', count: 100 }, requiresUpgrade: 'megaRigNanites' },
+  megaRigDominion: { key: 'megaRigDominion', label: 'Mega Rig Dominion', description: 'Triple Mega Rig output.', cost: '500000000', effectType: 'generator', target: 'megaRigs', multiplier: '3', requiresOwned: { generator: 'megaRigs', count: 200 }, requiresUpgrade: 'megaRigSentience' },
+  megaRigAscendancy: { key: 'megaRigAscendancy', label: 'Mega Rig Ascendancy', description: 'Quadruple Mega Rig output.', cost: '3600000000', effectType: 'generator', target: 'megaRigs', multiplier: '4', requiresOwned: { generator: 'megaRigs', count: 350 }, requiresUpgrade: 'megaRigDominion' },
+  orbitalDrones: { key: 'orbitalDrones', label: 'Orbital Drone Nets', description: 'Double Orbital Platform output.', cost: '2200000', effectType: 'generator', target: 'orbitalPlatforms', multiplier: '2', requiresOwned: { generator: 'orbitalPlatforms', count: 8 } },
+  orbitalShipyards: { key: 'orbitalShipyards', label: 'Orbital Shipyards', description: 'Double Orbital Platform output.', cost: '14000000', effectType: 'generator', target: 'orbitalPlatforms', multiplier: '2', requiresOwned: { generator: 'orbitalPlatforms', count: 20 }, requiresUpgrade: 'orbitalDrones' },
+  orbitalCommand: { key: 'orbitalCommand', label: 'Orbital Command AI', description: 'Double Orbital Platform output.', cost: '90000000', effectType: 'generator', target: 'orbitalPlatforms', multiplier: '2', requiresOwned: { generator: 'orbitalPlatforms', count: 40 }, requiresUpgrade: 'orbitalShipyards' },
+  orbitalAnchors: { key: 'orbitalAnchors', label: 'Orbital Anchors', description: 'Boost Orbital Platform output by x2.5.', cost: '580000000', effectType: 'generator', target: 'orbitalPlatforms', multiplier: '2.5', requiresOwned: { generator: 'orbitalPlatforms', count: 80 }, requiresUpgrade: 'orbitalCommand' },
+  orbitalEmpyrean: { key: 'orbitalEmpyrean', label: 'Orbital Empyrean Grid', description: 'Triple Orbital Platform output.', cost: '4100000000', effectType: 'generator', target: 'orbitalPlatforms', multiplier: '3', requiresOwned: { generator: 'orbitalPlatforms', count: 160 }, requiresUpgrade: 'orbitalAnchors' },
+  orbitalAureate: { key: 'orbitalAureate', label: 'Orbital Aureate Rings', description: 'Quadruple Orbital Platform output.', cost: '30000000000', effectType: 'generator', target: 'orbitalPlatforms', multiplier: '4', requiresOwned: { generator: 'orbitalPlatforms', count: 280 }, requiresUpgrade: 'orbitalEmpyrean' },
+  stellarFlux: { key: 'stellarFlux', label: 'Stellar Flux Weaves', description: 'Double Stellar Forge output.', cost: '25000000', effectType: 'generator', target: 'stellarForges', multiplier: '2', requiresOwned: { generator: 'stellarForges', count: 8 } },
+  stellarMantles: { key: 'stellarMantles', label: 'Stellar Mantles', description: 'Double Stellar Forge output.', cost: '160000000', effectType: 'generator', target: 'stellarForges', multiplier: '2', requiresOwned: { generator: 'stellarForges', count: 20 }, requiresUpgrade: 'stellarFlux' },
+  stellarLattices: { key: 'stellarLattices', label: 'Stellar Lattices', description: 'Double Stellar Forge output.', cost: '1050000000', effectType: 'generator', target: 'stellarForges', multiplier: '2', requiresOwned: { generator: 'stellarForges', count: 40 }, requiresUpgrade: 'stellarMantles' },
+  stellarAscension: { key: 'stellarAscension', label: 'Stellar Ascension', description: 'Boost Stellar Forge output by x2.5.', cost: '7000000000', effectType: 'generator', target: 'stellarForges', multiplier: '2.5', requiresOwned: { generator: 'stellarForges', count: 80 }, requiresUpgrade: 'stellarLattices' },
+  stellarParagon: { key: 'stellarParagon', label: 'Stellar Paragon Cells', description: 'Triple Stellar Forge output.', cost: '50000000000', effectType: 'generator', target: 'stellarForges', multiplier: '3', requiresOwned: { generator: 'stellarForges', count: 160 }, requiresUpgrade: 'stellarAscension' },
+  stellarSupercluster: { key: 'stellarSupercluster', label: 'Stellar Supercluster', description: 'Quadruple Stellar Forge output.', cost: '360000000000', effectType: 'generator', target: 'stellarForges', multiplier: '4', requiresOwned: { generator: 'stellarForges', count: 280 }, requiresUpgrade: 'stellarParagon' },
+  dysonPhasing: { key: 'dysonPhasing', label: 'Dyson Phasing', description: 'Double Dyson Array output.', cost: '320000000', effectType: 'generator', target: 'dysonArrays', multiplier: '2', requiresOwned: { generator: 'dysonArrays', count: 6 } },
+  dysonLenses: { key: 'dysonLenses', label: 'Dyson Lenses', description: 'Double Dyson Array output.', cost: '2200000000', effectType: 'generator', target: 'dysonArrays', multiplier: '2', requiresOwned: { generator: 'dysonArrays', count: 15 }, requiresUpgrade: 'dysonPhasing' },
+  dysonHarmonics: { key: 'dysonHarmonics', label: 'Dyson Harmonics', description: 'Double Dyson Array output.', cost: '14500000000', effectType: 'generator', target: 'dysonArrays', multiplier: '2', requiresOwned: { generator: 'dysonArrays', count: 30 }, requiresUpgrade: 'dysonLenses' },
+  dysonDominion: { key: 'dysonDominion', label: 'Dyson Dominion', description: 'Boost Dyson Array output by x2.5.', cost: '98000000000', effectType: 'generator', target: 'dysonArrays', multiplier: '2.5', requiresOwned: { generator: 'dysonArrays', count: 60 }, requiresUpgrade: 'dysonHarmonics' },
+  dysonZenith: { key: 'dysonZenith', label: 'Dyson Zenith Mesh', description: 'Triple Dyson Array output.', cost: '700000000000', effectType: 'generator', target: 'dysonArrays', multiplier: '3', requiresOwned: { generator: 'dysonArrays', count: 120 }, requiresUpgrade: 'dysonDominion' },
+  dysonAphelion: { key: 'dysonAphelion', label: 'Dyson Aphelion', description: 'Quadruple Dyson Array output.', cost: '5000000000000', effectType: 'generator', target: 'dysonArrays', multiplier: '4', requiresOwned: { generator: 'dysonArrays', count: 220 }, requiresUpgrade: 'dysonZenith' },
+  singularityContainment: { key: 'singularityContainment', label: 'Singularity Containment', description: 'Double Singularity Well output.', cost: '4200000000', effectType: 'generator', target: 'singularityWells', multiplier: '2', requiresOwned: { generator: 'singularityWells', count: 4 } },
+  singularityShear: { key: 'singularityShear', label: 'Singularity Shear', description: 'Double Singularity Well output.', cost: '28000000000', effectType: 'generator', target: 'singularityWells', multiplier: '2', requiresOwned: { generator: 'singularityWells', count: 10 }, requiresUpgrade: 'singularityContainment' },
+  singularityLensing: { key: 'singularityLensing', label: 'Singularity Lensing', description: 'Double Singularity Well output.', cost: '185000000000', effectType: 'generator', target: 'singularityWells', multiplier: '2', requiresOwned: { generator: 'singularityWells', count: 20 }, requiresUpgrade: 'singularityShear' },
+  singularityTranscendence: { key: 'singularityTranscendence', label: 'Singularity Transcendence', description: 'Boost Singularity Well output by x2.5.', cost: '1300000000000', effectType: 'generator', target: 'singularityWells', multiplier: '2.5', requiresOwned: { generator: 'singularityWells', count: 40 }, requiresUpgrade: 'singularityLensing' },
+  singularityAxiom: { key: 'singularityAxiom', label: 'Singularity Axiom Lens', description: 'Triple Singularity Well output.', cost: '9500000000000', effectType: 'generator', target: 'singularityWells', multiplier: '3', requiresOwned: { generator: 'singularityWells', count: 80 }, requiresUpgrade: 'singularityTranscendence' },
+  singularityEclipse: { key: 'singularityEclipse', label: 'Singularity Eclipse', description: 'Quadruple Singularity Well output.', cost: '70000000000000', effectType: 'generator', target: 'singularityWells', multiplier: '4', requiresOwned: { generator: 'singularityWells', count: 140 }, requiresUpgrade: 'singularityAxiom' },
   continuumStabilizers: { key: 'continuumStabilizers', label: 'Continuum Stabilizers', description: 'Double Continuum Engine output.', cost: '190000000000000000', effectType: 'generator', target: 'continuumEngines', multiplier: '2', requiresOwned: { generator: 'continuumEngines', count: 12 } },
   continuumRecursion: { key: 'continuumRecursion', label: 'Continuum Recursion', description: 'Triple Continuum Engine output.', cost: '1250000000000000000', effectType: 'generator', target: 'continuumEngines', multiplier: '3', requiresOwned: { generator: 'continuumEngines', count: 45 }, requiresUpgrade: 'continuumStabilizers' },
   continuumParadoxCore: { key: 'continuumParadoxCore', label: 'Continuum Paradox Core', description: 'Quadruple Continuum Engine output.', cost: '9000000000000000000', effectType: 'generator', target: 'continuumEngines', multiplier: '4', requiresOwned: { generator: 'continuumEngines', count: 110 }, requiresUpgrade: 'continuumRecursion' },
@@ -286,10 +369,12 @@ export const UPGRADE_CONFIG: Record<string, UpgradeConfigEntry> = {
   genesisKindling: { key: 'genesisKindling', label: 'Genesis Kindling', description: 'Double Genesis Forge output.', cost: '90000000000000000000000000000000', effectType: 'generator', target: 'genesisForges', multiplier: '2', requiresOwned: { generator: 'genesisForges', count: 1 } },
   genesisProliferation: { key: 'genesisProliferation', label: 'Genesis Proliferation', description: 'Triple Genesis Forge output.', cost: '580000000000000000000000000000000', effectType: 'generator', target: 'genesisForges', multiplier: '3', requiresOwned: { generator: 'genesisForges', count: 4 }, requiresUpgrade: 'genesisKindling' },
   genesisCrowning: { key: 'genesisCrowning', label: 'Genesis Crowning', description: 'Quadruple Genesis Forge output.', cost: '3700000000000000000000000000000000', effectType: 'generator', target: 'genesisForges', multiplier: '4', requiresOwned: { generator: 'genesisForges', count: 10 }, requiresUpgrade: 'genesisProliferation' },
-  automationLoops: { key: 'automationLoops', label: 'Automation Loops', description: 'Global production x1.5.', cost: '350000', effectType: 'global', multiplier: '1.5', requiresOwned: { generator: 'drills', count: 20 } },
-  quantumForecasts: { key: 'quantumForecasts', label: 'Quantum Forecasts', description: 'Global production x2.', cost: '45000000', effectType: 'global', multiplier: '2', requiresOwned: { generator: 'megaRigs', count: 18 }, requiresUpgrade: 'automationLoops' },
-  fractalEconomies: { key: 'fractalEconomies', label: 'Fractal Economies', description: 'Global production x2.5.', cost: '2500000000000', effectType: 'global', multiplier: '2.5', requiresOwned: { generator: 'stellarForges', count: 20 }, requiresUpgrade: 'quantumForecasts' },
-  causalOverclock: { key: 'causalOverclock', label: 'Causal Overclock', description: 'Global production x3.', cost: '60000000000000000', effectType: 'global', multiplier: '3', requiresOwned: { generator: 'singularityWells', count: 18 }, requiresUpgrade: 'fractalEconomies' },
+  automationLoops: { key: 'automationLoops', label: 'Automation Loops', description: 'Global production x1.5.', cost: '200000', effectType: 'global', multiplier: '1.5', requiresOwned: { generator: 'drills', count: 15 } },
+  signalFutures: { key: 'signalFutures', label: 'Signal Futures', description: 'Global production x1.75.', cost: '2500000', effectType: 'global', multiplier: '1.75', requiresOwned: { generator: 'extractors', count: 25 }, requiresUpgrade: 'automationLoops' },
+  quantumForecasts: { key: 'quantumForecasts', label: 'Quantum Forecasts', description: 'Global production x2.', cost: '35000000', effectType: 'global', multiplier: '2', requiresOwned: { generator: 'megaRigs', count: 15 }, requiresUpgrade: 'signalFutures' },
+  orbitalExchange: { key: 'orbitalExchange', label: 'Orbital Exchange', description: 'Global production x2.25.', cost: '900000000', effectType: 'global', multiplier: '2.25', requiresOwned: { generator: 'orbitalPlatforms', count: 18 }, requiresUpgrade: 'quantumForecasts' },
+  fractalEconomies: { key: 'fractalEconomies', label: 'Fractal Economies', description: 'Global production x2.5.', cost: '35000000000', effectType: 'global', multiplier: '2.5', requiresOwned: { generator: 'dysonArrays', count: 15 }, requiresUpgrade: 'orbitalExchange' },
+  causalOverclock: { key: 'causalOverclock', label: 'Causal Overclock', description: 'Global production x3.', cost: '2500000000000', effectType: 'global', multiplier: '3', requiresOwned: { generator: 'singularityWells', count: 12 }, requiresUpgrade: 'fractalEconomies' },
   archiveBatteries: { key: 'archiveBatteries', label: 'Archive Batteries', description: 'Increase offline progress cap by +45 minutes.', cost: '500000000000', effectType: 'offlineCap', offlineCapSeconds: 45 * 60, requiresOwned: { generator: 'orbitalPlatforms', count: 75 } },
   temporalVaults: { key: 'temporalVaults', label: 'Temporal Vaults', description: 'Increase offline progress cap by +1 hour.', cost: '25000000000000', effectType: 'offlineCap', offlineCapSeconds: 1 * 60 * 60, requiresOwned: { generator: 'orbitalPlatforms', count: 180 }, requiresUpgrade: 'archiveBatteries' },
   deepArchive: { key: 'deepArchive', label: 'Deep Archive Vaults', description: 'Increase offline progress cap by +1.5 hours.', cost: '600000000000000', effectType: 'offlineCap', offlineCapSeconds: 90 * 60, requiresOwned: { generator: 'dysonArrays', count: 80 }, requiresUpgrade: 'temporalVaults' },
@@ -457,11 +542,11 @@ export const ACHIEVEMENT_CONFIG: Record<string, AchievementConfigEntry> = {
   essence2000: { key: 'essence2000', label: 'Essence Surge', description: 'Reach 2,000 essence.', requirement: { type: 'essence', threshold: '2000' } },
   essence5000: { key: 'essence5000', label: 'Essence Storm', description: 'Reach 5,000 essence.', requirement: { type: 'essence', threshold: '5000' } },
   essence20000: { key: 'essence20000', label: 'Essence Tempest', description: 'Reach 20,000 essence.', requirement: { type: 'essence', threshold: '20000' } },
-  upgrades10: { key: 'upgrades10', label: 'Workshop Bootstrapped', description: 'Purchase 10 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 10 } },
-  upgrades20: { key: 'upgrades20', label: 'Workshop Online', description: 'Purchase 25 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 25 } },
-  upgrades28: { key: 'upgrades28', label: 'Workshop Tuned', description: 'Purchase 40 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 40 } },
-  upgrades35: { key: 'upgrades35', label: 'Workshop Expanded', description: 'Purchase 60 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 60 } },
-  upgrades38: { key: 'upgrades38', label: 'Workshop Complete', description: 'Purchase all 78 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 78 } },
+  upgrades10: { key: 'upgrades10', label: 'Workshop Bootstrapped', description: 'Purchase 12 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 12 } },
+  upgrades20: { key: 'upgrades20', label: 'Workshop Online', description: 'Purchase 30 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 30 } },
+  upgrades28: { key: 'upgrades28', label: 'Workshop Tuned', description: 'Purchase 55 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 55 } },
+  upgrades35: { key: 'upgrades35', label: 'Workshop Expanded', description: 'Purchase 80 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 80 } },
+  upgrades38: { key: 'upgrades38', label: 'Workshop Complete', description: 'Purchase all 98 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 98 } },
   offlineCap1h: { key: 'offlineCap1h', label: 'Extended Shift', description: 'Increase offline cap to at least 1 hour.', requirement: { type: 'offlineCapSeconds', seconds: 1 * 60 * 60 } },
   offlineCap4h: { key: 'offlineCap4h', label: 'Deep Shift', description: 'Increase offline cap to at least 4 hours.', requirement: { type: 'offlineCapSeconds', seconds: 4 * 60 * 60 } },
   offlineCap12h: { key: 'offlineCap12h', label: 'Long Shift', description: 'Increase offline cap to at least 2 hours.', requirement: { type: 'offlineCapSeconds', seconds: 2 * 60 * 60 } },
@@ -483,8 +568,9 @@ export function validateProgressionConfig(params: {
   generatorOrder: readonly string[]
   upgradeOrder: readonly string[]
   achievementOrder: readonly string[]
+  permanentUpgradeOrder: readonly string[]
 }): void {
-  const { generatorOrder, upgradeOrder, achievementOrder } = params
+  const { generatorOrder, upgradeOrder, achievementOrder, permanentUpgradeOrder } = params
 
   for (const key of generatorOrder) {
     const entry = GENERATOR_CONFIG[key]
@@ -543,8 +629,21 @@ export function validateProgressionConfig(params: {
     }
   }
 
+  for (const key of permanentUpgradeOrder) {
+    const entry = PERMANENT_UPGRADE_CONFIG[key]
+    if (!entry) {
+      throw new Error(`Missing permanent upgrade config for key: ${key}`)
+    }
+
+    assertDecimalString(entry.baseCost, `permanent upgrade ${key}.baseCost`)
+    assertDecimalString(entry.growth, `permanent upgrade ${key}.growth`)
+    assertDecimalString(entry.value, `permanent upgrade ${key}.value`)
+  }
+
   assertDecimalString(PRESTIGE_BALANCE.unlockCredits, 'prestige.unlockCredits')
   assertDecimalString(PRESTIGE_BALANCE.gainExponent, 'prestige.gainExponent')
+  assertDecimalString(PRESTIGE_BALANCE.productionPerReset, 'prestige.productionPerReset')
+  assertDecimalString(PRESTIGE_BALANCE.gainPerReset, 'prestige.gainPerReset')
 
   for (const [effectType, multiplier] of Object.entries(UPGRADE_COST_MULTIPLIER_BY_TYPE)) {
     assertDecimalString(multiplier, `upgrade cost multiplier ${effectType}`)

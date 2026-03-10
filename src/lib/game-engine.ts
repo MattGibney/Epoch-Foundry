@@ -2,11 +2,13 @@ import Decimal from 'decimal.js'
 import {
   ACHIEVEMENT_CONFIG,
   GENERATOR_CONFIG,
+  PERMANENT_UPGRADE_CONFIG,
   PRESTIGE_BALANCE,
   UPGRADE_CONFIG,
   UPGRADE_COST_MULTIPLIER_BY_TYPE,
   validateProgressionConfig,
   type AchievementConfigEntry,
+  type PermanentUpgradeConfigEntry,
   type UpgradeConfigEntry,
 } from '@/lib/progression-config'
 
@@ -34,41 +36,59 @@ export type GeneratorKey =
 
 export const UPGRADE_ORDER = [
   'minerTuning',
+  'minerCollectives',
   'minerSwarm',
   'minerFoundries',
   'minerOvermind',
+  'minerConstellation',
   'drillGrease',
+  'drillAssemblies',
   'drillAI',
   'drillHypercut',
   'drillSingularity',
+  'drillEventide',
   'extractorCooling',
+  'extractorLattices',
   'extractorClusters',
   'extractorMatrices',
   'extractorHypergrid',
+  'extractorApogee',
   'refineryCatalysts',
+  'refineryDistillation',
   'refineryOverdrive',
   'refinerySingularities',
   'refineryTransmutation',
+  'refineryPerpetuity',
   'megaRigServos',
+  'megaRigAssemblers',
   'megaRigNanites',
   'megaRigSentience',
   'megaRigDominion',
+  'megaRigAscendancy',
   'orbitalDrones',
+  'orbitalShipyards',
   'orbitalCommand',
   'orbitalAnchors',
   'orbitalEmpyrean',
+  'orbitalAureate',
   'stellarFlux',
+  'stellarMantles',
   'stellarLattices',
   'stellarAscension',
   'stellarParagon',
+  'stellarSupercluster',
   'dysonPhasing',
+  'dysonLenses',
   'dysonHarmonics',
   'dysonDominion',
   'dysonZenith',
+  'dysonAphelion',
   'singularityContainment',
+  'singularityShear',
   'singularityLensing',
   'singularityTranscendence',
   'singularityAxiom',
+  'singularityEclipse',
   'continuumStabilizers',
   'continuumRecursion',
   'continuumParadoxCore',
@@ -104,7 +124,9 @@ export const UPGRADE_ORDER = [
   'genesisProliferation',
   'genesisCrowning',
   'automationLoops',
+  'signalFutures',
   'quantumForecasts',
+  'orbitalExchange',
   'fractalEconomies',
   'causalOverclock',
   'archiveBatteries',
@@ -383,19 +405,15 @@ interface AchievementDef {
 
 export type PermanentUpgradeKey =
   | 'essenceInfusion'
+  | 'bootstrapCache'
   | 'quantumLattice'
+  | 'calibrationMatrix'
   | 'singularityCore'
 
 export type PermanentUpgradesState = Record<PermanentUpgradeKey, number>
 
-type PermanentUpgradeDef = {
+type PermanentUpgradeDef = PermanentUpgradeConfigEntry & {
   key: PermanentUpgradeKey
-  label: string
-  description: string
-  baseCost: string
-  growth: string
-  effectType: 'productionAdditive' | 'generatorCostDiscount' | 'prestigeGainMultiplier'
-  value: string
 }
 
 type GlobalUpgradeDef = UpgradeBaseDef & {
@@ -422,42 +440,26 @@ const MAX_TICK_SECONDS = 5
 const BASE_OFFLINE_PROGRESS_CAP_SECONDS = 15 * 60
 const PRESTIGE_UNLOCK_CREDITS = new Decimal(PRESTIGE_BALANCE.unlockCredits)
 const PRESTIGE_GAIN_EXPONENT = new Decimal(PRESTIGE_BALANCE.gainExponent)
+const PRESTIGE_RESET_PRODUCTION_BONUS = new Decimal(PRESTIGE_BALANCE.productionPerReset)
+const PRESTIGE_RESET_GAIN_BONUS = new Decimal(PRESTIGE_BALANCE.gainPerReset)
 
 export const PERMANENT_UPGRADE_ORDER: PermanentUpgradeKey[] = [
   'essenceInfusion',
+  'bootstrapCache',
   'quantumLattice',
+  'calibrationMatrix',
   'singularityCore',
 ]
 
-export const PERMANENT_UPGRADE_DEFS: Record<PermanentUpgradeKey, PermanentUpgradeDef> = {
-  essenceInfusion: {
-    key: 'essenceInfusion',
-    label: 'Essence Infusion',
-    description: 'Boost production multiplier by +0.25 per level.',
-    baseCost: '5',
-    growth: '1.7',
-    effectType: 'productionAdditive',
-    value: '0.25',
-  },
-  quantumLattice: {
-    key: 'quantumLattice',
-    label: 'Quantum Lattice',
-    description: 'Reduce generator costs by 4% per level.',
-    baseCost: '18',
-    growth: '1.9',
-    effectType: 'generatorCostDiscount',
-    value: '0.96',
-  },
-  singularityCore: {
-    key: 'singularityCore',
-    label: 'Singularity Core',
-    description: 'Increase prestige essence gain by 15% per level.',
-    baseCost: '60',
-    growth: '2.15',
-    effectType: 'prestigeGainMultiplier',
-    value: '1.15',
-  },
-}
+export const PERMANENT_UPGRADE_DEFS: Record<PermanentUpgradeKey, PermanentUpgradeDef> =
+  PERMANENT_UPGRADE_ORDER.reduce((accumulator, key) => {
+    const entry = PERMANENT_UPGRADE_CONFIG[key]
+    accumulator[key] = {
+      ...entry,
+      key,
+    }
+    return accumulator
+  }, {} as Record<PermanentUpgradeKey, PermanentUpgradeDef>)
 
 export const GENERATOR_ORDER: GeneratorKey[] = [
   'miners',
@@ -486,6 +488,7 @@ validateProgressionConfig({
   generatorOrder: GENERATOR_ORDER,
   upgradeOrder: UPGRADE_ORDER,
   achievementOrder: ACHIEVEMENT_ORDER,
+  permanentUpgradeOrder: PERMANENT_UPGRADE_ORDER,
 })
 
 function getRequiredGenerator(entry: UpgradeConfigEntry): GeneratorKey | undefined {
@@ -848,7 +851,13 @@ export function getPrestigeGainForReset(state: GameState): Decimal {
   }
 
   const baseGain = runTotalCredits.div(PRESTIGE_UNLOCK_CREDITS).pow(PRESTIGE_GAIN_EXPONENT)
-  return baseGain.times(getPrestigeGainMultiplierFromPermanentUpgrades(state.prestige.permanentUpgrades)).floor()
+  const resetGainMultiplier = ONE.plus(
+    PRESTIGE_RESET_GAIN_BONUS.times(Math.max(0, state.prestige.resets)),
+  )
+  return baseGain
+    .times(resetGainMultiplier)
+    .times(getPrestigeGainMultiplierFromPermanentUpgrades(state.prestige.permanentUpgrades))
+    .floor()
 }
 
 export function canPrestige(state: GameState): boolean {
@@ -856,13 +865,17 @@ export function canPrestige(state: GameState): boolean {
 }
 
 export function getPrestigeMultiplier(state: GameState): Decimal {
-  return getPrestigeMultiplierFromPermanentUpgrades(state.prestige.permanentUpgrades)
+  return getPrestigeMultiplierFromPermanentUpgrades(
+    state.prestige.permanentUpgrades,
+    state.prestige.resets,
+  )
 }
 
 export function getPrestigeMultiplierFromPermanentUpgrades(
   permanentUpgrades: PermanentUpgradesState,
+  resetCount = 0,
 ): Decimal {
-  let multiplier = ONE
+  let multiplier = ONE.plus(PRESTIGE_RESET_PRODUCTION_BONUS.times(Math.max(0, resetCount)))
 
   for (const key of PERMANENT_UPGRADE_ORDER) {
     const upgrade = PERMANENT_UPGRADE_DEFS[key]
@@ -899,6 +912,67 @@ function getGeneratorCostMultiplierFromPermanentUpgrades(
   }
 
   return Decimal.max(new Decimal('0.1'), costMultiplier)
+}
+
+function getStartingCreditsFromPermanentUpgrades(
+  permanentUpgrades: PermanentUpgradesState,
+): Decimal {
+  let startingCredits = ZERO
+
+  for (const key of PERMANENT_UPGRADE_ORDER) {
+    const upgrade = PERMANENT_UPGRADE_DEFS[key]
+    if (upgrade.effectType !== 'startingCredits') {
+      continue
+    }
+
+    const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
+    if (level <= 0) {
+      continue
+    }
+
+    startingCredits = startingCredits.plus(toDecimal(upgrade.value).times(level))
+  }
+
+  return startingCredits
+}
+
+function getUpgradeRequirementMultiplierFromPermanentUpgrades(
+  permanentUpgrades: PermanentUpgradesState,
+): Decimal {
+  let requirementMultiplier = ONE
+
+  for (const key of PERMANENT_UPGRADE_ORDER) {
+    const upgrade = PERMANENT_UPGRADE_DEFS[key]
+    if (upgrade.effectType !== 'upgradeRequirementDiscount') {
+      continue
+    }
+
+    const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
+    if (level <= 0) {
+      continue
+    }
+
+    requirementMultiplier = requirementMultiplier.times(toDecimal(upgrade.value).pow(level))
+  }
+
+  return Decimal.max(new Decimal('0.4'), requirementMultiplier)
+}
+
+function getAdjustedUpgradeOwnedRequirement(
+  state: GameState,
+  count: number,
+): number {
+  if (count <= 1) {
+    return 1
+  }
+
+  return Math.max(
+    1,
+    new Decimal(count)
+      .times(getUpgradeRequirementMultiplierFromPermanentUpgrades(state.prestige.permanentUpgrades))
+      .ceil()
+      .toNumber(),
+  )
 }
 
 function getPrestigeGainMultiplierFromPermanentUpgrades(
@@ -967,6 +1041,7 @@ export function applyPrestigeReset(
   const initialState = createInitialGameState(nowMs)
   const resetBase: GameState = {
     ...initialState,
+    credits: getStartingCreditsFromPermanentUpgrades(normalizedPermanentUpgrades).toString(),
     settings: state.settings,
     random: state.random,
     stats: {
@@ -1199,7 +1274,11 @@ export function isUpgradeUnlocked(state: GameState, key: RunUpgradeKey): boolean
 
   const meetsGeneratorRequirement =
     !upgrade.requiresOwned ||
-    state.generators[upgrade.requiresOwned.generator] >= upgrade.requiresOwned.count
+    state.generators[upgrade.requiresOwned.generator] >=
+      getAdjustedUpgradeOwnedRequirement(
+        state,
+        upgrade.requiresOwned.count,
+      )
   const meetsUpgradeRequirement =
     !upgrade.requiresUpgrade || state.purchasedUpgrades[upgrade.requiresUpgrade]
 
@@ -1214,10 +1293,14 @@ export function getUpgradeUnlockProgress(state: GameState, key: RunUpgradeKey) {
 
   if (upgrade.requiresOwned) {
     const currentOwned = state.generators[upgrade.requiresOwned.generator]
-    if (currentOwned < upgrade.requiresOwned.count) {
+    const requiredOwned = getAdjustedUpgradeOwnedRequirement(
+      state,
+      upgrade.requiresOwned.count,
+    )
+    if (currentOwned < requiredOwned) {
       return {
         current: currentOwned,
-        required: upgrade.requiresOwned.count,
+        required: requiredOwned,
         label: GENERATOR_DEFS[upgrade.requiresOwned.generator].label,
       }
     }

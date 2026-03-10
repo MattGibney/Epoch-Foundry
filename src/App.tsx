@@ -479,9 +479,12 @@ function App() {
   const plannedPrestigeMultiplier = useMemo(
     () =>
       prestigePlan
-        ? getPrestigeMultiplierFromPermanentUpgrades(prestigePlan.draftUpgrades)
+        ? getPrestigeMultiplierFromPermanentUpgrades(
+            prestigePlan.draftUpgrades,
+            game.prestige.resets + 1,
+          )
         : prestigeMultiplier,
-    [prestigeMultiplier, prestigePlan],
+    [game.prestige.resets, prestigeMultiplier, prestigePlan],
   )
   const runDuration = Math.max(0, Math.floor((nowMs - game.stats.startedAtMs) / 1_000))
   const overflowTabs = TABS.filter((tab) => !isPrimaryTab(tab.key))

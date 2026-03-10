@@ -13,8 +13,8 @@ export const DEV_BOOTSTRAP_PRESETS = [
   },
   {
     key: 'scaled',
-    label: 'Scaled',
-    description: 'Mid-run state with several generators and upgrades.',
+    label: 'Phase 1 Mid',
+    description: 'Mid-run phase-one state with multiple breakpoint chains active.',
   },
   {
     key: 'late',
@@ -23,8 +23,8 @@ export const DEV_BOOTSTRAP_PRESETS = [
   },
   {
     key: 'prestige',
-    label: 'Prestige',
-    description: 'High-essence state for prestige upgrade testing.',
+    label: 'Phase 1 Prestige',
+    description: 'Phase-one reset-planning state with several permanent upgrades.',
   },
 ] as const
 
@@ -53,15 +53,15 @@ export function createDevBootstrapState(
   }
 
   if (preset === 'scaled') {
-    state.credits = '25000000000'
+    state.credits = '850000000'
     state.generators = {
-      miners: 450,
-      drills: 320,
-      extractors: 200,
-      refineries: 120,
-      megaRigs: 80,
-      orbitalPlatforms: 30,
-      stellarForges: 10,
+      miners: 320,
+      drills: 210,
+      extractors: 120,
+      refineries: 70,
+      megaRigs: 35,
+      orbitalPlatforms: 12,
+      stellarForges: 2,
       dysonArrays: 0,
       singularityWells: 0,
       continuumEngines: 0,
@@ -76,10 +76,10 @@ export function createDevBootstrapState(
       omniversalFoundries: 0,
       genesisForges: 0,
     }
-    markRunUpgrades(state, 18)
+    markRunUpgrades(state, 24)
     state.buyAmount = 100
-    state.stats.totalCredits = '950000000000'
-    state.stats.totalCreditsAllResets = '2200000000000'
+    state.stats.totalCredits = '6800000000'
+    state.stats.totalCreditsAllResets = '11000000000'
     return state
   }
 
@@ -114,25 +114,27 @@ export function createDevBootstrapState(
     state.prestige.resets = 40
     state.prestige.essence = '650'
     markPermanentUpgrades(state, {
-      essenceInfusion: 12,
-      quantumLattice: 7,
+      essenceInfusion: 10,
+      bootstrapCache: 8,
+      quantumLattice: 6,
+      calibrationMatrix: 5,
       singularityCore: 3,
     })
     return state
   }
 
-  state.credits = '3e20'
+  state.credits = '125000000'
   state.generators = {
-    miners: 1100,
-    drills: 900,
-    extractors: 700,
-    refineries: 500,
-    megaRigs: 300,
-    orbitalPlatforms: 180,
-    stellarForges: 80,
-    dysonArrays: 25,
-    singularityWells: 8,
-    continuumEngines: 1,
+    miners: 600,
+    drills: 450,
+    extractors: 280,
+    refineries: 160,
+    megaRigs: 80,
+    orbitalPlatforms: 30,
+    stellarForges: 10,
+    dysonArrays: 3,
+    singularityWells: 1,
+    continuumEngines: 0,
     voidLathes: 0,
     entropyReactors: 0,
     quantumFoundries: 0,
@@ -144,16 +146,18 @@ export function createDevBootstrapState(
     omniversalFoundries: 0,
     genesisForges: 0,
   }
-  markRunUpgrades(state, 30)
+  markRunUpgrades(state, 36)
   state.buyAmount = 100
-  state.stats.totalCredits = '2.4e32'
-  state.stats.totalCreditsAllResets = '8.8e38'
-  state.prestige.resets = 120
-  state.prestige.essence = '5000'
+  state.stats.totalCredits = '980000000'
+  state.stats.totalCreditsAllResets = '6500000000'
+  state.prestige.resets = 4
+  state.prestige.essence = '90'
   markPermanentUpgrades(state, {
-    essenceInfusion: 45,
-    quantumLattice: 30,
-    singularityCore: 12,
+    essenceInfusion: 6,
+    bootstrapCache: 4,
+    quantumLattice: 2,
+    calibrationMatrix: 1,
+    singularityCore: 1,
   })
   return state
 }
