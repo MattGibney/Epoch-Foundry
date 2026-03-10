@@ -42,3 +42,4 @@
 - Keep gameplay randomness deterministic from a persisted run seed (`worldSeed`) and shared RNG utilities; avoid direct `Math.random()` in game systems.
 - Structure progression in two phases: a simple producer-and-prestige opening game first, then a broader systems game after a roughly `10-24` hour unlock.
 - Treat producer-specific subsystems as the main phase-two expansion path; later mini-games and economy layers should interconnect with those subsystems rather than sit as isolated side features.
+- When designing producer subsystems, vary attention styles across the roster; mix passive optimization, timing, routing, maintenance/risk, probabilistic, and market-linked play so phase two deepens the game without turning into repeated chores.

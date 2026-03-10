@@ -57,8 +57,10 @@ Create one reusable design and technical pattern for producer-specific subsystem
 **Changes**
 
 - Define what every producer subsystem has in common: unlock rule, local state, upgrade slots or nodes, a small action space, a local output stat, and explicit hooks back into the main economy.
+- Standardize the design language for subsystems: each one should have one local resource, one primary decision, one milestone ladder, and one explicit export back into the main producer economy.
 - Add a generalized data model and persistence shape for subsystem state so new subsystems can be added without bespoke engine plumbing each time.
 - Decide how subsystem power feeds back into the core loop. Examples: local production multipliers, local cost discounts, burst windows, efficiency conversions, or milestone-triggered bonuses.
+- Vary subsystem attention style across the roster so phase two does not become a list of chores. The full set should mix passive optimizers, timing games, routing problems, maintenance/risk systems, probabilistic systems, and market-linked systems.
 - Create shared UI patterns for subsystem navigation, status summaries, upgrade presentation, and "this is affecting producer X" feedback.
 
 **Gameplay impact**
@@ -78,6 +80,12 @@ Prove the phase-two concept with a small but representative set of producer subs
 **Changes**
 
 - Pick the first `3-5` producers that players interact with most and design distinct subsystem archetypes for them. Each one should boost that producer in a different way rather than repeating the same local upgrade tree.
+- Recommended first-wave candidates:
+  - `Miners`: vein mapping and shaft placement
+  - `Refineries`: recipe blending and catalyst tuning
+  - `Orbital Platforms`: orbital slotting and timing windows
+  - `Singularity Wells`: containment balancing and risk management
+  - `Quantum Foundries`: probability collapse and outcome selection
 - Keep the first wave intentionally compact. Each subsystem should be understandable within a few minutes, but still provide medium-term mastery over several sessions.
 - Add milestone rewards inside each subsystem so local progress keeps paying out even before cross-system interactions exist.
 - Tune the first wave so subsystem engagement noticeably changes the productivity of that specific producer, making the connection between effort and output immediately visible.
@@ -110,6 +118,29 @@ The game gains durable mid-game content. Owning a new producer no longer only me
 **Wider fit**
 
 Once every producer has a subsystem, the game has enough surface area to support cross-system features, seasonal content, and alternate build paths without depending on new producers alone.
+
+### Producer subsystem concept map
+
+- `Miners`: Vein Mapping. Reveal a mine grid, place shafts, and decide when to exhaust rich seams versus expand for long-term yield.
+- `Drills`: Heat and RPM Control. Push drill speed for bursts while managing overheating, wear, and cooldown timing.
+- `Extractors`: Pipeline Routing. Balance pressure and flow across a small network to maximize extraction efficiency.
+- `Refineries`: Recipe Blending. Choose refining recipes and catalyst mixes that trade throughput, stability, and byproduct value.
+- `Mega Rigs`: Maintenance Scheduler. Assign crews, spare parts, and overclock windows to reduce downtime and improve uptime.
+- `Orbital Platforms`: Orbit Slotting. Place platforms into orbital bands and time harvest windows around exposure and congestion.
+- `Stellar Forges`: Fuel Tuning. Feed different stellar materials into forging phases to hit stronger heat bands and chain bonuses.
+- `Dyson Arrays`: Segment Alignment. Rotate and phase array segments to decide between immediate harvest and larger stored bursts.
+- `Singularity Wells`: Containment Balancing. Trade instability for extraction rate, with venting and collapse-prevention decisions.
+- `Continuum Engines`: Time Loop Editing. Configure loop length, anchors, and repeat conditions for stronger continuity bonuses.
+- `Void Lathes`: Pattern Carving. Cut shapes into void matter where symmetry and sequence determine the strength of the result.
+- `Entropy Reactors`: Decay Harvesting. Let systems drift into disorder and harvest at the right moment before collapse.
+- `Quantum Foundries`: Probability Collapse. Spread output across possible outcomes, then collapse into the most valuable state.
+- `Dark Matter Smelters`: Signal Triangulation. Infer hidden matter composition from weak readings and choose the best smelt profile.
+- `Reality Kilns`: Rule Tempering. Bake local rule changes such as output, cost, or milestone modifiers at the expense of stability.
+- `Fractal Assemblers`: Recursive Blueprinting. Build self-similar module trees where branching depth compounds assembler output.
+- `Causal Looms`: Trigger Weaving. Connect cause-and-effect threads from other systems into payout patterns.
+- `Epoch Monoliths`: Era Resonance. Tune the monolith to different eras, each offering a different long-cycle bonus profile.
+- `Omniversal Foundries`: Cross-Reality Contracts. Negotiate import/export deals with alternate realities under shifting conditions.
+- `Genesis Forges`: Seed Crafting. Forge proto-realities with chosen traits that improve output and unlock rare structural perks.
 
 ## 6. Add cross-system interactions so subsystems play into one another
 
