@@ -8,6 +8,7 @@ import {
   GENERATOR_DEFS,
   GENERATOR_ORDER,
   getUpgradeUnlockProgress,
+  isUpgradeUnlocked,
   UPGRADE_DEFS,
   UPGRADE_ORDER,
   type GameState,
@@ -109,12 +110,31 @@ export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: Up
     const definition = UPGRADE_DEFS[key]
     const purchased = game.purchasedUpgrades[key]
     const canBuy = canBuyUpgrade(game, key)
+    const isUnlocked = isUpgradeUnlocked(game, key)
     const unlockProgress = getUpgradeUnlockProgress(game, key)
     const cost = new Decimal(definition.cost)
+    const creditProgress = {
+      current: `${formatRenderedCredits(credits)}/${formatRenderedCredits(cost)}`,
+      ratio: Decimal.min(new Decimal(1), credits.div(cost)).toNumber(),
+    }
+    const progress = unlockProgress
+      ? {
+          current: `${unlockProgress.current}/${unlockProgress.required}`,
+          ratio: Math.max(
+            0,
+            Math.min(
+              1,
+              unlockProgress.required <= 0
+                ? 1
+                : unlockProgress.current / unlockProgress.required,
+            ),
+          ),
+        }
+      : null
 
     return (
       <article key={definition.key} className="border-b border-border/70 py-4 first:pt-0">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-stretch justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-base font-semibold">{definition.label}</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">{definition.description}</p>
@@ -124,29 +144,53 @@ export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: Up
               credits
             </p>
           </div>
-          <div className="shrink-0 text-center">
+          <div className="w-36 shrink-0">
             {purchased ? (
-              <Button size="sm" className="h-10 min-w-[5.5rem]" variant="secondary" disabled>
-                Owned
-              </Button>
+              <div className="flex h-full items-center justify-end">
+                <Button size="sm" className="h-10 min-w-[5.5rem]" variant="secondary" disabled>
+                  Owned
+                </Button>
+              </div>
             ) : canBuy ? (
-              <Button
-                size="sm"
-                className="h-10 min-w-[5.5rem]"
-                onClick={() => onGameChange((current) => buyUpgrade(current, key))}
-              >
-                Buy
-              </Button>
+              <div className="flex h-full items-center justify-end">
+                <Button
+                  size="sm"
+                  className="h-10 min-w-[5.5rem]"
+                  onClick={() => onGameChange((current) => buyUpgrade(current, key))}
+                >
+                  Buy
+                </Button>
+              </div>
             ) : (
-              <div className="min-w-[5.5rem]">
-                <p className="text-xs text-muted-foreground">Requires</p>
-                {unlockProgress ? (
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-mono tabular-nums">
-                      {unlockProgress.current}/{unlockProgress.required}
-                    </span>{' '}
-                    {unlockProgress.label}
-                  </p>
+              <div className="flex h-full flex-col justify-center space-y-1.5 text-center">
+                <p className="text-xs text-muted-foreground">
+                  {isUnlocked ? 'Credits' : 'Requires'}
+                </p>
+                {isUnlocked ? (
+                  <>
+                    <p className="break-all text-xs text-muted-foreground">
+                      <span className="font-mono tabular-nums">{creditProgress.current}</span>
+                    </p>
+                    <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
+                      <div
+                        className="h-full rounded-full bg-foreground/35 transition-[width] duration-300"
+                        style={{ width: `${creditProgress.ratio * 100}%` }}
+                      />
+                    </div>
+                  </>
+                ) : unlockProgress ? (
+                  <>
+                    <p className="break-words text-xs text-muted-foreground">
+                      <span className="font-mono tabular-nums">{progress?.current}</span>{' '}
+                      {unlockProgress.label}
+                    </p>
+                    <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
+                      <div
+                        className="h-full rounded-full bg-foreground/35 transition-[width] duration-300"
+                        style={{ width: `${(progress?.ratio ?? 0) * 100}%` }}
+                      />
+                    </div>
+                  </>
                 ) : (
                   <p className="text-xs text-muted-foreground">More credits</p>
                 )}
