@@ -32,7 +32,7 @@ import {
   GENERATOR_ORDER,
   getGeneratorCost,
   getOfflineProgressCapSeconds,
-  getPermanentUpgradeCost,
+  getPermanentUpgradeBulkCost,
   getPrestigeGainForReset,
   getPrestigeMultiplier,
   getPrestigeMultiplierFromPermanentUpgrades,
@@ -511,13 +511,14 @@ function App() {
     })
   }, [])
 
-  const purchasePermanentUpgrade = useCallback((key: PermanentUpgradeKey) => {
+  const purchasePermanentUpgrade = useCallback((key: PermanentUpgradeKey, amount: number) => {
     setPrestigePlan((current) => {
       if (!current) {
         return current
       }
 
-      const cost = getPermanentUpgradeCost(current.draftUpgrades, key)
+      const normalizedAmount = Math.max(1, Math.floor(amount))
+      const cost = getPermanentUpgradeBulkCost(current.draftUpgrades, key, normalizedAmount)
       const available = new Decimal(current.availableEssence)
       if (available.lessThan(cost)) {
         return current
@@ -528,7 +529,7 @@ function App() {
         availableEssence: available.minus(cost).toString(),
         draftUpgrades: {
           ...current.draftUpgrades,
-          [key]: current.draftUpgrades[key] + 1,
+          [key]: current.draftUpgrades[key] + normalizedAmount,
         },
       }
     })
@@ -649,10 +650,12 @@ function App() {
             currentMultiplier={prestigeMultiplier}
             projectedMultiplier={plannedPrestigeMultiplier}
             permanentUpgrades={prestigePlan.draftUpgrades}
-            getUpgradeCost={(key) => getPermanentUpgradeCost(prestigePlan.draftUpgrades, key)}
-            canPurchaseUpgrade={(key) =>
+            getUpgradeCost={(key, amount) =>
+              getPermanentUpgradeBulkCost(prestigePlan.draftUpgrades, key, amount)
+            }
+            canPurchaseUpgrade={(key, amount) =>
               new Decimal(prestigePlan.availableEssence).greaterThanOrEqualTo(
-                getPermanentUpgradeCost(prestigePlan.draftUpgrades, key),
+                getPermanentUpgradeBulkCost(prestigePlan.draftUpgrades, key, amount),
               )
             }
             onPurchaseUpgrade={purchasePermanentUpgrade}

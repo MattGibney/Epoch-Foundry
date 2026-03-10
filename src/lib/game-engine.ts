@@ -92,37 +92,59 @@ export const UPGRADE_ORDER = [
   'continuumStabilizers',
   'continuumRecursion',
   'continuumParadoxCore',
+  'continuumSlipstream',
+  'continuumHyperfold',
   'continuumEternity',
   'voidTuning',
   'voidResonance',
   'voidApotheosis',
+  'voidConfluence',
+  'voidOblivion',
   'entropyBaffles',
   'entropyRecapture',
   'entropyHorizon',
+  'entropyCascade',
+  'entropyDominion',
   'quantumSpools',
   'quantumEntanglement',
   'quantumConfluence',
+  'quantumCascade',
+  'quantumSingularity',
   'darkMatterCompression',
   'darkMatterFusion',
   'darkMatterTranscendence',
+  'darkMatterDominion',
+  'darkMatterEventide',
   'realityTempering',
   'realityRecasting',
   'realityAscendancy',
+  'realityCrowning',
+  'realityGenesis',
   'fractalRecursion',
   'fractalAmplification',
   'fractalInfinity',
+  'fractalMultiplicity',
+  'fractalAscendancy',
   'causalThreading',
   'causalBraiding',
   'causalApex',
+  'causalConcord',
+  'causalDominion',
   'epochInscription',
   'epochResonance',
   'epochImperative',
+  'epochAscension',
+  'epochContinuum',
   'omniversalBridges',
   'omniversalConcord',
   'omniversalSupremacy',
+  'omniversalOverture',
+  'omniversalCrown',
   'genesisKindling',
   'genesisProliferation',
   'genesisCrowning',
+  'genesisExaltation',
+  'genesisApotheosis',
   'automationLoops',
   'signalFutures',
   'quantumForecasts',
@@ -298,6 +320,12 @@ export const ACHIEVEMENT_ORDER = [
   'essence2000',
   'essence5000',
   'essence20000',
+  'permanentLevels1',
+  'permanentLevels5',
+  'permanentLevels15',
+  'permanentLevels40',
+  'permanentTypes3',
+  'permanentTypes5',
   'upgrades10',
   'upgrades20',
   'upgrades28',
@@ -588,6 +616,10 @@ function isAchievementUnlockedFromRequirement(
       return state.prestige.resets >= requirement.count
     case 'essence':
       return toDecimal(state.prestige.essence).greaterThanOrEqualTo(requirement.threshold)
+    case 'permanentUpgradeLevels':
+      return getPermanentUpgradeLevelCount(state) >= requirement.count
+    case 'permanentUpgradeTypes':
+      return getPermanentUpgradeTypeCount(state) >= requirement.count
     case 'purchasedUpgrades':
       return getPurchasedUpgradeCount(state) >= requirement.count
     case 'offlineCapSeconds':
@@ -611,6 +643,9 @@ function getAchievementCategoryFromRequirement(
       return 'Prestige'
     case 'essence':
       return 'Essence'
+    case 'permanentUpgradeLevels':
+    case 'permanentUpgradeTypes':
+      return 'Permanent Upgrades'
     case 'purchasedUpgrades':
       return 'Upgrades'
     case 'offlineCapSeconds':
@@ -652,6 +687,10 @@ function getAchievementProgressRatioForRequirement(
       }
       return toDecimal(state.prestige.essence).div(threshold)
     }
+    case 'permanentUpgradeLevels':
+      return new Decimal(getPermanentUpgradeLevelCount(state)).div(requirement.count)
+    case 'permanentUpgradeTypes':
+      return new Decimal(getPermanentUpgradeTypeCount(state)).div(requirement.count)
     case 'purchasedUpgrades':
       return new Decimal(getPurchasedUpgradeCount(state)).div(requirement.count)
     case 'offlineCapSeconds':
@@ -695,6 +734,21 @@ export function getAchievementProgressRatio(state: GameState, key: AchievementKe
 function getPurchasedUpgradeCount(state: GameState): number {
   return UPGRADE_ORDER.reduce(
     (count, key) => count + (state.purchasedUpgrades[key] ? 1 : 0),
+    0,
+  )
+}
+
+function getPermanentUpgradeLevelCount(state: GameState): number {
+  return PERMANENT_UPGRADE_ORDER.reduce(
+    (count, key) => count + Math.max(0, Math.floor(state.prestige.permanentUpgrades[key] ?? 0)),
+    0,
+  )
+}
+
+function getPermanentUpgradeTypeCount(state: GameState): number {
+  return PERMANENT_UPGRADE_ORDER.reduce(
+    (count, key) =>
+      count + (Math.max(0, Math.floor(state.prestige.permanentUpgrades[key] ?? 0)) > 0 ? 1 : 0),
     0,
   )
 }
@@ -1004,6 +1058,24 @@ export function getPermanentUpgradeCost(
   const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
   const upgrade = PERMANENT_UPGRADE_DEFS[key]
   return toDecimal(upgrade.baseCost).times(toDecimal(upgrade.growth).pow(level)).ceil()
+}
+
+export function getPermanentUpgradeBulkCost(
+  permanentUpgrades: PermanentUpgradesState,
+  key: PermanentUpgradeKey,
+  amount: number,
+): Decimal {
+  const normalizedAmount = Math.max(1, Math.floor(amount))
+  let totalCost = ZERO
+  const draftUpgrades = { ...permanentUpgrades }
+
+  for (let index = 0; index < normalizedAmount; index += 1) {
+    const nextCost = getPermanentUpgradeCost(draftUpgrades, key)
+    totalCost = totalCost.plus(nextCost)
+    draftUpgrades[key] = Math.max(0, Math.floor(draftUpgrades[key] ?? 0)) + 1
+  }
+
+  return totalCost
 }
 
 export function applyPrestigeReset(

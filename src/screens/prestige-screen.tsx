@@ -1,12 +1,15 @@
+import { useState } from 'react'
 import Decimal from 'decimal.js'
 
 import { Button } from '@/components/ui/button'
 import {
+  BUY_AMOUNT_OPTIONS,
   PERMANENT_UPGRADE_DEFS,
   PERMANENT_UPGRADE_ORDER,
   type PermanentUpgradesState,
   type PermanentUpgradeKey,
 } from '@/lib/game-engine'
+import { cn } from '@/lib/utils'
 
 interface PrestigeScreenProps {
   currentEssence: string
@@ -15,9 +18,9 @@ interface PrestigeScreenProps {
   currentMultiplier: Decimal
   projectedMultiplier: Decimal
   permanentUpgrades: PermanentUpgradesState
-  getUpgradeCost: (key: PermanentUpgradeKey) => Decimal
-  canPurchaseUpgrade: (key: PermanentUpgradeKey) => boolean
-  onPurchaseUpgrade: (key: PermanentUpgradeKey) => void
+  getUpgradeCost: (key: PermanentUpgradeKey, amount: number) => Decimal
+  canPurchaseUpgrade: (key: PermanentUpgradeKey, amount: number) => boolean
+  onPurchaseUpgrade: (key: PermanentUpgradeKey, amount: number) => void
   onResetChoices: () => void
   onCancel: () => void
   onConfirm: () => void
@@ -39,6 +42,9 @@ export function PrestigeScreen({
   onConfirm,
   formatValue,
 }: PrestigeScreenProps) {
+  const [buyAmount, setBuyAmount] =
+    useState<(typeof BUY_AMOUNT_OPTIONS)[number]>(BUY_AMOUNT_OPTIONS[0])
+
   return (
     <div className="space-y-6 pb-6">
       <section className="space-y-1">
@@ -72,15 +78,36 @@ export function PrestigeScreen({
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
-          Permanent Upgrades
-        </h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
+            Permanent Upgrades
+          </h2>
+          <div
+            className="inline-flex items-center overflow-hidden rounded-md border border-border"
+            role="group"
+            aria-label="Prestige buy amount"
+          >
+            {BUY_AMOUNT_OPTIONS.map((amount) => (
+              <Button
+                key={amount}
+                size="sm"
+                variant={buyAmount === amount ? 'default' : 'ghost'}
+                className={cn(
+                  'h-7 rounded-none border-0 border-r border-border px-2 text-xs last:border-r-0',
+                )}
+                onClick={() => setBuyAmount(amount)}
+              >
+                <span className="font-mono text-xs tabular-nums">{amount}x</span>
+              </Button>
+            ))}
+          </div>
+        </div>
         <div className="divide-y divide-border/70">
           {PERMANENT_UPGRADE_ORDER.map((key) => {
             const definition = PERMANENT_UPGRADE_DEFS[key]
             const level = permanentUpgrades[key]
-            const cost = getUpgradeCost(key)
-            const canBuy = canPurchaseUpgrade(key)
+            const cost = getUpgradeCost(key, buyAmount)
+            const canBuy = canPurchaseUpgrade(key, buyAmount)
             const bonusText =
               definition.effectType === 'productionAdditive'
                 ? `+${formatValue(new Decimal(definition.value).times(level))} production multiplier`
@@ -113,10 +140,10 @@ export function PrestigeScreen({
                   <Button
                     size="sm"
                     className="h-9 min-w-[5rem] shrink-0"
-                    onClick={() => onPurchaseUpgrade(key)}
+                    onClick={() => onPurchaseUpgrade(key, buyAmount)}
                     disabled={!canBuy}
                   >
-                    Buy
+                    Buy {buyAmount}x
                   </Button>
                 </div>
               </article>

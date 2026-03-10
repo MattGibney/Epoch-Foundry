@@ -16,6 +16,15 @@ interface HomeScreenProps {
   game: GameState
 }
 
+const LONG_TERM_GOAL_CATEGORIES = new Set([
+  'Lifetime Credits',
+  'Prestige',
+  'Essence',
+  'Permanent Upgrades',
+  'Upgrades',
+  'Offline',
+])
+
 export function HomeScreen({ game }: HomeScreenProps) {
   // const producerMetrics = GENERATOR_ORDER.map((key) => ({
   //   key,
@@ -23,7 +32,7 @@ export function HomeScreen({ game }: HomeScreenProps) {
   //   productionPerSecond: getGeneratorProductionPerSecond(game, key),
   // }))
 
-  const nextAchievementGoals = ACHIEVEMENT_ORDER
+  const unachievedGoals = ACHIEVEMENT_ORDER
     .filter((key) => !game.achievements[key])
     .map((key, index) => ({
       definition: ACHIEVEMENT_DEFS[key],
@@ -36,13 +45,13 @@ export function HomeScreen({ game }: HomeScreenProps) {
       }
       return b.progressRatio.comparedTo(a.progressRatio)
     })
-    .reduce<
+  const nextAchievementGoals = unachievedGoals.reduce<
       Array<{
         definition: (typeof ACHIEVEMENT_DEFS)[typeof ACHIEVEMENT_ORDER[number]]
         progressRatio: Decimal
       }>
     >((selected, candidate) => {
-      if (selected.length >= 3) {
+      if (selected.length >= 2) {
         return selected
       }
       if (
@@ -57,6 +66,22 @@ export function HomeScreen({ game }: HomeScreenProps) {
       })
       return selected
     }, [])
+
+  const selectedGoalKeys = new Set(nextAchievementGoals.map((goal) => goal.definition.key))
+  const longTermGoal =
+    unachievedGoals.find(
+      (candidate) =>
+        LONG_TERM_GOAL_CATEGORIES.has(candidate.definition.category) &&
+        !selectedGoalKeys.has(candidate.definition.key) &&
+        candidate.progressRatio.lessThan(0.95),
+    ) ?? null
+
+  if (longTermGoal) {
+    nextAchievementGoals.push({
+      definition: longTermGoal.definition,
+      progressRatio: longTermGoal.progressRatio,
+    })
+  }
 
   return (
     <div className="space-y-6">
