@@ -38,6 +38,7 @@
 - Treat save-data evolution as backward-compatible: when adding new state fields, default missing values during hydration and keep at least one rolling local backup snapshot to reduce accidental progress loss.
 - Keep credit progression calculations in decimal precision internally; apply whole-number rounding only when rendering credit values in the UI.
 - Anchor lifetime credit achievement thresholds to the planned end-of-content horizon rather than the currently implemented midpoint, so new systems do not instantly trivialize the ladder.
+- Stretch single-run credit achievements well beyond the first prestige cycle; they should mark deep run pacing milestones rather than all collapsing in an early reset.
 - Prefer data-driven achievement definitions so the system scales cleanly to hundreds of achievements without UI/engine rewrites.
 - Keep Home-screen production visualizers as standalone swappable components with data-only inputs so visual styles can be replaced without changing game/screen logic.
 - Keep gameplay randomness deterministic from a persisted run seed (`worldSeed`) and shared RNG utilities; avoid direct `Math.random()` in game systems.

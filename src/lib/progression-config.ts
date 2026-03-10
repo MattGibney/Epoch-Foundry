@@ -949,6 +949,24 @@ const LIFETIME_CREDIT_ACHIEVEMENTS = [
   { key: 'allCredits1e90', label: 'Genesis Horizon', threshold: '1e90' },
 ] as const
 
+const RUN_CREDIT_ACHIEVEMENTS = [
+  { key: 'runCredits2p5e5', label: 'Run Warmup', threshold: '250000' },
+  { key: 'runCredits1e6', label: 'Run Momentum', threshold: '1000000' },
+  { key: 'runCredits5e6', label: 'Run Acceleration', threshold: '5000000' },
+  { key: 'runCredits2p5e7', label: 'Run Engine', threshold: '25000000' },
+  { key: 'runCredits1e8', label: 'Run Ramp', threshold: '100000000' },
+  { key: 'runCredits5e8', label: 'Run Breakthrough', threshold: '500000000' },
+  { key: 'runCredits2p5e9', label: 'Run Velocity', threshold: '2500000000' },
+  { key: 'runCredits1e10', label: 'Run Hyperflow', threshold: '10000000000' },
+  { key: 'runCredits5e10', label: 'Run Infrastructure', threshold: '50000000000' },
+  { key: 'runCredits2p5e11', label: 'Run Megascale', threshold: '250000000000' },
+  { key: 'runCredits1e13', label: 'Run Planetary', threshold: '1e13' },
+  { key: 'runCredits5e14', label: 'Run Stellar', threshold: '5e14' },
+  { key: 'runCredits2p5e16', label: 'Run Interstellar', threshold: '2.5e16' },
+  { key: 'runCredits1e18', label: 'Run Continuum', threshold: '1e18' },
+  { key: 'runCredits5e20', label: 'Run Genesis', threshold: '5e20' },
+] as const
+
 function formatAchievementThresholdText(threshold: string): string {
   return threshold.includes('e')
     ? threshold
@@ -967,23 +985,21 @@ const LIFETIME_CREDIT_ACHIEVEMENT_CONFIG = Object.fromEntries(
   ]),
 ) as Record<string, AchievementConfigEntry>
 
+const RUN_CREDIT_ACHIEVEMENT_CONFIG = Object.fromEntries(
+  RUN_CREDIT_ACHIEVEMENTS.map(({ key, label, threshold }) => [
+    key,
+    {
+      key,
+      label,
+      description: `Produce ${formatAchievementThresholdText(threshold)} credits in a single run.`,
+      requirement: { type: 'runCredits', threshold },
+    } satisfies AchievementConfigEntry,
+  ]),
+) as Record<string, AchievementConfigEntry>
+
 export const ACHIEVEMENT_CONFIG: Record<string, AchievementConfigEntry> = {
   ...LIFETIME_CREDIT_ACHIEVEMENT_CONFIG,
-  runCredits1m: { key: 'runCredits1m', label: 'Run Warmup', description: 'Produce 250,000 credits in a single run.', requirement: { type: 'runCredits', threshold: '250000' } },
-  runCredits2p5m: { key: 'runCredits2p5m', label: 'Run Warmth', description: 'Produce 750,000 credits in a single run.', requirement: { type: 'runCredits', threshold: '750000' } },
-  runCredits5m: { key: 'runCredits5m', label: 'Run Momentum', description: 'Produce 2.5 million credits in a single run.', requirement: { type: 'runCredits', threshold: '2500000' } },
-  runCredits10m: { key: 'runCredits10m', label: 'Run Acceleration', description: 'Produce 7.5 million credits in a single run.', requirement: { type: 'runCredits', threshold: '7500000' } },
-  runCredits25m: { key: 'runCredits25m', label: 'Run Engine', description: 'Produce 25 million credits in a single run.', requirement: { type: 'runCredits', threshold: '25000000' } },
-  runCredits50m: { key: 'runCredits50m', label: 'Run Ramp', description: 'Produce 75 million credits in a single run.', requirement: { type: 'runCredits', threshold: '75000000' } },
-  runCredits100m: { key: 'runCredits100m', label: 'Run Breakthrough', description: 'Produce 250 million credits in a single run.', requirement: { type: 'runCredits', threshold: '250000000' } },
-  runCredits250m: { key: 'runCredits250m', label: 'Run Velocity', description: 'Produce 750 million credits in a single run.', requirement: { type: 'runCredits', threshold: '750000000' } },
-  runCredits500m: { key: 'runCredits500m', label: 'Run Hyperflow', description: 'Produce 2.5 billion credits in a single run.', requirement: { type: 'runCredits', threshold: '2500000000' } },
-  runCredits1b: { key: 'runCredits1b', label: 'Run Billionaire', description: 'Produce 7.5 billion credits in a single run.', requirement: { type: 'runCredits', threshold: '7500000000' } },
-  runCredits2b: { key: 'runCredits2b', label: 'Run Industrialized', description: 'Produce 25 billion credits in a single run.', requirement: { type: 'runCredits', threshold: '25000000000' } },
-  runCredits5b: { key: 'runCredits5b', label: 'Run Macroflow', description: 'Produce 75 billion credits in a single run.', requirement: { type: 'runCredits', threshold: '75000000000' } },
-  runCredits10b: { key: 'runCredits10b', label: 'Run at Scale', description: 'Produce 250 billion credits in a single run.', requirement: { type: 'runCredits', threshold: '250000000000' } },
-  runCredits25b: { key: 'runCredits25b', label: 'Run Infrastructure', description: 'Produce 750 billion credits in a single run.', requirement: { type: 'runCredits', threshold: '750000000000' } },
-  runCredits50b: { key: 'runCredits50b', label: 'Run Megascale', description: 'Produce 2.5 trillion credits in a single run.', requirement: { type: 'runCredits', threshold: '2500000000000' } },
+  ...RUN_CREDIT_ACHIEVEMENT_CONFIG,
   miners100: { key: 'miners100', label: 'Miner Team', description: 'Own 10 Miners.', requirement: { type: 'owned', generator: 'miners', count: 10 } },
   miners300: { key: 'miners300', label: 'Miner Crew', description: 'Own 25 Miners.', requirement: { type: 'owned', generator: 'miners', count: 25 } },
   miners600: { key: 'miners600', label: 'Miner Battalion', description: 'Own 50 Miners.', requirement: { type: 'owned', generator: 'miners', count: 50 } },
