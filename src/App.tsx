@@ -849,8 +849,6 @@ function App() {
                       const upgradeBadgeCount = isSubsystemFocused
                         ? purchasableMinerSubsystemUpgradeCount
                         : purchasableUpgradeCount
-                      const showUpgradeBadge = item.key === 'upgrades' && upgradeBadgeCount > 0
-                      const showProductionBadge = item.key === 'production' && productionBadgeCount > 0
                       const badgeCount =
                         item.key === 'upgrades'
                           ? upgradeBadgeCount
@@ -872,11 +870,12 @@ function App() {
                         >
                           <span className="relative">
                             <Icon className="size-7" />
-                            {(showUpgradeBadge || showProductionBadge) && (
+                            {(item.key === 'upgrades' && upgradeBadgeCount > 0) ||
+                            (item.key === 'production' && productionBadgeCount > 0) ? (
                               <span className="absolute -right-4 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-none text-background">
                                 {badgeCount > 99 ? '99+' : badgeCount}
                               </span>
-                            )}
+                            ) : null}
                           </span>
                           <span className="text-[10px] leading-none">{item.label}</span>
                         </Button>

@@ -14,7 +14,8 @@ import {
   getSubsystemForGenerator,
   getGeneratorCost,
   getGeneratorProductionPerSecond,
-  isGeneratorManagedBySubsystem,
+  getMinerSubsystemMultiplier,
+  isSubsystemUnlocked,
   setBuyAmount,
   type GameState,
 } from '@/lib/game-engine'
@@ -87,7 +88,7 @@ export function ProductionScreen({
 
     const cost = getGeneratorCost(game, key)
     const subsystem = getSubsystemForGenerator(key)
-    const isSubsystemEntry = isGeneratorManagedBySubsystem(game, key)
+    const hasUnlockedSubsystem = subsystem ? isSubsystemUnlocked(game, subsystem) : false
     const canBuy = canBuyGenerator(game, key)
     const contribution = getGeneratorProductionPerSecond(game, key)
     const remainingCredits = canBuy ? new Decimal(0) : cost.minus(credits)
@@ -100,6 +101,24 @@ export function ProductionScreen({
       .toDecimalPlaces(0, Decimal.ROUND_FLOOR)
       .toNumber()
     const subsystemLabel = subsystem === 'miners' ? MINER_SUBSYSTEM_CONFIG.label : 'Subsystem'
+    const subsystemActionLabel =
+      subsystem === 'miners'
+        ? `${MINER_SUBSYSTEM_CONFIG.label} (x${formatRenderedCredits(getMinerSubsystemMultiplier(game))})`
+        : subsystemLabel
+    const affordabilityHelper = canBuy ? (
+      'Ready to purchase'
+    ) : (
+      <>
+        Need{' '}
+        <span className="font-mono tabular-nums">
+          {formatRenderedCredits(remainingCredits)}
+        </span>{' '}
+        more
+        {secondsUntilAffordable !== null && secondsUntilAffordable > 0
+          ? ` (${formatAffordabilityEta(secondsUntilAffordable)})`
+          : ''}
+      </>
+    )
 
     accumulator.push({
       key: definition.key,
@@ -111,38 +130,13 @@ export function ProductionScreen({
       currencyLabel: 'credits',
       canAfford: canBuy,
       affordabilityPercent,
-      helperText: isSubsystemEntry ? (
-        <>
-          <span className="text-sm">Main producer complete</span>
-          <span className="mt-2 block">
-            Enter <span className="font-medium text-foreground">{subsystemLabel}</span> to keep
-            scaling {definition.label} output.
-          </span>
-        </>
-      ) : canBuy ? (
-        'Ready to purchase'
-      ) : (
-        <>
-          Need{' '}
-          <span className="font-mono tabular-nums">
-            {formatRenderedCredits(remainingCredits)}
-          </span>{' '}
-          more
-          {secondsUntilAffordable !== null && secondsUntilAffordable > 0
-            ? ` (${formatAffordabilityEta(secondsUntilAffordable)})`
-            : ''}
-        </>
-      ),
-      buttonLabel: isSubsystemEntry ? 'Open' : 'Buy',
-      buttonDisabled: !isSubsystemEntry && !canBuy,
-      onAction: () => {
-        if (isSubsystemEntry && subsystem) {
-          onOpenSubsystem(subsystem)
-          return
-        }
-
-        onGameChange((current) => buyGenerator(current, key))
-      },
+      helperText: affordabilityHelper,
+      buttonLabel: 'Buy',
+      buttonDisabled: !canBuy,
+      onAction: () => onGameChange((current) => buyGenerator(current, key)),
+      footerActionLabel: hasUnlockedSubsystem ? subsystemActionLabel : undefined,
+      onFooterAction:
+        hasUnlockedSubsystem && subsystem ? () => onOpenSubsystem(subsystem) : undefined,
     })
     return accumulator
   }, [])

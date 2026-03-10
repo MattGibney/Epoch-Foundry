@@ -43,6 +43,7 @@
 - Structure progression in two phases: a simple producer-and-prestige opening game first, then a broader systems game after a roughly `10-24` hour unlock.
 - Treat producer-specific subsystems as the main phase-two expansion path; later mini-games and economy layers should interconnect with those subsystems rather than sit as isolated side features.
 - Unlock each producer subsystem when the parent producer has completed its main upgrade ladder, so subsystem access reads as the next stage of that producer rather than as a separate side feature.
+- Keep parent producer purchasing available after a subsystem unlock; expose subsystem entry from the producer row as a dedicated full-width inline action without replacing the parent producer buy action.
 - Standardize producer subsystems as nested idle games: each one should have its own currency, producer ladder, upgrade ladder, and a multiplier or equivalent export that feeds only back into the parent producer.
 - Prefer subsystem designs that mirror the core game loop closely and reuse the same progression grammar as the main game; theme and tuning should differentiate subsystems more than bespoke mechanics or one-off control schemes.
 - When a producer subsystem is in focused view, let it temporarily take over the main shell: show the subsystem currency in the header, remap the core production/upgrades tabs to the subsystem, keep stats accessible, and provide an explicit path back to the main game.

@@ -1697,10 +1697,6 @@ export function canBuyGenerator(
   key: GeneratorKey,
   amount = state.buyAmount,
 ): boolean {
-  if (isGeneratorManagedBySubsystem(state, key)) {
-    return false
-  }
-
   return toDecimal(state.credits).greaterThanOrEqualTo(getGeneratorCost(state, key, amount))
 }
 
