@@ -366,9 +366,24 @@ export const MINER_SUBSYSTEM_UPGRADE_ORDER = [
   'commandPlanning',
   'commandAutomation',
   'commandSingularity',
+  'boreLogistics',
+  'boreMatrices',
+  'boreFrontiers',
+  'archiveCatalogs',
+  'archiveForecasting',
+  'archiveContinuum',
+  'seismicTuning',
+  'seismicResonance',
+  'seismicPanopticon',
+  'directorateProtocols',
+  'directorateForecasting',
+  'directorateSummit',
   'fieldProtocols',
   'networkFusion',
   'oreAlgorithms',
+  'strataSimulations',
+  'basinForecasts',
+  'mantleConsensus',
 ] as const
 
 export type MinerSubsystemUpgradeKey = (typeof MINER_SUBSYSTEM_UPGRADE_ORDER)[number]
@@ -380,6 +395,10 @@ export const MINER_SUBSYSTEM_GENERATOR_ORDER = [
   'freightTeams',
   'geologyLabs',
   'commandCenters',
+  'boreGuilds',
+  'oreArchives',
+  'seismicArrays',
+  'excavationDirectorates',
 ] as const
 
 export type MinerSubsystemGeneratorKey = (typeof MINER_SUBSYSTEM_GENERATOR_ORDER)[number]

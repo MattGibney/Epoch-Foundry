@@ -3,6 +3,18 @@ import type Decimal from 'decimal.js'
 import { Button } from '@/components/ui/button'
 import { type GameState } from '@/lib/game-engine'
 
+interface SubsystemStatsSection {
+  title: string
+  currencyLabel: string
+  currentCurrency: Decimal.Value
+  currencyPerSecond: Decimal.Value
+  lifetimeCurrency: Decimal.Value
+  parentLabel: string
+  parentMultiplier: Decimal.Value
+  purchasedUpgrades: number
+  totalUpgrades: number
+}
+
 interface StatsScreenProps {
   game: GameState
   runDuration: number
@@ -15,6 +27,7 @@ interface StatsScreenProps {
   formatDuration: (seconds: number) => string
   formatRenderedCredits: (value: Decimal.Value) => string
   formatIdleNumber: (value: Decimal.Value) => string
+  subsystemStats?: SubsystemStatsSection
 }
 
 export function StatsScreen({
@@ -29,6 +42,7 @@ export function StatsScreen({
   formatDuration,
   formatRenderedCredits,
   formatIdleNumber,
+  subsystemStats,
 }: StatsScreenProps) {
   return (
     <div className="space-y-6">
@@ -90,6 +104,45 @@ export function StatsScreen({
           Prestige Reset
         </Button>
       </section>
+      {subsystemStats ? (
+        <section className="border-t border-border/70 pt-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            {subsystemStats.title}
+          </p>
+          <div className="mt-2 space-y-1 text-sm">
+            <p className="flex items-center justify-between">
+              <span className="text-muted-foreground">{subsystemStats.currencyLabel}</span>
+              <span className="font-mono tabular-nums">
+                {formatRenderedCredits(subsystemStats.currentCurrency)}
+              </span>
+            </p>
+            <p className="flex items-center justify-between">
+              <span className="text-muted-foreground">{subsystemStats.currencyLabel} / sec</span>
+              <span className="font-mono tabular-nums">
+                {formatRenderedCredits(subsystemStats.currencyPerSecond)}
+              </span>
+            </p>
+            <p className="flex items-center justify-between">
+              <span className="text-muted-foreground">Lifetime {subsystemStats.currencyLabel}</span>
+              <span className="font-mono tabular-nums">
+                {formatRenderedCredits(subsystemStats.lifetimeCurrency)}
+              </span>
+            </p>
+            <p className="flex items-center justify-between">
+              <span className="text-muted-foreground">{subsystemStats.parentLabel} Multiplier</span>
+              <span className="font-mono tabular-nums">
+                x{formatIdleNumber(subsystemStats.parentMultiplier)}
+              </span>
+            </p>
+            <p className="flex items-center justify-between">
+              <span className="text-muted-foreground">Purchased Upgrades</span>
+              <span className="font-mono tabular-nums">
+                {subsystemStats.purchasedUpgrades}/{subsystemStats.totalUpgrades}
+              </span>
+            </p>
+          </div>
+        </section>
+      ) : null}
     </div>
   )
 }

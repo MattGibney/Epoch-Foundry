@@ -98,12 +98,13 @@ const PRIMARY_NAV_ITEMS: {
 ]
 
 const FOCUSED_SUBSYSTEM_NAV_ITEMS: {
-  key: 'production' | 'upgrades'
+  key: 'production' | 'upgrades' | 'stats'
   label: string
   icon: LucideIcon
 }[] = [
   { key: 'production', label: 'Production', icon: Factory },
   { key: 'upgrades', label: 'Upgrades', icon: Wrench },
+  { key: 'stats', label: 'Stats', icon: ChartNoAxesColumn },
 ]
 
 function isPrimaryTab(tab: TabKey): tab is 'production' | 'upgrades' | 'stats' {
@@ -653,10 +654,29 @@ function App() {
         )
       }
 
+      if (activeTab === 'stats') {
+        return (
+          <StatsTabView
+            {...sharedTabProps}
+            runDuration={runDuration}
+            offlineProgressCapSeconds={offlineProgressCapSeconds}
+            prestigeMultiplier={prestigeMultiplier}
+            prestigeGain={prestigeGain}
+            canPrestigeNow={canPrestigeNow}
+            onOpenPrestige={startPrestigePlanning}
+            formatDuration={formatDuration}
+            focusedSubsystem="miners"
+            onExitSubsystem={exitSubsystem}
+          />
+        )
+      }
+
       return (
         <MinerSubsystemProductionTabView
           {...sharedTabProps}
           onExitSubsystem={exitSubsystem}
+          formatAffordabilityEta={formatAffordabilityEta}
+          getSecondsUntilAffordable={getSecondsUntilAffordable}
         />
       )
     }
@@ -818,7 +838,7 @@ function App() {
                   <div
                     className={cn(
                       'grid gap-1',
-                      isSubsystemFocused ? 'grid-cols-2' : 'grid-cols-4',
+                      isSubsystemFocused ? 'grid-cols-3' : 'grid-cols-4',
                     )}
                   >
                     {(isSubsystemFocused ? FOCUSED_SUBSYSTEM_NAV_ITEMS : PRIMARY_NAV_ITEMS).map((item) => {

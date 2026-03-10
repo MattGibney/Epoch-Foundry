@@ -1,4 +1,5 @@
 import type Decimal from 'decimal.js'
+import type { ReactNode } from 'react'
 
 import { ArrowLeft, Coins, type LucideIcon } from 'lucide-react'
 
@@ -10,6 +11,7 @@ interface ResourceHeaderProps {
   label: string
   value: Decimal.Value
   valuePerSecond: Decimal.Value
+  valueDetail?: ReactNode
   detailLabel?: string
   detailValue?: Decimal.Value
   icon?: LucideIcon
@@ -26,6 +28,7 @@ export function ResourceHeader({
   label,
   value,
   valuePerSecond,
+  valueDetail,
   detailLabel,
   detailValue,
   icon: Icon = Coins,
@@ -36,7 +39,7 @@ export function ResourceHeader({
   onAnchorRefChange,
 }: ResourceHeaderProps) {
   return (
-      <section ref={onAnchorRefChange} className="pb-4">
+    <section ref={onAnchorRefChange} className="pb-4">
       {contextLabel && contextValuePerSecond !== undefined ? (
         <div className="mb-4 flex items-center justify-between gap-2 border-b border-border/70 pb-4">
           {onAction ? (
@@ -95,6 +98,7 @@ export function ResourceHeader({
           </span>{' '}
           / sec
         </p>
+        {valueDetail ? <div className="mt-1 text-sm text-muted-foreground">{valueDetail}</div> : null}
         {detailLabel && detailValue !== undefined ? (
           <p className="mt-1 text-sm text-muted-foreground">
             {detailLabel}{' '}

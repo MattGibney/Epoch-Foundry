@@ -8,7 +8,11 @@ import {
   GENERATOR_DEFS,
   getGeneratorProductionPerSecond,
   getMinerOreData,
+  getMinerSubsystemMultiplier,
+  getMinerSubsystemPurchasedUpgradeCount,
   getMinerSubsystemTotalProductionPerSecond,
+  getMinerTotalOreData,
+  MINER_SUBSYSTEM_UPGRADE_ORDER,
   type GameState,
 } from '@/lib/game-engine'
 import { formatIdleNumber } from '@/lib/number-format'
@@ -105,16 +109,31 @@ interface MinerSubsystemTabViewProps extends CommonTabProps {
   onExitSubsystem: () => void
 }
 
-export function MinerSubsystemProductionTabView(props: MinerSubsystemTabViewProps) {
+interface MinerSubsystemProductionTabViewProps extends MinerSubsystemTabViewProps {
+  formatAffordabilityEta: (totalSeconds: number) => string
+  getSecondsUntilAffordable: (
+    credits: Decimal,
+    cost: Decimal,
+    creditsPerSecond: Decimal,
+  ) => number | null
+}
+
+export function MinerSubsystemProductionTabView(props: MinerSubsystemProductionTabViewProps) {
   const oreData = getMinerOreData(props.game)
   const oreDataPerSecond = getMinerSubsystemTotalProductionPerSecond(props.game)
   const minerProductionPerSecond = getGeneratorProductionPerSecond(props.game, 'miners')
+  const minerMultiplier = getMinerSubsystemMultiplier(props.game)
 
   return (
     <>
       <ResourceHeader
         contextLabel={GENERATOR_DEFS.miners.label}
         contextValuePerSecond={minerProductionPerSecond}
+        valueDetail={
+          <span className="font-mono tabular-nums">
+            Miner multiplier x{formatIdleNumber(minerMultiplier)}
+          </span>
+        }
         label={MINER_SUBSYSTEM_CONFIG.currencyLabel}
         value={oreData}
         valuePerSecond={oreDataPerSecond}
@@ -130,6 +149,8 @@ export function MinerSubsystemProductionTabView(props: MinerSubsystemTabViewProp
           game={props.game}
           onGameChange={props.onGameChange}
           formatRenderedValue={props.formatRenderedCredits}
+          formatAffordabilityEta={props.formatAffordabilityEta}
+          getSecondsUntilAffordable={props.getSecondsUntilAffordable}
         />
       </section>
     </>
@@ -140,12 +161,18 @@ export function MinerSubsystemUpgradesTabView(props: MinerSubsystemTabViewProps)
   const oreData = getMinerOreData(props.game)
   const oreDataPerSecond = getMinerSubsystemTotalProductionPerSecond(props.game)
   const minerProductionPerSecond = getGeneratorProductionPerSecond(props.game, 'miners')
+  const minerMultiplier = getMinerSubsystemMultiplier(props.game)
 
   return (
     <>
       <ResourceHeader
         contextLabel={GENERATOR_DEFS.miners.label}
         contextValuePerSecond={minerProductionPerSecond}
+        valueDetail={
+          <span className="font-mono tabular-nums">
+            Miner multiplier x{formatIdleNumber(minerMultiplier)}
+          </span>
+        }
         label={MINER_SUBSYSTEM_CONFIG.currencyLabel}
         value={oreData}
         valuePerSecond={oreDataPerSecond}
@@ -175,15 +202,38 @@ interface StatsTabViewProps extends CommonTabProps {
   canPrestigeNow: boolean
   onOpenPrestige: () => void
   formatDuration: (seconds: number) => string
+  focusedSubsystem?: SubsystemKey | null
+  onExitSubsystem?: () => void
 }
 
 export function StatsTabView(props: StatsTabViewProps) {
+  const isMinerFocused = props.focusedSubsystem === 'miners'
+  const headerValue = isMinerFocused ? getMinerOreData(props.game) : props.game.credits
+  const headerPerSecond = isMinerFocused
+    ? getMinerSubsystemTotalProductionPerSecond(props.game)
+    : props.creditsPerSecond
+  const minerMultiplier = isMinerFocused ? getMinerSubsystemMultiplier(props.game) : null
+
   return (
     <>
       <ResourceHeader
-        label="Credits"
-        value={props.game.credits}
-        valuePerSecond={props.creditsPerSecond}
+        contextLabel={isMinerFocused ? GENERATOR_DEFS.miners.label : undefined}
+        contextValuePerSecond={
+          isMinerFocused ? getGeneratorProductionPerSecond(props.game, 'miners') : undefined
+        }
+        valueDetail={
+          minerMultiplier ? (
+            <span className="font-mono tabular-nums">
+              Miner multiplier x{formatIdleNumber(minerMultiplier)}
+            </span>
+          ) : undefined
+        }
+        label={isMinerFocused ? MINER_SUBSYSTEM_CONFIG.currencyLabel : 'Credits'}
+        value={headerValue}
+        valuePerSecond={headerPerSecond}
+        icon={isMinerFocused ? Pickaxe : undefined}
+        actionLabel={isMinerFocused ? 'Main Game' : undefined}
+        onAction={isMinerFocused ? props.onExitSubsystem : undefined}
         formatTopValueDisplay={props.formatTopCreditsDisplay}
         formatRenderedValue={props.formatRenderedCredits}
         onAnchorRefChange={props.onAnchorRefChange}
@@ -201,6 +251,21 @@ export function StatsTabView(props: StatsTabViewProps) {
           formatDuration={props.formatDuration}
           formatRenderedCredits={props.formatRenderedCredits}
           formatIdleNumber={formatIdleNumber}
+          subsystemStats={
+            isMinerFocused
+              ? {
+                  title: MINER_SUBSYSTEM_CONFIG.label,
+                  currencyLabel: MINER_SUBSYSTEM_CONFIG.currencyLabel,
+                  currentCurrency: getMinerOreData(props.game),
+                  currencyPerSecond: getMinerSubsystemTotalProductionPerSecond(props.game),
+                  lifetimeCurrency: getMinerTotalOreData(props.game),
+                  parentLabel: GENERATOR_DEFS.miners.label,
+                  parentMultiplier: getMinerSubsystemMultiplier(props.game),
+                  purchasedUpgrades: getMinerSubsystemPurchasedUpgradeCount(props.game),
+                  totalUpgrades: MINER_SUBSYSTEM_UPGRADE_ORDER.length,
+                }
+              : undefined
+          }
         />
       </section>
     </>
