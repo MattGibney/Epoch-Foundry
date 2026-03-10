@@ -40,3 +40,5 @@
 - Prefer data-driven achievement definitions so the system scales cleanly to hundreds of achievements without UI/engine rewrites.
 - Keep Home-screen production visualizers as standalone swappable components with data-only inputs so visual styles can be replaced without changing game/screen logic.
 - Keep gameplay randomness deterministic from a persisted run seed (`worldSeed`) and shared RNG utilities; avoid direct `Math.random()` in game systems.
+- Structure progression in two phases: a simple producer-and-prestige opening game first, then a broader systems game after a roughly `10-24` hour unlock.
+- Treat producer-specific subsystems as the main phase-two expansion path; later mini-games and economy layers should interconnect with those subsystems rather than sit as isolated side features.
