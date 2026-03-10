@@ -923,30 +923,52 @@ export const UPGRADE_CONFIG: Record<string, UpgradeConfigEntry> = {
   chronoReserves: { key: 'chronoReserves', label: 'Chrono Reserves', description: 'Increase offline progress cap by +2.5 hours.', cost: '15000000000000000', effectType: 'offlineCap', offlineCapSeconds: 150 * 60, requiresOwned: { generator: 'continuumEngines', count: 60 }, requiresUpgrade: 'deepArchive' },
 }
 
+const LIFETIME_CREDIT_ACHIEVEMENTS = [
+  { key: 'allCredits2p5e5', label: 'Foundation', threshold: '250000' },
+  { key: 'allCredits1e6', label: 'Early Expansion', threshold: '1000000' },
+  { key: 'allCredits5e6', label: 'Flow Established', threshold: '5000000' },
+  { key: 'allCredits2p5e7', label: 'Scaling Up', threshold: '25000000' },
+  { key: 'allCredits1e8', label: 'Credit Engine', threshold: '100000000' },
+  { key: 'allCredits5e8', label: 'Networked Output', threshold: '500000000' },
+  { key: 'allCredits2p5e9', label: 'Industrial Flow', threshold: '2500000000' },
+  { key: 'allCredits1e10', label: 'Industrial Scale', threshold: '10000000000' },
+  { key: 'allCredits5e10', label: 'Mass Production', threshold: '50000000000' },
+  { key: 'allCredits2p5e11', label: 'Macro Throughput', threshold: '250000000000' },
+  { key: 'allCredits1e13', label: 'Macro Economy', threshold: '1e13' },
+  { key: 'allCredits5e14', label: 'Planetary Output', threshold: '5e14' },
+  { key: 'allCredits2p5e16', label: 'Stellar Ledger', threshold: '2.5e16' },
+  { key: 'allCredits1e18', label: 'Cluster Reserves', threshold: '1e18' },
+  { key: 'allCredits5e20', label: 'Galactic Flow', threshold: '5e20' },
+  { key: 'allCredits2p5e23', label: 'Interstellar Treasury', threshold: '2.5e23' },
+  { key: 'allCredits1e27', label: 'Universal Current', threshold: '1e27' },
+  { key: 'allCredits5e31', label: 'Continuum Drive', threshold: '5e31' },
+  { key: 'allCredits2p5e37', label: 'Reality Furnace', threshold: '2.5e37' },
+  { key: 'allCredits1e45', label: 'Fractal Reserve', threshold: '1e45' },
+  { key: 'allCredits5e52', label: 'Causal Dominion', threshold: '5e52' },
+  { key: 'allCredits2p5e63', label: 'Epoch Treasury', threshold: '2.5e63' },
+  { key: 'allCredits1e90', label: 'Genesis Horizon', threshold: '1e90' },
+] as const
+
+function formatAchievementThresholdText(threshold: string): string {
+  return threshold.includes('e')
+    ? threshold
+    : threshold.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
+const LIFETIME_CREDIT_ACHIEVEMENT_CONFIG = Object.fromEntries(
+  LIFETIME_CREDIT_ACHIEVEMENTS.map(({ key, label, threshold }) => [
+    key,
+    {
+      key,
+      label,
+      description: `Produce ${formatAchievementThresholdText(threshold)} credits across all resets.`,
+      requirement: { type: 'allResetCredits', threshold },
+    } satisfies AchievementConfigEntry,
+  ]),
+) as Record<string, AchievementConfigEntry>
+
 export const ACHIEVEMENT_CONFIG: Record<string, AchievementConfigEntry> = {
-  allCredits5m: { key: 'allCredits5m', label: 'Foundation', description: 'Produce 250,000 credits across all resets.', requirement: { type: 'allResetCredits', threshold: '250000' } },
-  allCredits10m: { key: 'allCredits10m', label: 'Early Expansion', description: 'Produce 750,000 credits across all resets.', requirement: { type: 'allResetCredits', threshold: '750000' } },
-  allCredits25m: { key: 'allCredits25m', label: 'Flow Established', description: 'Produce 2.5 million credits across all resets.', requirement: { type: 'allResetCredits', threshold: '2500000' } },
-  allCredits50m: { key: 'allCredits50m', label: 'Scaling Up', description: 'Produce 7.5 million credits across all resets.', requirement: { type: 'allResetCredits', threshold: '7500000' } },
-  allCredits100m: { key: 'allCredits100m', label: 'Credit Engine', description: 'Produce 25 million credits across all resets.', requirement: { type: 'allResetCredits', threshold: '25000000' } },
-  allCredits250m: { key: 'allCredits250m', label: 'Networked Output', description: 'Produce 75 million credits across all resets.', requirement: { type: 'allResetCredits', threshold: '75000000' } },
-  allCredits500m: { key: 'allCredits500m', label: 'Large Throughput', description: 'Produce 250 million credits across all resets.', requirement: { type: 'allResetCredits', threshold: '250000000' } },
-  allCredits1b: { key: 'allCredits1b', label: 'First Billion', description: 'Produce 750 million credits across all resets.', requirement: { type: 'allResetCredits', threshold: '750000000' } },
-  allCredits2b: { key: 'allCredits2b', label: 'Industrial Flow', description: 'Produce 2.5 billion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '2500000000' } },
-  allCredits5b: { key: 'allCredits5b', label: 'Industrial Scale', description: 'Produce 7.5 billion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '7500000000' } },
-  allCredits10b: { key: 'allCredits10b', label: 'Mass Production', description: 'Produce 10 billion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '10000000000' } },
-  allCredits25b: { key: 'allCredits25b', label: 'Macro Throughput', description: 'Produce 25 billion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '25000000000' } },
-  allCredits50b: { key: 'allCredits50b', label: 'Billion Builder', description: 'Produce 50 billion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '50000000000' } },
-  allCredits100b: { key: 'allCredits100b', label: 'Century Billion', description: 'Produce 100 billion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '100000000000' } },
-  allCredits250b: { key: 'allCredits250b', label: 'Macro Economy', description: 'Produce 250 billion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '250000000000' } },
-  allCredits500b: { key: 'allCredits500b', label: 'Half Trillion Runway', description: 'Produce 500 billion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '500000000000' } },
-  allCredits1t: { key: 'allCredits1t', label: 'Titan Ledger', description: 'Produce 1 trillion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '1000000000000' } },
-  allCredits2p5t: { key: 'allCredits2p5t', label: 'Titanic Flow', description: 'Produce 2.5 trillion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '2500000000000' } },
-  allCredits10t: { key: 'allCredits10t', label: 'Trillion Track', description: 'Produce 10 trillion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '10000000000000' } },
-  allCredits25t: { key: 'allCredits25t', label: 'Trillion Forge', description: 'Produce 25 trillion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '25000000000000' } },
-  allCredits100t: { key: 'allCredits100t', label: 'Quadrillion Lift', description: 'Produce 100 trillion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '100000000000000' } },
-  allCredits250t: { key: 'allCredits250t', label: 'Quarter Quadrillion', description: 'Produce 250 trillion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '250000000000000' } },
-  allCredits1qa: { key: 'allCredits1qa', label: 'Quintillion Lift', description: 'Produce 1 quadrillion credits across all resets.', requirement: { type: 'allResetCredits', threshold: '1000000000000000' } },
+  ...LIFETIME_CREDIT_ACHIEVEMENT_CONFIG,
   runCredits1m: { key: 'runCredits1m', label: 'Run Warmup', description: 'Produce 250,000 credits in a single run.', requirement: { type: 'runCredits', threshold: '250000' } },
   runCredits2p5m: { key: 'runCredits2p5m', label: 'Run Warmth', description: 'Produce 750,000 credits in a single run.', requirement: { type: 'runCredits', threshold: '750000' } },
   runCredits5m: { key: 'runCredits5m', label: 'Run Momentum', description: 'Produce 2.5 million credits in a single run.', requirement: { type: 'runCredits', threshold: '2500000' } },
