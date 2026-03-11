@@ -23,10 +23,16 @@ import {
 } from '@/components/ui/sheet'
 import { Toaster } from '@/components/ui/sonner'
 import { createDevBootstrapState, type DevBootstrapPresetKey } from '@/lib/dev-bootstrap'
-import { clearGameSave, loadGameStateWithSummary, saveGameState } from '@/lib/game-save'
+import {
+  clearGameSave,
+  loadGameStateWithSummary,
+  saveGameState,
+  type OfflineProgressLoadSummary,
+} from '@/lib/game-save'
 import {
   ACHIEVEMENT_DEFS,
   ACHIEVEMENT_ORDER,
+  applyOfflineProgress,
   applyPrestigeReset,
   canBuyGenerator,
   canBuyMinerSubsystemUpgrade,
@@ -254,6 +260,26 @@ function App() {
     gameRef.current = game
   }, [game])
 
+  const showOfflineProductionToast = useCallback((offlineProgress: OfflineProgressLoadSummary | null) => {
+    if (
+      !offlineProgress ||
+      offlineProgress.appliedSeconds <= OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS
+    ) {
+      return
+    }
+
+    toast(
+      <span className="inline-flex items-center gap-1.5">
+        <span>Offline Production</span>
+        <Coins className="size-4 text-muted-foreground" aria-hidden />
+        <span className="font-mono tabular-nums">
+          {formatRenderedCredits(offlineProgress.producedCredits)}
+        </span>
+      </span>,
+      { id: 'offline-production' },
+    )
+  }, [])
+
   useEffect(() => {
     let cancelled = false
 
@@ -271,24 +297,7 @@ function App() {
         ACHIEVEMENT_ORDER.filter((key) => loaded.state.achievements[key]),
       )
 
-      const offlineProgress = loaded.offlineProgress
-      if (
-        !offlineProgress ||
-        offlineProgress.appliedSeconds <= OFFLINE_PRODUCTION_TOAST_THRESHOLD_SECONDS
-      ) {
-        return
-      }
-
-      toast(
-        <span className="inline-flex items-center gap-1.5">
-          <span>Offline Production</span>
-          <Coins className="size-4 text-muted-foreground" aria-hidden />
-          <span className="font-mono tabular-nums">
-            {formatRenderedCredits(offlineProgress.producedCredits)}
-          </span>
-        </span>,
-        { id: 'offline-production' },
-      )
+      showOfflineProductionToast(loaded.offlineProgress)
     }
 
     void hydrate()
@@ -296,7 +305,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [showOfflineProductionToast])
 
   useEffect(() => {
     if (!isHydrated) {
@@ -423,26 +432,71 @@ function App() {
       return
     }
 
+    const applyOfflineProgressOnResume = () => {
+      if (document.visibilityState === 'hidden') {
+        return
+      }
+
+      const current = gameRef.current
+      const now = Date.now()
+      const elapsedSeconds = Math.max(0, (Math.max(now, current.stats.lastTickAtMs) - current.stats.lastTickAtMs) / 1_000)
+      const cappedSeconds = Math.min(elapsedSeconds, getOfflineProgressCapSeconds(current))
+      const nextState = applyOfflineProgress(current, now)
+      const producedCredits = new Decimal(nextState.credits).minus(current.credits)
+
+      if (
+        nextState.credits === current.credits &&
+        nextState.stats.totalCredits === current.stats.totalCredits &&
+        nextState.stats.totalCreditsAllResets === current.stats.totalCreditsAllResets &&
+        nextState.stats.lastTickAtMs === current.stats.lastTickAtMs
+      ) {
+        return
+      }
+
+      gameRef.current = nextState
+      setGame(nextState)
+      setNowMs(now)
+      void saveGameState(nextState)
+
+      showOfflineProductionToast(
+        cappedSeconds > 0 && producedCredits.greaterThan(0)
+          ? {
+              appliedSeconds: cappedSeconds,
+              producedCredits: producedCredits.toString(),
+            }
+          : null,
+      )
+    }
+
     const saveOnVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         void persistGame()
+        return
       }
+
+      applyOfflineProgressOnResume()
     }
 
     const saveOnPageExit = () => {
       void persistGame()
     }
 
+    const applyOnPageShow = () => {
+      applyOfflineProgressOnResume()
+    }
+
     document.addEventListener('visibilitychange', saveOnVisibilityChange)
+    window.addEventListener('pageshow', applyOnPageShow)
     window.addEventListener('pagehide', saveOnPageExit)
     window.addEventListener('beforeunload', saveOnPageExit)
 
     return () => {
       document.removeEventListener('visibilitychange', saveOnVisibilityChange)
+      window.removeEventListener('pageshow', applyOnPageShow)
       window.removeEventListener('pagehide', saveOnPageExit)
       window.removeEventListener('beforeunload', saveOnPageExit)
     }
-  }, [isHydrated, persistGame])
+  }, [isHydrated, persistGame, showOfflineProductionToast])
 
   useEffect(() => {
     const summaryElement = floatingAnchorElement
