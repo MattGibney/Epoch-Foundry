@@ -96,21 +96,34 @@ function parseUpdateFrequency(value: unknown): UpdateFrequencyMode | null {
   return null
 }
 
+function parseRepeatTapScrollDirection(
+  value: unknown,
+): GameState['settings']['repeatTapScrollDirection'] | null {
+  if (value === 'topToBottom' || value === 'bottomToTop') {
+    return value
+  }
+
+  return null
+}
+
 function parseSettings(value: unknown): GameState['settings'] {
   if (!value || typeof value !== 'object') {
     return {
       showPurchasedUpgrades: false,
       updateFrequency: 'slow',
+      repeatTapScrollDirection: 'topToBottom',
     }
   }
 
   const candidate = value as Record<string, unknown>
   const showPurchasedUpgrades = parseBool(candidate.showPurchasedUpgrades)
   const updateFrequency = parseUpdateFrequency(candidate.updateFrequency)
+  const repeatTapScrollDirection = parseRepeatTapScrollDirection(candidate.repeatTapScrollDirection)
 
   return {
     showPurchasedUpgrades: showPurchasedUpgrades ?? false,
     updateFrequency: updateFrequency ?? 'slow',
+    repeatTapScrollDirection: repeatTapScrollDirection ?? 'topToBottom',
   }
 }
 

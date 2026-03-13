@@ -45,6 +45,11 @@ interface CommonTabProps {
   formatTopCreditsDisplay: (value: Decimal.Value) => string
   onAnchorRefChange: (element: HTMLElement | null) => void
   onGameChange: (updater: (current: GameState) => GameState) => void
+  repeatTapScrollDirection: GameState['settings']['repeatTapScrollDirection']
+  jumpRequestIds: {
+    production: number
+    upgrades: number
+  }
 }
 
 interface ProductionTabViewProps extends CommonTabProps {
@@ -77,6 +82,8 @@ export function ProductionTabView(props: ProductionTabViewProps) {
           formatAffordabilityEta={props.formatAffordabilityEta}
           getSecondsUntilAffordable={props.getSecondsUntilAffordable}
           onOpenSubsystem={props.onOpenSubsystem}
+          jumpRequestId={props.jumpRequestIds.production}
+          repeatTapScrollDirection={props.repeatTapScrollDirection}
         />
       </section>
     </>
@@ -99,6 +106,8 @@ export function UpgradesTabView(props: CommonTabProps) {
           game={props.game}
           onGameChange={props.onGameChange}
           formatRenderedCredits={props.formatRenderedCredits}
+          jumpRequestId={props.jumpRequestIds.upgrades}
+          repeatTapScrollDirection={props.repeatTapScrollDirection}
         />
       </section>
     </>
@@ -151,6 +160,8 @@ export function MinerSubsystemProductionTabView(props: MinerSubsystemProductionT
           formatRenderedValue={props.formatRenderedCredits}
           formatAffordabilityEta={props.formatAffordabilityEta}
           getSecondsUntilAffordable={props.getSecondsUntilAffordable}
+          jumpRequestId={props.jumpRequestIds.production}
+          repeatTapScrollDirection={props.repeatTapScrollDirection}
         />
       </section>
     </>
@@ -188,6 +199,8 @@ export function MinerSubsystemUpgradesTabView(props: MinerSubsystemTabViewProps)
           game={props.game}
           onGameChange={props.onGameChange}
           formatRenderedValue={props.formatRenderedCredits}
+          jumpRequestId={props.jumpRequestIds.upgrades}
+          repeatTapScrollDirection={props.repeatTapScrollDirection}
         />
       </section>
     </>

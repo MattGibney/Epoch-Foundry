@@ -2,7 +2,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { DEV_BOOTSTRAP_PRESETS, type DevBootstrapPresetKey } from '@/lib/dev-bootstrap'
-import { setShowPurchasedUpgrades, setUpdateFrequency, type GameState } from '@/lib/game-engine'
+import {
+  setRepeatTapScrollDirection,
+  setShowPurchasedUpgrades,
+  setUpdateFrequency,
+  type GameState,
+} from '@/lib/game-engine'
 
 interface SettingsScreenProps {
   game: GameState
@@ -75,6 +80,43 @@ export function SettingsScreen({
             checked={game.settings.showPurchasedUpgrades}
             onCheckedChange={(checked) => onGameChange((current) => setShowPurchasedUpgrades(current, checked))}
           />
+        </div>
+      </section>
+
+      <section className="border-t border-border/70 pt-4">
+        <h3 className="text-base font-semibold">Navigation</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Re-tapping an active Production or Upgrades tab with a badge can jump to the next
+          actionable item.
+        </p>
+        <div className="mt-3 space-y-2">
+          <p className="text-sm font-medium">Repeat Tap Jump Order</p>
+          <div
+            className="inline-flex items-center overflow-hidden rounded-md border border-border"
+            role="group"
+            aria-label="Repeat tap jump order"
+          >
+            {([
+              ['topToBottom', 'Top to Bottom'],
+              ['bottomToTop', 'Bottom to Top'],
+            ] as const).map(([direction, label]) => (
+              <Button
+                key={direction}
+                type="button"
+                size="sm"
+                variant={game.settings.repeatTapScrollDirection === direction ? 'default' : 'ghost'}
+                className="rounded-none px-3 text-xs"
+                onClick={() =>
+                  onGameChange((current) => setRepeatTapScrollDirection(current, direction))
+                }
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Choose whether the jump picks the first available item from the top or the bottom.
+          </p>
         </div>
       </section>
 

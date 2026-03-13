@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import Decimal from 'decimal.js'
 
 import {
@@ -32,6 +33,8 @@ interface MinerSubsystemScreenProps {
   game: GameState
   onGameChange: (updater: (current: GameState) => GameState) => void
   formatRenderedValue: (value: Decimal.Value) => string
+  jumpRequestId: number
+  repeatTapScrollDirection: GameState['settings']['repeatTapScrollDirection']
 }
 
 interface MinerSubsystemProductionScreenProps extends MinerSubsystemScreenProps {
@@ -153,6 +156,8 @@ export function MinerSubsystemProductionScreen({
   formatRenderedValue,
   formatAffordabilityEta,
   getSecondsUntilAffordable,
+  jumpRequestId,
+  repeatTapScrollDirection,
 }: MinerSubsystemProductionScreenProps) {
   if (!isSubsystemUnlocked(game, 'miners')) {
     return <MinerSubsystemLockedState />
@@ -231,12 +236,19 @@ export function MinerSubsystemProductionScreen({
     [],
   )
 
+  const scrollTargetKey =
+    repeatTapScrollDirection === 'bottomToTop'
+      ? [...entries].reverse().find((entry) => entry.type !== 'ghost' && entry.canAfford)?.key ?? null
+      : entries.find((entry) => entry.type !== 'ghost' && entry.canAfford)?.key ?? null
+
   return (
     <ProducerList
       buyAmount={game.buyAmount}
       onBuyAmountChange={(amount) => onGameChange((current) => setBuyAmount(current, amount))}
       formatRenderedValue={formatRenderedValue}
       entries={entries}
+      scrollTargetKey={scrollTargetKey}
+      scrollRequestId={jumpRequestId}
     />
   )
 }
@@ -245,17 +257,46 @@ export function MinerSubsystemUpgradesScreen({
   game,
   onGameChange,
   formatRenderedValue,
+  jumpRequestId,
+  repeatTapScrollDirection,
 }: MinerSubsystemScreenProps) {
-  if (!isSubsystemUnlocked(game, 'miners')) {
+  const isUnlocked = isSubsystemUnlocked(game, 'miners')
+  const contentRef = useRef<HTMLDivElement | null>(null)
+  const lastHandledJumpRequestIdRef = useRef(jumpRequestId)
+  const oreData = isUnlocked ? getMinerOreData(game) : new Decimal(0)
+  const { maxRevealedProducerIndex } = isUnlocked
+    ? getMinerMaxRevealedProducerIndex(game, oreData)
+    : { maxRevealedProducerIndex: -1 }
+  const visibleUpgradeKeys = isUnlocked
+    ? getVisibleMinerUpgradeKeys(game, maxRevealedProducerIndex)
+    : []
+  const scrollTargetKey =
+    repeatTapScrollDirection === 'bottomToTop'
+      ? [...visibleUpgradeKeys].reverse().find((key) => canBuyMinerSubsystemUpgrade(game, key)) ?? null
+      : visibleUpgradeKeys.find((key) => canBuyMinerSubsystemUpgrade(game, key)) ?? null
+
+  useEffect(() => {
+    if (!isUnlocked || jumpRequestId <= lastHandledJumpRequestIdRef.current) {
+      return
+    }
+
+    lastHandledJumpRequestIdRef.current = jumpRequestId
+    if (!scrollTargetKey) {
+      return
+    }
+
+    const target = contentRef.current?.querySelector<HTMLElement>(
+      `[data-subsystem-upgrade-key="${scrollTargetKey}"]`,
+    )
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [isUnlocked, jumpRequestId, scrollTargetKey])
+
+  if (!isUnlocked) {
     return <MinerSubsystemLockedState />
   }
 
-  const oreData = getMinerOreData(game)
-  const { maxRevealedProducerIndex } = getMinerMaxRevealedProducerIndex(game, oreData)
-  const visibleUpgradeKeys = getVisibleMinerUpgradeKeys(game, maxRevealedProducerIndex)
-
   return (
-    <div className="space-y-8">
+    <div ref={contentRef} className="space-y-8">
       <section className="space-y-3">
         <div className="space-y-1">
           <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-foreground/80">
@@ -278,7 +319,11 @@ export function MinerSubsystemUpgradesScreen({
             const affordabilityRatio = Decimal.min(new Decimal(1), oreData.div(cost)).toNumber()
 
             return (
-              <article key={definition.key} className="py-4 first:pt-0">
+              <article
+                key={definition.key}
+                className="py-4 first:pt-0"
+                data-subsystem-upgrade-key={definition.key}
+              >
                 <div className="flex items-stretch justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="text-base font-semibold">{definition.label}</h3>

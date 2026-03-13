@@ -246,6 +246,10 @@ function App() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [floatingAnchorElement, setFloatingAnchorElement] = useState<HTMLElement | null>(null)
+  const [jumpRequestIds, setJumpRequestIds] = useState({
+    production: 0,
+    upgrades: 0,
+  })
   const [prestigePlan, setPrestigePlan] = useState<{
     availableEssence: string
     baseAvailableEssence: string
@@ -601,6 +605,23 @@ function App() {
     setIsSectionsOpen(false)
   }, [])
 
+  const handlePrimaryNavPress = useCallback(
+    (tabKey: 'production' | 'upgrades' | 'stats', badgeCount: number) => {
+      if (activeTab !== tabKey) {
+        setActiveTab(tabKey)
+        return
+      }
+
+      if ((tabKey === 'production' || tabKey === 'upgrades') && badgeCount > 0) {
+        setJumpRequestIds((current) => ({
+          ...current,
+          [tabKey]: current[tabKey] + 1,
+        }))
+      }
+    },
+    [activeTab],
+  )
+
   const exitSubsystem = useCallback(() => {
     setFocusedSubsystem(null)
     setActiveTab('production')
@@ -696,6 +717,8 @@ function App() {
       formatTopCreditsDisplay,
       onAnchorRefChange: setFloatingAnchorElement,
       onGameChange: setGame,
+      repeatTapScrollDirection: game.settings.repeatTapScrollDirection,
+      jumpRequestIds,
     }
 
     if (focusedSubsystem === 'miners') {
@@ -919,7 +942,7 @@ function App() {
                             'h-12 flex-col gap-1.5 rounded-lg bg-transparent px-0.5 shadow-none hover:bg-transparent active:bg-transparent',
                             activeTab === item.key ? 'text-foreground' : 'text-muted-foreground/70',
                           )}
-                          onClick={() => setActiveTab(item.key)}
+                          onClick={() => handlePrimaryNavPress(item.key, badgeCount)}
                           aria-label={item.label}
                         >
                           <span className="relative">

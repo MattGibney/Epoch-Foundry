@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import Decimal from 'decimal.js'
 
 import { Button } from '@/components/ui/button'
@@ -30,10 +31,20 @@ interface UpgradesScreenProps {
   game: GameState
   onGameChange: (updater: (current: GameState) => GameState) => void
   formatRenderedCredits: (value: Decimal.Value) => string
+  jumpRequestId: number
+  repeatTapScrollDirection: GameState['settings']['repeatTapScrollDirection']
 }
 
-export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: UpgradesScreenProps) {
+export function UpgradesScreen({
+  game,
+  onGameChange,
+  formatRenderedCredits,
+  jumpRequestId,
+  repeatTapScrollDirection,
+}: UpgradesScreenProps) {
   const credits = new Decimal(game.credits)
+  const contentRef = useRef<HTMLDivElement | null>(null)
+  const lastHandledJumpRequestIdRef = useRef(jumpRequestId)
   const highestOwnedProducerIndex = GENERATOR_ORDER.reduce(
     (highest, key, index) => (game.generators[key] > 0 ? index : highest),
     -1,
@@ -102,6 +113,26 @@ export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: Up
   }
 
   const visibleUpgradeKeys = UPGRADE_ORDER.filter((key) => visible.has(key))
+  const scrollTargetKey =
+    repeatTapScrollDirection === 'bottomToTop'
+      ? [...visibleUpgradeKeys].reverse().find((key) => canBuyUpgrade(game, key)) ?? null
+      : visibleUpgradeKeys.find((key) => canBuyUpgrade(game, key)) ?? null
+
+  useEffect(() => {
+    if (jumpRequestId <= lastHandledJumpRequestIdRef.current) {
+      return
+    }
+
+    lastHandledJumpRequestIdRef.current = jumpRequestId
+    if (!scrollTargetKey) {
+      return
+    }
+
+    const target = contentRef.current?.querySelector<HTMLElement>(
+      `[data-upgrade-key="${scrollTargetKey}"]`,
+    )
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [jumpRequestId, scrollTargetKey])
 
   const purchasedUpgradeCount = UPGRADE_ORDER.reduce(
     (count, key) => count + (game.purchasedUpgrades[key] ? 1 : 0),
@@ -135,7 +166,11 @@ export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: Up
       : null
 
     return (
-      <article key={definition.key} className="border-b border-border/70 py-4 first:pt-0">
+      <article
+        key={definition.key}
+        className="border-b border-border/70 py-4 first:pt-0"
+        data-upgrade-key={definition.key}
+      >
         <div className="flex items-stretch justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-base font-semibold">{definition.label}</h3>
@@ -205,7 +240,7 @@ export function UpgradesScreen({ game, onGameChange, formatRenderedCredits }: Up
   }
 
   return (
-    <div className="space-y-8">
+    <div ref={contentRef} className="space-y-8">
       <section>
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Progress

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type Decimal from 'decimal.js'
 import { ChevronDown } from 'lucide-react'
 
@@ -42,6 +42,8 @@ interface ProducerListProps {
   onBuyAmountChange: (amount: number) => void
   formatRenderedValue: (value: Decimal.Value) => string
   entries: ProducerListEntry[]
+  scrollTargetKey?: string | null
+  scrollRequestId?: number
 }
 
 export function ProducerList({
@@ -49,8 +51,29 @@ export function ProducerList({
   onBuyAmountChange,
   formatRenderedValue,
   entries,
+  scrollTargetKey,
+  scrollRequestId,
 }: ProducerListProps) {
   const [isOptionsOpen, setIsOptionsOpen] = useState(false)
+  const entriesRef = useRef<HTMLElement | null>(null)
+  const lastHandledScrollRequestIdRef = useRef(scrollRequestId ?? 0)
+
+  useEffect(() => {
+    const nextScrollRequestId = scrollRequestId ?? 0
+    if (nextScrollRequestId <= lastHandledScrollRequestIdRef.current) {
+      return
+    }
+
+    lastHandledScrollRequestIdRef.current = nextScrollRequestId
+    if (!scrollTargetKey) {
+      return
+    }
+
+    const target = entriesRef.current?.querySelector<HTMLElement>(
+      `[data-producer-entry-key="${scrollTargetKey}"]`,
+    )
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [scrollRequestId, scrollTargetKey])
 
   return (
     <div className="space-y-4">
@@ -103,7 +126,7 @@ export function ProducerList({
         </div>
       </section>
 
-      <section className="divide-y divide-border/70">
+      <section ref={entriesRef} className="divide-y divide-border/70">
         {entries.map((entry) => {
           if (entry.type === 'ghost') {
             return (

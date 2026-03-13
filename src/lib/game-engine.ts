@@ -439,6 +439,7 @@ export interface StatsState {
 export interface GameSettingsState {
   showPurchasedUpgrades: boolean
   updateFrequency: 'slow' | 'medium' | 'fast'
+  repeatTapScrollDirection: 'topToBottom' | 'bottomToTop'
 }
 
 export interface PrestigeState {
@@ -1069,6 +1070,7 @@ export function createInitialGameState(nowMs = Date.now()): GameState {
     settings: {
       showPurchasedUpgrades: false,
       updateFrequency: 'slow',
+      repeatTapScrollDirection: 'topToBottom',
     },
     prestige: createInitialPrestigeState(),
     random: createInitialRandomState(nowMs),
@@ -1680,6 +1682,19 @@ export function setUpdateFrequency(
     settings: {
       ...state.settings,
       updateFrequency,
+    },
+  }
+}
+
+export function setRepeatTapScrollDirection(
+  state: GameState,
+  repeatTapScrollDirection: GameSettingsState['repeatTapScrollDirection'],
+): GameState {
+  return {
+    ...state,
+    settings: {
+      ...state.settings,
+      repeatTapScrollDirection,
     },
   }
 }

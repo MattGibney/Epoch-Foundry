@@ -32,6 +32,8 @@ interface ProductionScreenProps {
     creditsPerSecond: Decimal,
   ) => number | null
   onOpenSubsystem: (subsystem: SubsystemKey) => void
+  jumpRequestId: number
+  repeatTapScrollDirection: GameState['settings']['repeatTapScrollDirection']
 }
 
 export function ProductionScreen({
@@ -42,6 +44,8 @@ export function ProductionScreen({
   formatAffordabilityEta,
   getSecondsUntilAffordable,
   onOpenSubsystem,
+  jumpRequestId,
+  repeatTapScrollDirection,
 }: ProductionScreenProps) {
   const credits = new Decimal(game.credits)
   const highestOwnedIndex = GENERATOR_ORDER.reduce(
@@ -141,12 +145,19 @@ export function ProductionScreen({
     return accumulator
   }, [])
 
+  const scrollTargetKey =
+    repeatTapScrollDirection === 'bottomToTop'
+      ? [...entries].reverse().find((entry) => entry.type !== 'ghost' && entry.canAfford)?.key ?? null
+      : entries.find((entry) => entry.type !== 'ghost' && entry.canAfford)?.key ?? null
+
   return (
     <ProducerList
       buyAmount={game.buyAmount}
       onBuyAmountChange={(amount) => onGameChange((current) => setBuyAmount(current, amount))}
       formatRenderedValue={formatRenderedCredits}
       entries={entries}
+      scrollTargetKey={scrollTargetKey}
+      scrollRequestId={jumpRequestId}
     />
   )
 }
