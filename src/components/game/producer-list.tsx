@@ -3,6 +3,7 @@ import type Decimal from 'decimal.js'
 import { ChevronDown } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { SAFE_AREA_INSETS } from '@/lib/game-config'
 import { BUY_AMOUNT_OPTIONS } from '@/lib/game-engine'
 import { cn } from '@/lib/utils'
 
@@ -57,6 +58,11 @@ export function ProducerList({
   const [isOptionsOpen, setIsOptionsOpen] = useState(false)
   const entriesRef = useRef<HTMLElement | null>(null)
   const lastHandledScrollRequestIdRef = useRef(scrollRequestId ?? 0)
+  const stickyTopOffset = `calc(${SAFE_AREA_INSETS.top} + 3rem)`
+  const stickyLeftMargin = `calc(-1 * (${SAFE_AREA_INSETS.left} + 1rem))`
+  const stickyRightMargin = `calc(-1 * (${SAFE_AREA_INSETS.right} + 1rem))`
+  const stickyLeftPadding = `calc(${SAFE_AREA_INSETS.left} + 1rem)`
+  const stickyRightPadding = `calc(${SAFE_AREA_INSETS.right} + 1rem)`
 
   useEffect(() => {
     const nextScrollRequestId = scrollRequestId ?? 0
@@ -77,7 +83,16 @@ export function ProducerList({
 
   return (
     <div className="space-y-4">
-      <section className="border-b border-border/70 pb-3">
+      <section
+        className="sticky z-30 border-b border-border/70 bg-background/95 pb-3 pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+        style={{
+          top: stickyTopOffset,
+          marginLeft: stickyLeftMargin,
+          marginRight: stickyRightMargin,
+          paddingLeft: stickyLeftPadding,
+          paddingRight: stickyRightPadding,
+        }}
+      >
         <button
           type="button"
           className="flex w-full items-center justify-between text-left"
