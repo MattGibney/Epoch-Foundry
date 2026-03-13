@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import type Decimal from 'decimal.js'
 import { ChevronRight } from 'lucide-react'
 
+import { PurchaseFeedbackContainer } from '@/components/game/purchase-feedback-container'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 import type { ProducerListRowEntry } from './producer-list'
-
-type PurchaseFeedbackIntensity = 'base' | 'surge' | 'burst'
 
 function restartCssAnimation(element: HTMLElement | null, className: string): void {
   if (!element) {
@@ -19,16 +18,16 @@ function restartCssAnimation(element: HTMLElement | null, className: string): vo
   element.classList.add(className)
 }
 
-function getPurchaseFeedbackIntensity(delta: number): PurchaseFeedbackIntensity {
+function getPurchaseFeedbackIntensityLevel(delta: number): 1 | 2 | 3 {
   if (delta >= 100) {
-    return 'burst'
+    return 3
   }
 
   if (delta >= 10) {
-    return 'surge'
+    return 2
   }
 
-  return 'base'
+  return 1
 }
 
 interface ProducerListRowProps {
@@ -40,26 +39,23 @@ export function ProducerListRow({
   entry,
   formatRenderedValue,
 }: ProducerListRowProps) {
-  const articleRef = useRef<HTMLElement | null>(null)
   const badgeRef = useRef<HTMLSpanElement | null>(null)
   const previousOwnedRef = useRef(entry.owned)
   const resetTimerRef = useRef<number | null>(null)
   const [purchaseDelta, setPurchaseDelta] = useState<number | null>(null)
   const [purchaseFeedbackSequence, setPurchaseFeedbackSequence] = useState(0)
-  const purchaseFeedbackIntensity =
-    purchaseDelta === null ? 'base' : getPurchaseFeedbackIntensity(purchaseDelta)
+  const purchaseFeedbackIntensityLevel =
+    purchaseDelta === null ? 1 : getPurchaseFeedbackIntensityLevel(purchaseDelta)
 
   useEffect(() => {
     const previousOwned = previousOwnedRef.current
     if (entry.owned > previousOwned) {
       const delta = entry.owned - previousOwned
-      const intensity = getPurchaseFeedbackIntensity(delta)
+      const intensityLevel = getPurchaseFeedbackIntensityLevel(delta)
 
       setPurchaseDelta(delta)
       setPurchaseFeedbackSequence((current) => current + 1)
-      articleRef.current?.setAttribute('data-purchase-intensity', intensity)
-      badgeRef.current?.setAttribute('data-purchase-intensity', intensity)
-      restartCssAnimation(articleRef.current, 'producer-purchase-feedback')
+      badgeRef.current?.setAttribute('data-purchase-feedback-intensity', `${intensityLevel}`)
       restartCssAnimation(badgeRef.current, 'producer-purchase-badge')
 
       if (resetTimerRef.current !== null) {
@@ -84,11 +80,12 @@ export function ProducerListRow({
   }, [])
 
   return (
-    <article
-      ref={articleRef}
+    <PurchaseFeedbackContainer
+      as="article"
       className="relative py-2"
       data-producer-entry-key={entry.key}
-      data-purchase-intensity={purchaseFeedbackIntensity}
+      feedbackToken={purchaseFeedbackSequence}
+      intensityLevel={purchaseFeedbackIntensityLevel}
     >
       <div className="min-w-0">
         <div className="flex items-center justify-between gap-3">
@@ -99,7 +96,7 @@ export function ProducerListRow({
                 <span
                   key={purchaseFeedbackSequence}
                   className="producer-purchase-delta pointer-events-none absolute -top-4 right-0 font-mono text-[11px] font-semibold tabular-nums text-emerald-600 dark:text-emerald-400"
-                  data-purchase-intensity={purchaseFeedbackIntensity}
+                  data-purchase-feedback-intensity={purchaseFeedbackIntensityLevel}
                 >
                   +{purchaseDelta}
                 </span>
@@ -107,7 +104,7 @@ export function ProducerListRow({
               <span
                 ref={badgeRef}
                 className="shrink-0 rounded-full border border-border/70 px-2 py-0.5 font-mono text-xs tabular-nums text-muted-foreground"
-                data-purchase-intensity={purchaseFeedbackIntensity}
+                data-purchase-feedback-intensity={purchaseFeedbackIntensityLevel}
               >
                 {entry.owned}
               </span>
@@ -171,6 +168,6 @@ export function ProducerListRow({
           </Button>
         </div>
       ) : null}
-    </article>
+    </PurchaseFeedbackContainer>
   )
 }

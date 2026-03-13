@@ -5,7 +5,8 @@ import {
   ProducerList,
   type ProducerListEntry,
 } from '@/components/game/producer-list'
-import { Button } from '@/components/ui/button'
+import { UpgradeListItem } from '@/components/game/upgrade-list-item'
+import { useRecentPurchaseKeys } from '@/components/game/use-recent-purchase-keys'
 import { UNKNOWN_PRODUCER_REVEAL_RATIO } from '@/lib/consts'
 import { MINER_SUBSYSTEM_CONFIG } from '@/lib/progression-config'
 import {
@@ -87,6 +88,7 @@ function getMinerMaxRevealedProducerIndex(game: GameState, oreData: Decimal): {
 function getVisibleMinerUpgradeKeys(
   game: GameState,
   maxRevealedProducerIndex: number,
+  recentPurchaseKeys: Partial<Record<MinerSubsystemUpgradeKey, true>>,
 ): MinerSubsystemUpgradeKey[] {
   const childByParent = new Map<MinerSubsystemUpgradeKey, MinerSubsystemUpgradeKey>()
   for (const key of MINER_SUBSYSTEM_UPGRADE_ORDER) {
@@ -130,6 +132,12 @@ function getVisibleMinerUpgradeKeys(
     if (game.settings.showPurchasedUpgrades) {
       for (const key of chain) {
         if (game.subsystems.miners.purchasedUpgrades[key]) {
+          visibleUpgrades.add(key)
+        }
+      }
+    } else {
+      for (const key of chain) {
+        if (game.subsystems.miners.purchasedUpgrades[key] && recentPurchaseKeys[key]) {
           visibleUpgrades.add(key)
         }
       }
@@ -263,12 +271,14 @@ export function MinerSubsystemUpgradesScreen({
   const isUnlocked = isSubsystemUnlocked(game, 'miners')
   const contentRef = useRef<HTMLDivElement | null>(null)
   const lastHandledJumpRequestIdRef = useRef(jumpRequestId)
+  const { recentPurchaseKeys, markRecentlyPurchased } =
+    useRecentPurchaseKeys<MinerSubsystemUpgradeKey>()
   const oreData = isUnlocked ? getMinerOreData(game) : new Decimal(0)
   const { maxRevealedProducerIndex } = isUnlocked
     ? getMinerMaxRevealedProducerIndex(game, oreData)
     : { maxRevealedProducerIndex: -1 }
   const visibleUpgradeKeys = isUnlocked
-    ? getVisibleMinerUpgradeKeys(game, maxRevealedProducerIndex)
+    ? getVisibleMinerUpgradeKeys(game, maxRevealedProducerIndex, recentPurchaseKeys)
     : []
   const scrollTargetKey =
     repeatTapScrollDirection === 'bottomToTop'
@@ -319,96 +329,81 @@ export function MinerSubsystemUpgradesScreen({
             const affordabilityRatio = Decimal.min(new Decimal(1), oreData.div(cost)).toNumber()
 
             return (
-              <article
+              <UpgradeListItem
                 key={definition.key}
-                className="py-4 first:pt-0"
-                data-subsystem-upgrade-key={definition.key}
-              >
-                <div className="flex items-stretch justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="text-base font-semibold">{definition.label}</h3>
-                    <p className="mt-0.5 text-sm text-muted-foreground">{definition.description}</p>
-                    <p className="mt-1.5 text-sm text-muted-foreground">
-                      Price:{' '}
-                      <span className="font-mono tabular-nums">{formatRenderedValue(cost)}</span>{' '}
-                      {MINER_SUBSYSTEM_CONFIG.currencyLabel}
+                itemKey={definition.key}
+                itemDataAttributeName="data-subsystem-upgrade-key"
+                title={definition.label}
+                description={definition.description}
+                priceContent={
+                  <>
+                    Price:{' '}
+                    <span className="font-mono tabular-nums">{formatRenderedValue(cost)}</span>{' '}
+                    {MINER_SUBSYSTEM_CONFIG.currencyLabel}
+                  </>
+                }
+                purchased={purchased}
+                canBuy={canBuy}
+                onBuy={() => {
+                  onGameChange((current) =>
+                    buyMinerSubsystemUpgrade(current, key, Date.now()),
+                  )
+                  markRecentlyPurchased(key)
+                }}
+                recentlyPurchased={Boolean(recentPurchaseKeys[key])}
+                purchaseFeedbackToken={recentPurchaseKeys[key] ? key : null}
+                unavailableContent={
+                  <div className="flex h-full flex-col justify-center space-y-1.5 text-center">
+                    <p className="text-xs text-muted-foreground">
+                      {isUnlocked ? MINER_SUBSYSTEM_CONFIG.currencyLabel : 'Requires'}
                     </p>
-                  </div>
-                  <div className="w-36 shrink-0">
-                    {purchased ? (
-                      <div className="flex h-full items-center justify-end">
-                        <Button size="sm" className="h-10 min-w-[5.5rem]" variant="secondary" disabled>
-                          Owned
-                        </Button>
-                      </div>
-                    ) : canBuy ? (
-                      <div className="flex h-full items-center justify-end">
-                        <Button
-                          size="sm"
-                          className="h-10 min-w-[5.5rem]"
-                          onClick={() =>
-                            onGameChange((current) =>
-                              buyMinerSubsystemUpgrade(current, key, Date.now()),
-                            )
-                          }
-                        >
-                          Buy
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex h-full flex-col justify-center space-y-1.5 text-center">
-                        <p className="text-xs text-muted-foreground">
-                          {isUnlocked ? MINER_SUBSYSTEM_CONFIG.currencyLabel : 'Requires'}
+                    {isUnlocked ? (
+                      <>
+                        <p className="break-all text-xs text-muted-foreground">
+                          <span className="font-mono tabular-nums">
+                            {formatRenderedValue(oreData)}/{formatRenderedValue(cost)}
+                          </span>
                         </p>
-                        {isUnlocked ? (
-                          <>
-                            <p className="break-all text-xs text-muted-foreground">
-                              <span className="font-mono tabular-nums">
-                                {formatRenderedValue(oreData)}/{formatRenderedValue(cost)}
-                              </span>
-                            </p>
-                            <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
-                              <div
-                                className="h-full rounded-full bg-foreground/35 transition-[width] duration-300"
-                                style={{ width: `${affordabilityRatio * 100}%` }}
-                              />
-                            </div>
-                          </>
-                        ) : unlockProgress ? (
-                          <>
-                            <p className="break-words text-xs text-muted-foreground">
-                              <span className="font-mono tabular-nums">
-                                {unlockProgress.current}/{unlockProgress.required}
-                              </span>{' '}
-                              {unlockProgress.label}
-                            </p>
-                            <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
-                              <div
-                                className="h-full rounded-full bg-foreground/35 transition-[width] duration-300"
-                                style={{
-                                  width: `${Math.max(
-                                    0,
-                                    Math.min(
-                                      100,
-                                      unlockProgress.required <= 0
-                                        ? 100
-                                        : (unlockProgress.current / unlockProgress.required) * 100,
-                                    ),
-                                  )}%`,
-                                }}
-                              />
-                            </div>
-                          </>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            More {MINER_SUBSYSTEM_CONFIG.currencyLabel}
-                          </p>
-                        )}
-                      </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
+                          <div
+                            className="h-full rounded-full bg-foreground/35 transition-[width] duration-300"
+                            style={{ width: `${affordabilityRatio * 100}%` }}
+                          />
+                        </div>
+                      </>
+                    ) : unlockProgress ? (
+                      <>
+                        <p className="break-words text-xs text-muted-foreground">
+                          <span className="font-mono tabular-nums">
+                            {unlockProgress.current}/{unlockProgress.required}
+                          </span>{' '}
+                          {unlockProgress.label}
+                        </p>
+                        <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
+                          <div
+                            className="h-full rounded-full bg-foreground/35 transition-[width] duration-300"
+                            style={{
+                              width: `${Math.max(
+                                0,
+                                Math.min(
+                                  100,
+                                  unlockProgress.required <= 0
+                                    ? 100
+                                    : (unlockProgress.current / unlockProgress.required) * 100,
+                                ),
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        More {MINER_SUBSYSTEM_CONFIG.currencyLabel}
+                      </p>
                     )}
                   </div>
-                </div>
-              </article>
+                }
+              />
             )
           })}
         </div>

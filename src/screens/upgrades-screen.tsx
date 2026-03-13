@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import Decimal from 'decimal.js'
 
-import { Button } from '@/components/ui/button'
+import { UpgradeListItem } from '@/components/game/upgrade-list-item'
+import { useRecentPurchaseKeys } from '@/components/game/use-recent-purchase-keys'
 import { UNKNOWN_PRODUCER_REVEAL_RATIO } from '@/lib/consts'
 import {
   buyUpgrade,
@@ -44,6 +45,8 @@ export function UpgradesScreen({
   const credits = new Decimal(game.credits)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const lastHandledJumpRequestIdRef = useRef(jumpRequestId)
+  const { recentPurchaseKeys, markRecentlyPurchased } =
+    useRecentPurchaseKeys<RunUpgradeKey>()
   const highestOwnedProducerIndex = GENERATOR_ORDER.reduce(
     (highest, key, index) => (game.generators[key] > 0 ? index : highest),
     -1,
@@ -108,6 +111,12 @@ export function UpgradesScreen({
           visible.add(key)
         }
       }
+    } else {
+      for (const key of chain) {
+        if (game.purchasedUpgrades[key] && recentPurchaseKeys[key]) {
+          visible.add(key)
+        }
+      }
     }
   }
 
@@ -165,76 +174,60 @@ export function UpgradesScreen({
       : null
 
     return (
-      <article
+      <UpgradeListItem
         key={definition.key}
-        className="border-b border-border/70 py-4 first:pt-0"
-        data-upgrade-key={definition.key}
-      >
-        <div className="flex items-stretch justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="text-base font-semibold">{definition.label}</h3>
-            <p className="mt-0.5 text-sm text-muted-foreground">{definition.description}</p>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Price:{' '}
-              <span className="font-mono tabular-nums">{formatRenderedCredits(cost)}</span>{' '}
-              credits
-            </p>
-          </div>
-          <div className="w-36 shrink-0">
-            {purchased ? (
-              <div className="flex h-full items-center justify-end">
-                <Button size="sm" className="h-10 min-w-[5.5rem]" variant="secondary" disabled>
-                  Owned
-                </Button>
-              </div>
-            ) : canBuy ? (
-              <div className="flex h-full items-center justify-end">
-                <Button
-                  size="sm"
-                  className="h-10 min-w-[5.5rem]"
-                  onClick={() => onGameChange((current) => buyUpgrade(current, key))}
-                >
-                  Buy
-                </Button>
-              </div>
-            ) : (
-              <div className="flex h-full flex-col justify-center space-y-1.5 text-center">
-                <p className="text-xs text-muted-foreground">
-                  {isUnlocked ? 'Credits' : 'Requires'}
+        itemKey={definition.key}
+        itemDataAttributeName="data-upgrade-key"
+        title={definition.label}
+        description={definition.description}
+        priceContent={
+          <>
+            Price: <span className="font-mono tabular-nums">{formatRenderedCredits(cost)}</span>{' '}
+            credits
+          </>
+        }
+        purchased={purchased}
+        canBuy={canBuy}
+        onBuy={() => {
+          onGameChange((current) => buyUpgrade(current, key))
+          markRecentlyPurchased(key)
+        }}
+        recentlyPurchased={Boolean(recentPurchaseKeys[key])}
+        purchaseFeedbackToken={recentPurchaseKeys[key] ? key : null}
+        unavailableContent={
+          <div className="flex h-full flex-col justify-center space-y-1.5 text-center">
+            <p className="text-xs text-muted-foreground">{isUnlocked ? 'Credits' : 'Requires'}</p>
+            {isUnlocked ? (
+              <>
+                <p className="break-all text-xs text-muted-foreground">
+                  <span className="font-mono tabular-nums">{creditProgress.current}</span>
                 </p>
-                {isUnlocked ? (
-                  <>
-                    <p className="break-all text-xs text-muted-foreground">
-                      <span className="font-mono tabular-nums">{creditProgress.current}</span>
-                    </p>
-                    <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
-                      <div
-                        className="h-full rounded-full bg-foreground/35 transition-[width] duration-300"
-                        style={{ width: `${creditProgress.ratio * 100}%` }}
-                      />
-                    </div>
-                  </>
-                ) : unlockProgress ? (
-                  <>
-                    <p className="break-words text-xs text-muted-foreground">
-                      <span className="font-mono tabular-nums">{progress?.current}</span>{' '}
-                      {unlockProgress.label}
-                    </p>
-                    <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
-                      <div
-                        className="h-full rounded-full bg-foreground/35 transition-[width] duration-300"
-                        style={{ width: `${(progress?.ratio ?? 0) * 100}%` }}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground">More credits</p>
-                )}
-              </div>
+                <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
+                  <div
+                    className="h-full rounded-full bg-foreground/35 transition-[width] duration-300"
+                    style={{ width: `${creditProgress.ratio * 100}%` }}
+                  />
+                </div>
+              </>
+            ) : unlockProgress ? (
+              <>
+                <p className="break-words text-xs text-muted-foreground">
+                  <span className="font-mono tabular-nums">{progress?.current}</span>{' '}
+                  {unlockProgress.label}
+                </p>
+                <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
+                  <div
+                    className="h-full rounded-full bg-foreground/35 transition-[width] duration-300"
+                    style={{ width: `${(progress?.ratio ?? 0) * 100}%` }}
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">More credits</p>
             )}
           </div>
-        </div>
-      </article>
+        }
+      />
     )
   }
 
