@@ -933,7 +933,7 @@ function App() {
       <main
         className="mx-auto min-h-screen w-full max-w-lg"
         style={{
-          paddingTop: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
+          paddingTop: `calc(${SAFE_AREA_INSETS.top} + 1rem)`,
           paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
           paddingRight: `calc(${SAFE_AREA_INSETS.right} + 1rem)`,
           paddingBottom: isAscensionMode
@@ -1030,15 +1030,14 @@ function App() {
             {renderActiveTab()}
 
             <div
-              className="fixed inset-x-0 bottom-0 z-40"
+              className="pointer-events-none fixed inset-x-0 bottom-0 z-40"
               style={{
-                paddingTop: `calc(${SAFE_AREA_INSETS.top} + 1rem)`,
                 paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
                 paddingRight: `calc(${SAFE_AREA_INSETS.right} + 1rem)`,
                 paddingBottom: `calc(${SAFE_AREA_INSETS.bottom} + 0.75rem)`,
               }}
             >
-              <div className="mx-auto w-full max-w-lg">
+              <div className="pointer-events-auto mx-auto w-full max-w-lg">
                 <div className="rounded-xl border border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
                   <div
                     className={cn(

@@ -32,6 +32,7 @@
 - Use monospace styling for all rendered numeric values in the game UI for readability and consistency.
 - Avoid fixed-column navigation layouts on mobile; prefer patterns that scale with additional sections (for example a section switcher sheet/menu instead of dense tab rows).
 - Keep primary navigation thumb-reachable on mobile (prefer bottom-anchored access patterns over top-only triggers).
+- For fixed shell overlays such as nav bars and summary veils, keep non-interactive wrapper space `pointer-events: none` so only visible controls intercept taps.
 - Define safe area as viewport space not obscured by OS UI (for example status bar, Dynamic Island, and home indicator), and keep all rendered UI/overlays positioned within that safe area.
 - When tuning top spacing, apply safe-area insets in both contexts but allow different extra padding for standard browser mode vs standalone PWA mode.
 - In iOS home-screen standalone mode, treat the top safe-area/status region as translucent and provide a persistent blur veil so scrolled content behind the clock/Dynamic Island remains legible.
