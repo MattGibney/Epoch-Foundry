@@ -21,6 +21,7 @@
 - When expanding core keyed game schemas (for example generators), update engine types and persistence parsing together; prefer order-driven mappings over hardcoded per-key copies.
 - Include an in-app refresh/update control for installed PWA mode, since iOS home-screen apps do not expose normal browser refresh UI.
 - Prefer mobile-first UI decisions and avoid unnecessary nested card/chrome containers; use spacing and simple dividers when a full card is not needed.
+- Give successful purchases visible in-place feedback beyond static number changes, so repeated buying feels responsive without relying on toast spam.
 - Keep shadcn theme tokens/mappings in sync with the selected base theme so stateful component colors (for example `bg-input` on switches) render correctly.
 - Keep `@/*` path alias configuration available in the root TypeScript config so shadcn CLI resolves `@/...` aliases to `src/...` paths correctly.
 - Centralize cross-cutting/tunable constants in `src/lib/consts.ts`; add new constants there instead of scattering them across feature files.
