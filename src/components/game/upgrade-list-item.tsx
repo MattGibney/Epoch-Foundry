@@ -15,8 +15,6 @@ interface UpgradeListItemProps {
   canBuy: boolean
   onBuy: () => void
   unavailableContent: ReactNode
-  recentlyPurchased?: boolean
-  purchaseFeedbackLabel?: string
   purchaseFeedbackIntensityLevel?: 1 | 2 | 3
   purchaseFeedbackToken?: unknown
   isExiting?: boolean
@@ -32,8 +30,6 @@ export function UpgradeListItem({
   canBuy,
   onBuy,
   unavailableContent,
-  recentlyPurchased = false,
-  purchaseFeedbackLabel = 'Bought',
   purchaseFeedbackIntensityLevel = 3,
   purchaseFeedbackToken,
   isExiting = false,
@@ -41,11 +37,13 @@ export function UpgradeListItem({
   return (
     <div
       className={cn(
-        'grid overflow-hidden transition-[grid-template-rows,opacity] duration-[240ms] ease-out first:[&_article]:pt-0',
-        isExiting ? 'grid-rows-[0fr] opacity-0 pointer-events-none' : 'grid-rows-[1fr] opacity-100',
+        'grid transition-[grid-template-rows,opacity] duration-[240ms] ease-out first:[&_article]:pt-0',
+        isExiting
+          ? 'grid-rows-[0fr] overflow-hidden opacity-0 pointer-events-none'
+          : 'grid-rows-[1fr] overflow-visible opacity-100',
       )}
     >
-      <div className="min-h-0">
+      <div className="min-h-0 overflow-visible">
         <PurchaseFeedbackContainer
           as="article"
           className="relative overflow-hidden border-b border-border/70 py-4"
@@ -59,15 +57,7 @@ export function UpgradeListItem({
               <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
               <p className="mt-1.5 text-sm text-muted-foreground">{priceContent}</p>
             </div>
-            <div className="relative w-36 shrink-0">
-              {recentlyPurchased ? (
-                <span
-                  className="producer-purchase-delta pointer-events-none absolute -top-4 right-0 font-mono text-[11px] font-semibold tabular-nums text-emerald-600 dark:text-emerald-400"
-                  data-purchase-feedback-intensity={purchaseFeedbackIntensityLevel}
-                >
-                  {purchaseFeedbackLabel}
-                </span>
-              ) : null}
+            <div className="w-36 shrink-0">
               <div className="h-full">
                 {purchased ? (
                   <div className="flex h-full items-center justify-end">

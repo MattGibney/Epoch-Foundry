@@ -353,7 +353,6 @@ export function MinerSubsystemUpgradesScreen({
                   )
                   markRecentlyPurchased(key)
                 }}
-                recentlyPurchased={Boolean(recentPurchaseKeys[key])}
                 purchaseFeedbackToken={recentPurchaseKeys[key] ? key : null}
                 isExiting={entry.isExiting}
                 unavailableContent={

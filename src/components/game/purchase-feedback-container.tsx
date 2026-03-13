@@ -1,4 +1,5 @@
 import {
+  type AnimationEvent,
   type ComponentPropsWithoutRef,
   type ElementType,
   type ReactNode,
@@ -37,8 +38,12 @@ export function PurchaseFeedbackContainer<T extends ElementType = 'div'>({
   ...props
 }: PurchaseFeedbackContainerProps<T>) {
   const Comp = (as ?? 'div') as ElementType
+  const { onAnimationEnd: externalOnAnimationEnd, ...restProps } = props as unknown as {
+    onAnimationEnd?: (event: AnimationEvent<HTMLElement>) => void
+  } & Omit<ComponentPropsWithoutRef<T>, 'onAnimationEnd'>
   const containerRef = useRef<HTMLElement | null>(null)
   const previousFeedbackTokenRef = useRef(feedbackToken)
+  const resetTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     const previousFeedbackToken = previousFeedbackTokenRef.current
@@ -47,17 +52,51 @@ export function PurchaseFeedbackContainer<T extends ElementType = 'div'>({
 
     if (hasTriggeredFeedback && feedbackToken !== previousFeedbackToken) {
       restartCssAnimation(containerRef.current, ACTIVE_FEEDBACK_CLASS_NAME)
+
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current)
+      }
+
+      resetTimerRef.current = window.setTimeout(() => {
+        containerRef.current?.classList.remove(ACTIVE_FEEDBACK_CLASS_NAME)
+        resetTimerRef.current = null
+      }, 240)
     }
 
     previousFeedbackTokenRef.current = feedbackToken
   }, [feedbackToken])
+
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current)
+      }
+    }
+  }, [])
+
+  const handleAnimationEnd = (event: AnimationEvent<HTMLElement>) => {
+    if (
+      event.target === event.currentTarget &&
+      event.animationName === 'producer-purchase-flash'
+    ) {
+      event.currentTarget.classList.remove(ACTIVE_FEEDBACK_CLASS_NAME)
+
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current)
+        resetTimerRef.current = null
+      }
+    }
+
+    externalOnAnimationEnd?.(event)
+  }
 
   return (
     <Comp
       ref={containerRef}
       className={cn('purchase-feedback-container', className)}
       data-purchase-feedback-intensity={intensityLevel}
-      {...props}
+      onAnimationEnd={handleAnimationEnd}
+      {...restProps}
     >
       {children}
     </Comp>

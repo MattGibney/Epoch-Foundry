@@ -206,10 +206,14 @@
 .purchase-feedback-container {
   --producer-purchase-scale: 1.01;
   --producer-purchase-brightness: 1.08;
+  position: relative;
+  z-index: 0;
+  will-change: transform, filter;
 }
 
 .purchase-feedback-container--active {
   animation: producer-purchase-flash 220ms ease-out;
+  z-index: 60;
 }
 
 .producer-purchase-badge {

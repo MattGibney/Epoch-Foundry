@@ -194,7 +194,6 @@ export function UpgradesScreen({
           onGameChange((current) => buyUpgrade(current, key))
           markRecentlyPurchased(key)
         }}
-        recentlyPurchased={Boolean(recentPurchaseKeys[key])}
         purchaseFeedbackToken={recentPurchaseKeys[key] ? key : null}
         isExiting={isExiting}
         unavailableContent={

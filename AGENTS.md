@@ -25,6 +25,7 @@
 - When progression lists normally hide completed entries, keep just-completed items visible briefly so in-place purchase feedback can actually be seen.
 - Keep reusable purchase pop/flash behavior in shared container primitives, and let each row/component own any item-specific feedback content such as badges or labels.
 - When lists remove completed items dynamically, prefer a brief exit/collapse animation so surrounding rows flow into place instead of snapping.
+- When row feedback scales beyond its resting bounds, avoid clipping it in steady state and temporarily raise its stacking so the animation can render above adjacent UI.
 - Keep shadcn theme tokens/mappings in sync with the selected base theme so stateful component colors (for example `bg-input` on switches) render correctly.
 - Keep `@/*` path alias configuration available in the root TypeScript config so shadcn CLI resolves `@/...` aliases to `src/...` paths correctly.
 - Centralize cross-cutting/tunable constants in `src/lib/consts.ts`; add new constants there instead of scattering them across feature files.
