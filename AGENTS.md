@@ -36,6 +36,7 @@
 - For mobile navigation scalability, keep the most-used sections as direct bottom icon actions and route less-frequent sections through an overflow drawer.
 - When primary navigation tabs show actionable badge counts, repeated taps on the active Production or Upgrades tab should jump to the next actionable item, with scan order remaining user-configurable.
 - Treat repeat-tap navigation jumps as edge-triggered interactions; revisiting a tab should not replay an earlier jump request.
+- Preserve scroll position per in-app screen while navigating between tabs or subsystem views, but reset remembered scroll positions on full app reloads and hard run resets.
 - Apply offline progress immediately on load with an explicit cap; use late-game upgrades to extend that cap rather than removing it outright.
 - Treat save-data evolution as backward-compatible: when adding new state fields, default missing values during hydration and keep at least one rolling local backup snapshot to reduce accidental progress loss.
 - Keep credit progression calculations in decimal precision internally; apply whole-number rounding only when rendering credit values in the UI.

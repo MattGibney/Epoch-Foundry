@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Decimal from 'decimal.js'
 import {
   ArrowLeft,
@@ -115,6 +115,18 @@ const FOCUSED_SUBSYSTEM_NAV_ITEMS: {
 
 function isPrimaryTab(tab: TabKey): tab is 'production' | 'upgrades' | 'stats' {
   return tab === 'production' || tab === 'upgrades' || tab === 'stats'
+}
+
+function getScreenScrollKey(
+  activeTab: TabKey,
+  focusedSubsystem: SubsystemKey | null,
+  isPrestigeMode: boolean,
+): string {
+  if (isPrestigeMode) {
+    return 'prestige'
+  }
+
+  return `${focusedSubsystem ?? 'main'}:${activeTab}`
 }
 
 function createPermanentUpgradeSnapshot(
@@ -259,6 +271,17 @@ function App() {
   const gameRef = useRef(game)
   const topSafeAreaBoundaryRef = useRef<HTMLDivElement | null>(null)
   const knownUnlockedAchievementsRef = useRef<Set<AchievementKey>>(new Set())
+  const screenScrollPositionsRef = useRef<Record<string, number>>({})
+  const activeScreenScrollKeyRef = useRef(getScreenScrollKey('production', null, false))
+
+  const rememberCurrentScreenScroll = useCallback(() => {
+    screenScrollPositionsRef.current[activeScreenScrollKeyRef.current] = window.scrollY
+  }, [])
+
+  const resetRememberedScreenScroll = useCallback(() => {
+    screenScrollPositionsRef.current = {}
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [])
 
   useEffect(() => {
     gameRef.current = game
@@ -347,6 +370,7 @@ function App() {
     }
 
     gameRef.current = nextState
+    resetRememberedScreenScroll()
     setGame(nextState)
     setNowMs(now)
     setActiveTab('production')
@@ -357,7 +381,7 @@ function App() {
       await clearGameSave()
       await saveGameState(nextState)
     })()
-  }, [])
+  }, [resetRememberedScreenScroll])
 
   const refreshApp = useCallback(async () => {
     setIsRefreshing(true)
@@ -390,6 +414,7 @@ function App() {
     }
 
     gameRef.current = nextState
+    resetRememberedScreenScroll()
     setGame(nextState)
     setNowMs(now)
     setActiveTab('production')
@@ -398,7 +423,7 @@ function App() {
     toast(`Loaded dev preset: ${preset}`)
 
     void saveGameState(nextState)
-  }, [])
+  }, [resetRememberedScreenScroll])
 
   useEffect(() => {
     if (!isHydrated) {
@@ -592,6 +617,7 @@ function App() {
   const isOtherActive = !isPrimaryTab(activeTab)
   const isPrestigeMode = prestigePlan !== null
   const isSubsystemFocused = focusedSubsystem !== null
+  const activeScreenScrollKey = getScreenScrollKey(activeTab, focusedSubsystem, isPrestigeMode)
   const subsystemHeaderValue =
     focusedSubsystem === 'miners' ? getMinerOreData(game) : new Decimal(0)
   const subsystemHeaderPerSecond =
@@ -599,15 +625,38 @@ function App() {
   const shouldShowFloatingSummary =
     !isPrestigeMode && activeTab !== 'about' && activeTab !== 'help' && showFloatingSummary
 
+  useLayoutEffect(() => {
+    if (!isHydrated) {
+      activeScreenScrollKeyRef.current = activeScreenScrollKey
+      return
+    }
+
+    if (activeScreenScrollKeyRef.current === activeScreenScrollKey) {
+      return
+    }
+
+    activeScreenScrollKeyRef.current = activeScreenScrollKey
+    const targetScrollY = screenScrollPositionsRef.current[activeScreenScrollKey] ?? 0
+    const frameId = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: targetScrollY, left: 0, behavior: 'auto' })
+    })
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+    }
+  }, [activeScreenScrollKey, isHydrated])
+
   const enterSubsystem = useCallback((subsystem: SubsystemKey) => {
+    rememberCurrentScreenScroll()
     setFocusedSubsystem(subsystem)
     setActiveTab('production')
     setIsSectionsOpen(false)
-  }, [])
+  }, [rememberCurrentScreenScroll])
 
   const handlePrimaryNavPress = useCallback(
     (tabKey: 'production' | 'upgrades' | 'stats', badgeCount: number) => {
       if (activeTab !== tabKey) {
+        rememberCurrentScreenScroll()
         setActiveTab(tabKey)
         return
       }
@@ -619,14 +668,15 @@ function App() {
         }))
       }
     },
-    [activeTab],
+    [activeTab, rememberCurrentScreenScroll],
   )
 
   const exitSubsystem = useCallback(() => {
+    rememberCurrentScreenScroll()
     setFocusedSubsystem(null)
     setActiveTab('production')
     setIsSectionsOpen(false)
-  }, [])
+  }, [rememberCurrentScreenScroll])
 
   const startPrestigePlanning = useCallback(() => {
     const current = gameRef.current
@@ -635,6 +685,7 @@ function App() {
       return
     }
 
+    rememberCurrentScreenScroll()
     const availableEssence = new Decimal(current.prestige.essence).plus(gain).toString()
     const baseUpgrades = createPermanentUpgradeSnapshot(current.prestige.permanentUpgrades)
 
@@ -644,7 +695,12 @@ function App() {
       draftUpgrades: { ...baseUpgrades },
       baseUpgrades: { ...baseUpgrades },
     })
-  }, [])
+  }, [rememberCurrentScreenScroll])
+
+  const cancelPrestigePlanning = useCallback(() => {
+    rememberCurrentScreenScroll()
+    setPrestigePlan(null)
+  }, [rememberCurrentScreenScroll])
 
   const purchasePermanentUpgrade = useCallback((key: PermanentUpgradeKey, amount: number) => {
     setPrestigePlan((current) => {
@@ -700,6 +756,7 @@ function App() {
     }
 
     gameRef.current = nextState
+    resetRememberedScreenScroll()
     setGame(nextState)
     setNowMs(now)
     setActiveTab('production')
@@ -707,7 +764,7 @@ function App() {
     setPrestigePlan(null)
 
     void saveGameState(nextState)
-  }, [prestigePlan])
+  }, [prestigePlan, resetRememberedScreenScroll])
 
   const renderActiveTab = () => {
     const sharedTabProps = {
@@ -836,7 +893,7 @@ function App() {
             }
             onPurchaseUpgrade={purchasePermanentUpgrade}
             onResetChoices={resetPrestigeChoices}
-            onCancel={() => setPrestigePlan(null)}
+            onCancel={cancelPrestigePlanning}
             onConfirm={confirmPrestigeReset}
             formatValue={formatIdleNumber}
           />
@@ -986,6 +1043,7 @@ function App() {
                                 variant={activeTab === tab.key ? 'default' : 'ghost'}
                                 className="h-10 w-full justify-start"
                                 onClick={() => {
+                                  rememberCurrentScreenScroll()
                                   setActiveTab(tab.key)
                                   setIsSectionsOpen(false)
                                 }}
