@@ -210,10 +210,10 @@ export function MinerSubsystemUpgradesTabView(props: MinerSubsystemTabViewProps)
 interface StatsTabViewProps extends CommonTabProps {
   runDuration: number
   offlineProgressCapSeconds: number
-  prestigeMultiplier: Decimal
-  prestigeGain: Decimal
-  canPrestigeNow: boolean
-  onOpenPrestige: () => void
+  ascensionPassiveMultiplier: Decimal
+  ascensionGain: Decimal
+  canAscendNow: boolean
+  onOpenAscension: () => void
   formatDuration: (seconds: number) => string
   focusedSubsystem?: SubsystemKey | null
   onExitSubsystem?: () => void
@@ -257,10 +257,10 @@ export function StatsTabView(props: StatsTabViewProps) {
           runDuration={props.runDuration}
           offlineProgressCapSeconds={props.offlineProgressCapSeconds}
           creditsPerSecond={props.creditsPerSecond}
-          prestigeMultiplier={props.prestigeMultiplier}
-          prestigeGain={props.prestigeGain}
-          canPrestigeNow={props.canPrestigeNow}
-          onOpenPrestige={props.onOpenPrestige}
+          ascensionPassiveMultiplier={props.ascensionPassiveMultiplier}
+          ascensionGain={props.ascensionGain}
+          canAscendNow={props.canAscendNow}
+          onOpenAscension={props.onOpenAscension}
           formatDuration={props.formatDuration}
           formatRenderedCredits={props.formatRenderedCredits}
           formatIdleNumber={formatIdleNumber}

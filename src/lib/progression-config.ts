@@ -34,10 +34,10 @@ export type AchievementRequirement =
   | { type: 'allResetCredits'; threshold: string }
   | { type: 'runCredits'; threshold: string }
   | { type: 'owned'; generator: string; count: number }
-  | { type: 'prestigeResets'; count: number }
-  | { type: 'essence'; threshold: string }
-  | { type: 'permanentUpgradeLevels'; count: number }
-  | { type: 'permanentUpgradeTypes'; count: number }
+  | { type: 'ascensions'; count: number }
+  | { type: 'legacyLevel'; threshold: string }
+  | { type: 'legacyUpgradeCount'; count: number }
+  | { type: 'legacyBranchComplete'; branch: LegacyUpgradeBranch }
   | { type: 'purchasedUpgrades'; count: number }
   | { type: 'offlineCapSeconds'; seconds: number }
 
@@ -48,19 +48,26 @@ export type AchievementConfigEntry = {
   requirement: AchievementRequirement
 }
 
-export type PermanentUpgradeConfigEntry = {
+export const LEGACY_UPGRADE_BRANCHES = ['foundry', 'calibration', 'archives'] as const
+
+export type LegacyUpgradeBranch = (typeof LEGACY_UPGRADE_BRANCHES)[number]
+
+export type LegacyUpgradeConfigEntry = {
   key: string
   label: string
   description: string
-  baseCost: string
-  growth: string
+  branch: LegacyUpgradeBranch
+  cost: string
+  requiresLegacyUpgrade?: string
   effectType:
-    | 'productionAdditive'
+    | 'productionMultiplier'
     | 'generatorCostDiscount'
     | 'runUpgradeCostDiscount'
-    | 'prestigeGainMultiplier'
+    | 'ascensionGainMultiplier'
     | 'startingCredits'
-  value: string
+    | 'offlineCap'
+  value?: string
+  offlineCapSeconds?: number
 }
 
 export type MinerSubsystemMilestoneConfigEntry = {
@@ -95,12 +102,254 @@ export type MinerSubsystemUpgradeConfigEntry = {
   requiresUpgrade?: string
 }
 
-export const PRESTIGE_BALANCE = {
-  unlockCredits: '750000',
-  gainExponent: '0.72',
-  productionPerReset: '0.04',
-  gainPerReset: '0.1',
+export const ASCENSION_BALANCE = {
+  shardDivisor: '5000000',
+  passiveProductionPerLegacyLevel: '0.01',
 } as const
+
+const COOKIE_MAIN_GENERATOR_GROWTH: Record<string, string> = {
+  miners: '1.15',
+  drills: '1.15',
+  extractors: '1.15',
+  refineries: '1.15',
+  megaRigs: '1.15',
+  orbitalPlatforms: '1.15',
+  stellarForges: '1.15',
+  dysonArrays: '1.15',
+  singularityWells: '1.15',
+  continuumEngines: '1.155',
+  voidLathes: '1.16',
+  entropyReactors: '1.165',
+  quantumFoundries: '1.17',
+  darkMatterSmelters: '1.175',
+  realityKilns: '1.18',
+  fractalAssemblers: '1.185',
+  causalLooms: '1.19',
+  epochMonoliths: '1.195',
+  omniversalFoundries: '1.2',
+  genesisForges: '1.205',
+}
+
+const COOKIE_SUBSYSTEM_GENERATOR_GROWTH: Record<string, string> = {
+  scouts: '1.15',
+  surveyCamps: '1.15',
+  testShafts: '1.15',
+  freightTeams: '1.15',
+  geologyLabs: '1.15',
+  commandCenters: '1.155',
+  boreGuilds: '1.16',
+  oreArchives: '1.165',
+  seismicArrays: '1.17',
+  excavationDirectorates: '1.175',
+}
+
+const COOKIE_PHASE_ONE_GENERATOR_KEYS = [
+  'miners',
+  'drills',
+  'extractors',
+  'refineries',
+  'megaRigs',
+  'orbitalPlatforms',
+  'stellarForges',
+  'dysonArrays',
+  'singularityWells',
+  'continuumEngines',
+] as const
+const COOKIE_PHASE_ONE_GENERATOR_KEY_SET = new Set<string>(COOKIE_PHASE_ONE_GENERATOR_KEYS)
+
+const COOKIE_PHASE_ONE_UPGRADE_THRESHOLDS = [1, 5, 25, 50, 100, 150] as const
+const COOKIE_MIDGAME_UPGRADE_THRESHOLDS = [1, 5, 25, 50, 100] as const
+const COOKIE_UPGRADE_MULTIPLIERS = ['2', '2', '2', '2', '2', '2'] as const
+const COOKIE_UPGRADE_COST_FACTORS = ['10', '50', '500', '5000', '50000', '500000'] as const
+const COOKIE_GLOBAL_UPGRADE_COSTS = [
+  '200000',
+  '4000000',
+  '80000000',
+  '1600000000',
+  '32000000000',
+  '640000000000',
+] as const
+const COOKIE_GLOBAL_UPGRADE_MULTIPLIERS = ['2', '2', '2', '2', '2', '2'] as const
+const COOKIE_SUBSYSTEM_UPGRADE_THRESHOLDS = [1, 5, 25] as const
+const COOKIE_SUBSYSTEM_UPGRADE_COST_FACTORS = ['10', '50', '500'] as const
+const COOKIE_SUBSYSTEM_GLOBAL_UPGRADE_COSTS = [
+  '5000',
+  '250000',
+  '12500000',
+  '625000000',
+  '31250000000',
+  '1562500000000',
+] as const
+const COOKIE_CREDIT_LIFETIME_THRESHOLDS = [
+  '1e6',
+  '1e8',
+  '1e10',
+  '1e12',
+  '1e15',
+  '1e18',
+  '1e22',
+  '1e26',
+  '1e31',
+  '1e37',
+  '1e44',
+  '1e52',
+  '1e61',
+  '1e72',
+  '1e84',
+  '1e98',
+  '1e114',
+  '1e132',
+  '1e153',
+  '1e177',
+] as const
+const COOKIE_CREDIT_RUN_THRESHOLDS = [
+  '1e6',
+  '1e8',
+  '1e10',
+  '1e12',
+  '1e15',
+  '1e18',
+  '1e22',
+  '1e26',
+  '1e31',
+  '1e37',
+  '1e44',
+  '1e52',
+  '1e61',
+  '1e72',
+  '1e84',
+  '1e98',
+] as const
+
+function getCookieUpgradeThresholds(generatorKey: string, stageCount: number): readonly number[] {
+  const thresholds = COOKIE_PHASE_ONE_GENERATOR_KEY_SET.has(generatorKey)
+    ? COOKIE_PHASE_ONE_UPGRADE_THRESHOLDS
+    : COOKIE_MIDGAME_UPGRADE_THRESHOLDS
+  return thresholds.slice(0, stageCount)
+}
+
+function getMultiplierDescription(subject: string, multiplier: string): string {
+  return multiplier === '2'
+    ? `Double ${subject} production.`
+    : `${subject} production x${multiplier}.`
+}
+
+function thresholdKeyFragment(threshold: string): string {
+  return threshold.replace(/\./g, 'p').replace(/\+/g, '').replace(/-/g, 'm')
+}
+
+function applyGeneratorGrowthCurve<T extends { growth: string }>(
+  config: Record<string, T>,
+  growthByKey: Record<string, string>,
+): void {
+  for (const [key, growth] of Object.entries(growthByKey)) {
+    if (config[key]) {
+      config[key].growth = growth
+    }
+  }
+}
+
+function applyCookieMainUpgradeCurves(
+  config: Record<string, UpgradeConfigEntry>,
+  generators: Record<string, GeneratorConfigEntry>,
+): void {
+  const generatorUpgradeGroups = new Map<string, string[]>()
+  const globalUpgradeKeys: string[] = []
+
+  for (const entry of Object.values(config)) {
+    if (entry.effectType === 'generator' && entry.target) {
+      const keys = generatorUpgradeGroups.get(entry.target) ?? []
+      keys.push(entry.key)
+      generatorUpgradeGroups.set(entry.target, keys)
+      continue
+    }
+
+    if (entry.effectType === 'global') {
+      globalUpgradeKeys.push(entry.key)
+    }
+  }
+
+  for (const [generatorKey, keys] of generatorUpgradeGroups.entries()) {
+    const thresholds = getCookieUpgradeThresholds(generatorKey, keys.length)
+    const generator = generators[generatorKey]
+    for (const [index, key] of keys.entries()) {
+      const entry = config[key]
+      const multiplier = COOKIE_UPGRADE_MULTIPLIERS[index]
+      entry.cost = new Decimal(generator.baseCost)
+        .times(COOKIE_UPGRADE_COST_FACTORS[index])
+        .ceil()
+        .toString()
+      entry.multiplier = multiplier
+      entry.description = getMultiplierDescription(generator.label, multiplier)
+      entry.requiresOwned = {
+        generator: generatorKey,
+        count: thresholds[index] ?? thresholds[thresholds.length - 1],
+      }
+    }
+  }
+
+  globalUpgradeKeys.forEach((key, index) => {
+    const entry = config[key]
+    const multiplier =
+      COOKIE_GLOBAL_UPGRADE_MULTIPLIERS[index] ??
+      COOKIE_GLOBAL_UPGRADE_MULTIPLIERS[COOKIE_GLOBAL_UPGRADE_MULTIPLIERS.length - 1]
+    entry.cost =
+      COOKIE_GLOBAL_UPGRADE_COSTS[index] ??
+      COOKIE_GLOBAL_UPGRADE_COSTS[COOKIE_GLOBAL_UPGRADE_COSTS.length - 1]
+    entry.multiplier = multiplier
+    entry.description = getMultiplierDescription('all', multiplier)
+  })
+}
+
+function applyCookieSubsystemUpgradeCurves(
+  config: Record<string, MinerSubsystemUpgradeConfigEntry>,
+  generators: Record<string, MinerSubsystemGeneratorConfigEntry>,
+): void {
+  const generatorUpgradeGroups = new Map<string, string[]>()
+  const globalUpgradeKeys: string[] = []
+
+  for (const entry of Object.values(config)) {
+    if (entry.effectType === 'generator' && entry.target) {
+      const keys = generatorUpgradeGroups.get(entry.target) ?? []
+      keys.push(entry.key)
+      generatorUpgradeGroups.set(entry.target, keys)
+      continue
+    }
+
+    if (entry.effectType === 'global') {
+      globalUpgradeKeys.push(entry.key)
+    }
+  }
+
+  for (const [generatorKey, keys] of generatorUpgradeGroups.entries()) {
+    const generator = generators[generatorKey]
+    for (const [index, key] of keys.entries()) {
+      const entry = config[key]
+      const multiplier = COOKIE_UPGRADE_MULTIPLIERS[index]
+      entry.cost = new Decimal(generator.baseCost)
+        .times(COOKIE_SUBSYSTEM_UPGRADE_COST_FACTORS[index])
+        .ceil()
+        .toString()
+      entry.multiplier = multiplier
+      entry.description = getMultiplierDescription(generator.label, multiplier)
+      entry.requiresOwned = {
+        generator: generatorKey,
+        count:
+          COOKIE_SUBSYSTEM_UPGRADE_THRESHOLDS[index] ??
+          COOKIE_SUBSYSTEM_UPGRADE_THRESHOLDS[COOKIE_SUBSYSTEM_UPGRADE_THRESHOLDS.length - 1],
+      }
+    }
+  }
+
+  globalUpgradeKeys.forEach((key, index) => {
+    const entry = config[key]
+    entry.cost =
+      COOKIE_SUBSYSTEM_GLOBAL_UPGRADE_COSTS[index] ??
+      COOKIE_SUBSYSTEM_GLOBAL_UPGRADE_COSTS[COOKIE_SUBSYSTEM_GLOBAL_UPGRADE_COSTS.length - 1]
+    entry.multiplier = '2'
+    entry.description = 'Double all Mining Network production.'
+  })
+}
 
 export const MINER_SUBSYSTEM_CONFIG = {
   label: 'Mining Network',
@@ -582,11 +831,17 @@ export const MINER_SUBSYSTEM_GENERATOR_CONFIG: Record<
   },
 }
 
+applyGeneratorGrowthCurve(MINER_SUBSYSTEM_GENERATOR_CONFIG, COOKIE_SUBSYSTEM_GENERATOR_GROWTH)
+applyCookieSubsystemUpgradeCurves(
+  MINER_SUBSYSTEM_UPGRADE_CONFIG,
+  MINER_SUBSYSTEM_GENERATOR_CONFIG,
+)
+
 export const UPGRADE_COST_MULTIPLIER_BY_TYPE = {
-  generator: '1.2',
-  global: '1.35',
-  offlineCap: '1.45',
-  subsystemUnlock: '1.25',
+  generator: '1',
+  global: '1',
+  offlineCap: '1',
+  subsystemUnlock: '1',
 } as const
 
 export const GENERATOR_CONFIG: Record<string, GeneratorConfigEntry> = {
@@ -752,51 +1007,192 @@ export const GENERATOR_CONFIG: Record<string, GeneratorConfigEntry> = {
   },
 }
 
-export const PERMANENT_UPGRADE_CONFIG: Record<string, PermanentUpgradeConfigEntry> = {
-  essenceInfusion: {
-    key: 'essenceInfusion',
-    label: 'Essence Infusion',
-    description: 'Boost production multiplier by +0.22 per level.',
-    baseCost: '4',
-    growth: '1.6',
-    effectType: 'productionAdditive',
-    value: '0.22',
+applyGeneratorGrowthCurve(GENERATOR_CONFIG, COOKIE_MAIN_GENERATOR_GROWTH)
+
+export const LEGACY_UPGRADE_CONFIG: Record<string, LegacyUpgradeConfigEntry> = {
+  foundryAwakening: {
+    key: 'foundryAwakening',
+    label: 'Foundry Awakening',
+    description: 'Increase all production by 25%.',
+    branch: 'foundry',
+    cost: '1',
+    effectType: 'productionMultiplier',
+    value: '1.25',
+  },
+  foundryRefraction: {
+    key: 'foundryRefraction',
+    label: 'Foundry Refraction',
+    description: 'Increase all production by 50%.',
+    branch: 'foundry',
+    cost: '5',
+    requiresLegacyUpgrade: 'foundryAwakening',
+    effectType: 'productionMultiplier',
+    value: '1.5',
+  },
+  foundryResonance: {
+    key: 'foundryResonance',
+    label: 'Foundry Resonance',
+    description: 'Double all production.',
+    branch: 'foundry',
+    cost: '25',
+    requiresLegacyUpgrade: 'foundryRefraction',
+    effectType: 'productionMultiplier',
+    value: '2',
+  },
+  foundryCrowning: {
+    key: 'foundryCrowning',
+    label: 'Foundry Crowning',
+    description: 'Increase all production by 150%.',
+    branch: 'foundry',
+    cost: '125',
+    requiresLegacyUpgrade: 'foundryResonance',
+    effectType: 'productionMultiplier',
+    value: '2.5',
+  },
+  bootstrapKindling: {
+    key: 'bootstrapKindling',
+    label: 'Bootstrap Kindling',
+    description: 'Start each run with 10,000 credits.',
+    branch: 'foundry',
+    cost: '2',
+    effectType: 'startingCredits',
+    value: '10000',
   },
   bootstrapCache: {
     key: 'bootstrapCache',
     label: 'Bootstrap Cache',
-    description: 'Start each run with +600 credits per level.',
-    baseCost: '6',
-    growth: '1.75',
+    description: 'Start each run with 1,000,000 credits.',
+    branch: 'foundry',
+    cost: '10',
+    requiresLegacyUpgrade: 'bootstrapKindling',
     effectType: 'startingCredits',
-    value: '600',
+    value: '1000000',
+  },
+  bootstrapVault: {
+    key: 'bootstrapVault',
+    label: 'Bootstrap Vault',
+    description: 'Start each run with 100,000,000 credits.',
+    branch: 'foundry',
+    cost: '50',
+    requiresLegacyUpgrade: 'bootstrapCache',
+    effectType: 'startingCredits',
+    value: '100000000',
   },
   quantumLattice: {
     key: 'quantumLattice',
     label: 'Quantum Lattice',
-    description: 'Reduce generator costs by 4% per level.',
-    baseCost: '18',
-    growth: '1.85',
+    description: 'Reduce generator costs by 2%.',
+    branch: 'calibration',
+    cost: '3',
     effectType: 'generatorCostDiscount',
-    value: '0.96',
+    value: '0.98',
+  },
+  latticeCompression: {
+    key: 'latticeCompression',
+    label: 'Lattice Compression',
+    description: 'Reduce generator costs by 5%.',
+    branch: 'calibration',
+    cost: '15',
+    requiresLegacyUpgrade: 'quantumLattice',
+    effectType: 'generatorCostDiscount',
+    value: '0.95',
+  },
+  latticeSingularity: {
+    key: 'latticeSingularity',
+    label: 'Lattice Singularity',
+    description: 'Reduce generator costs by 10%.',
+    branch: 'calibration',
+    cost: '75',
+    requiresLegacyUpgrade: 'latticeCompression',
+    effectType: 'generatorCostDiscount',
+    value: '0.9',
   },
   calibrationMatrix: {
     key: 'calibrationMatrix',
     label: 'Calibration Matrix',
-    description: 'Reduce run-upgrade costs by 4% per level.',
-    baseCost: '24',
-    growth: '1.95',
+    description: 'Reduce run-upgrade costs by 2%.',
+    branch: 'calibration',
+    cost: '3',
     effectType: 'runUpgradeCostDiscount',
-    value: '0.96',
+    value: '0.98',
+  },
+  matrixOverclock: {
+    key: 'matrixOverclock',
+    label: 'Matrix Overclock',
+    description: 'Reduce run-upgrade costs by 5%.',
+    branch: 'calibration',
+    cost: '15',
+    requiresLegacyUpgrade: 'calibrationMatrix',
+    effectType: 'runUpgradeCostDiscount',
+    value: '0.95',
+  },
+  matrixAxiom: {
+    key: 'matrixAxiom',
+    label: 'Matrix Axiom',
+    description: 'Reduce run-upgrade costs by 10%.',
+    branch: 'calibration',
+    cost: '75',
+    requiresLegacyUpgrade: 'matrixOverclock',
+    effectType: 'runUpgradeCostDiscount',
+    value: '0.9',
   },
   singularityCore: {
     key: 'singularityCore',
     label: 'Singularity Core',
-    description: 'Increase prestige essence gain by 15% per level.',
-    baseCost: '55',
-    growth: '2.05',
-    effectType: 'prestigeGainMultiplier',
-    value: '1.15',
+    description: 'Increase Shard gain by 50%.',
+    branch: 'archives',
+    cost: '5',
+    effectType: 'ascensionGainMultiplier',
+    value: '1.5',
+  },
+  chronicleReservoirs: {
+    key: 'chronicleReservoirs',
+    label: 'Chronicle Reservoirs',
+    description: 'Double Shard gain.',
+    branch: 'archives',
+    cost: '25',
+    requiresLegacyUpgrade: 'singularityCore',
+    effectType: 'ascensionGainMultiplier',
+    value: '2',
+  },
+  archiveBatteries: {
+    key: 'archiveBatteries',
+    label: 'Archive Batteries',
+    description: 'Increase offline progress cap by +1 hour.',
+    branch: 'archives',
+    cost: '2',
+    effectType: 'offlineCap',
+    offlineCapSeconds: 1 * 60 * 60,
+  },
+  temporalVaults: {
+    key: 'temporalVaults',
+    label: 'Temporal Vaults',
+    description: 'Increase offline progress cap by +2 hours.',
+    branch: 'archives',
+    cost: '8',
+    requiresLegacyUpgrade: 'archiveBatteries',
+    effectType: 'offlineCap',
+    offlineCapSeconds: 2 * 60 * 60,
+  },
+  deepArchive: {
+    key: 'deepArchive',
+    label: 'Deep Archive',
+    description: 'Increase offline progress cap by +4 hours.',
+    branch: 'archives',
+    cost: '30',
+    requiresLegacyUpgrade: 'temporalVaults',
+    effectType: 'offlineCap',
+    offlineCapSeconds: 4 * 60 * 60,
+  },
+  chronoReserves: {
+    key: 'chronoReserves',
+    label: 'Chrono Reserves',
+    description: 'Increase offline progress cap by +8 hours.',
+    branch: 'archives',
+    cost: '120',
+    requiresLegacyUpgrade: 'deepArchive',
+    effectType: 'offlineCap',
+    offlineCapSeconds: 8 * 60 * 60,
   },
 }
 
@@ -917,55 +1313,65 @@ export const UPGRADE_CONFIG: Record<string, UpgradeConfigEntry> = {
   orbitalExchange: { key: 'orbitalExchange', label: 'Orbital Exchange', description: 'Global production x2.25.', cost: '900000000', effectType: 'global', multiplier: '2.25', requiresOwned: { generator: 'orbitalPlatforms', count: 18 }, requiresUpgrade: 'quantumForecasts' },
   fractalEconomies: { key: 'fractalEconomies', label: 'Fractal Economies', description: 'Global production x2.5.', cost: '35000000000', effectType: 'global', multiplier: '2.5', requiresOwned: { generator: 'dysonArrays', count: 15 }, requiresUpgrade: 'orbitalExchange' },
   causalOverclock: { key: 'causalOverclock', label: 'Causal Overclock', description: 'Global production x3.', cost: '2500000000000', effectType: 'global', multiplier: '3', requiresOwned: { generator: 'singularityWells', count: 12 }, requiresUpgrade: 'fractalEconomies' },
-  archiveBatteries: { key: 'archiveBatteries', label: 'Archive Batteries', description: 'Increase offline progress cap by +45 minutes.', cost: '500000000000', effectType: 'offlineCap', offlineCapSeconds: 45 * 60, requiresOwned: { generator: 'orbitalPlatforms', count: 75 } },
-  temporalVaults: { key: 'temporalVaults', label: 'Temporal Vaults', description: 'Increase offline progress cap by +1 hour.', cost: '25000000000000', effectType: 'offlineCap', offlineCapSeconds: 1 * 60 * 60, requiresOwned: { generator: 'orbitalPlatforms', count: 180 }, requiresUpgrade: 'archiveBatteries' },
-  deepArchive: { key: 'deepArchive', label: 'Deep Archive Vaults', description: 'Increase offline progress cap by +1.5 hours.', cost: '600000000000000', effectType: 'offlineCap', offlineCapSeconds: 90 * 60, requiresOwned: { generator: 'dysonArrays', count: 80 }, requiresUpgrade: 'temporalVaults' },
-  chronoReserves: { key: 'chronoReserves', label: 'Chrono Reserves', description: 'Increase offline progress cap by +2.5 hours.', cost: '15000000000000000', effectType: 'offlineCap', offlineCapSeconds: 150 * 60, requiresOwned: { generator: 'continuumEngines', count: 60 }, requiresUpgrade: 'deepArchive' },
 }
 
+applyCookieMainUpgradeCurves(UPGRADE_CONFIG, GENERATOR_CONFIG)
+
 const LIFETIME_CREDIT_ACHIEVEMENTS = [
-  { key: 'allCredits2p5e5', label: 'Foundation', threshold: '250000' },
-  { key: 'allCredits1e6', label: 'Early Expansion', threshold: '1000000' },
-  { key: 'allCredits5e6', label: 'Flow Established', threshold: '5000000' },
-  { key: 'allCredits2p5e7', label: 'Scaling Up', threshold: '25000000' },
-  { key: 'allCredits1e8', label: 'Credit Engine', threshold: '100000000' },
-  { key: 'allCredits5e8', label: 'Networked Output', threshold: '500000000' },
-  { key: 'allCredits2p5e9', label: 'Industrial Flow', threshold: '2500000000' },
-  { key: 'allCredits1e10', label: 'Industrial Scale', threshold: '10000000000' },
-  { key: 'allCredits5e10', label: 'Mass Production', threshold: '50000000000' },
-  { key: 'allCredits2p5e11', label: 'Macro Throughput', threshold: '250000000000' },
-  { key: 'allCredits1e13', label: 'Macro Economy', threshold: '1e13' },
-  { key: 'allCredits5e14', label: 'Planetary Output', threshold: '5e14' },
-  { key: 'allCredits2p5e16', label: 'Stellar Ledger', threshold: '2.5e16' },
-  { key: 'allCredits1e18', label: 'Cluster Reserves', threshold: '1e18' },
-  { key: 'allCredits5e20', label: 'Galactic Flow', threshold: '5e20' },
-  { key: 'allCredits2p5e23', label: 'Interstellar Treasury', threshold: '2.5e23' },
-  { key: 'allCredits1e27', label: 'Universal Current', threshold: '1e27' },
-  { key: 'allCredits5e31', label: 'Continuum Drive', threshold: '5e31' },
-  { key: 'allCredits2p5e37', label: 'Reality Furnace', threshold: '2.5e37' },
-  { key: 'allCredits1e45', label: 'Fractal Reserve', threshold: '1e45' },
-  { key: 'allCredits5e52', label: 'Causal Dominion', threshold: '5e52' },
-  { key: 'allCredits2p5e63', label: 'Epoch Treasury', threshold: '2.5e63' },
-  { key: 'allCredits1e90', label: 'Genesis Horizon', threshold: '1e90' },
-] as const
+  'Foundation',
+  'Early Expansion',
+  'Flow Established',
+  'Scaling Up',
+  'Credit Engine',
+  'Networked Output',
+  'Industrial Flow',
+  'Industrial Scale',
+  'Mass Production',
+  'Macro Throughput',
+  'Macro Economy',
+  'Planetary Output',
+  'Stellar Ledger',
+  'Cluster Reserves',
+  'Galactic Flow',
+  'Interstellar Treasury',
+  'Universal Current',
+  'Continuum Drive',
+  'Reality Furnace',
+  'Genesis Horizon',
+].map((label, index) => {
+  const threshold = COOKIE_CREDIT_LIFETIME_THRESHOLDS[index]
+  return {
+    key: `allCredits${thresholdKeyFragment(threshold)}`,
+    label,
+    threshold,
+  }
+})
 
 const RUN_CREDIT_ACHIEVEMENTS = [
-  { key: 'runCredits2p5e5', label: 'Run Warmup', threshold: '250000' },
-  { key: 'runCredits1e6', label: 'Run Momentum', threshold: '1000000' },
-  { key: 'runCredits5e6', label: 'Run Acceleration', threshold: '5000000' },
-  { key: 'runCredits2p5e7', label: 'Run Engine', threshold: '25000000' },
-  { key: 'runCredits1e8', label: 'Run Ramp', threshold: '100000000' },
-  { key: 'runCredits5e8', label: 'Run Breakthrough', threshold: '500000000' },
-  { key: 'runCredits2p5e9', label: 'Run Velocity', threshold: '2500000000' },
-  { key: 'runCredits1e10', label: 'Run Hyperflow', threshold: '10000000000' },
-  { key: 'runCredits5e10', label: 'Run Infrastructure', threshold: '50000000000' },
-  { key: 'runCredits2p5e11', label: 'Run Megascale', threshold: '250000000000' },
-  { key: 'runCredits1e13', label: 'Run Planetary', threshold: '1e13' },
-  { key: 'runCredits5e14', label: 'Run Stellar', threshold: '5e14' },
-  { key: 'runCredits2p5e16', label: 'Run Interstellar', threshold: '2.5e16' },
-  { key: 'runCredits1e18', label: 'Run Continuum', threshold: '1e18' },
-  { key: 'runCredits5e20', label: 'Run Genesis', threshold: '5e20' },
-] as const
+  'Run Warmup',
+  'Run Momentum',
+  'Run Acceleration',
+  'Run Engine',
+  'Run Ramp',
+  'Run Breakthrough',
+  'Run Velocity',
+  'Run Hyperflow',
+  'Run Infrastructure',
+  'Run Megascale',
+  'Run Planetary',
+  'Run Stellar',
+  'Run Interstellar',
+  'Run Continuum',
+  'Run Genesis',
+  'Run Apotheosis',
+].map((label, index) => {
+  const threshold = COOKIE_CREDIT_RUN_THRESHOLDS[index]
+  return {
+    key: `runCredits${thresholdKeyFragment(threshold)}`,
+    label,
+    threshold,
+  }
+})
 
 function formatAchievementThresholdText(threshold: string): string {
   return threshold.includes('e')
@@ -1110,33 +1516,33 @@ export const ACHIEVEMENT_CONFIG: Record<string, AchievementConfigEntry> = {
   genesisForges3: { key: 'genesisForges3', label: 'Genesis Battalion', description: 'Own 3 Genesis Forges.', requirement: { type: 'owned', generator: 'genesisForges', count: 3 } },
   genesisForges6: { key: 'genesisForges6', label: 'Genesis Fleet', description: 'Own 6 Genesis Forges.', requirement: { type: 'owned', generator: 'genesisForges', count: 6 } },
   genesisForges12: { key: 'genesisForges12', label: 'Genesis Armada', description: 'Own 12 Genesis Forges.', requirement: { type: 'owned', generator: 'genesisForges', count: 12 } },
-  firstPrestige: { key: 'firstPrestige', label: 'Reforged', description: 'Complete your first prestige reset.', requirement: { type: 'prestigeResets', count: 1 } },
-  prestige3: { key: 'prestige3', label: 'Cycle Initiate', description: 'Complete 3 prestige resets.', requirement: { type: 'prestigeResets', count: 3 } },
-  prestige10: { key: 'prestige10', label: 'Cycle Architect', description: 'Complete 10 prestige resets.', requirement: { type: 'prestigeResets', count: 10 } },
-  prestige25: { key: 'prestige25', label: 'Cycle Director', description: 'Complete 25 prestige resets.', requirement: { type: 'prestigeResets', count: 25 } },
-  prestige50: { key: 'prestige50', label: 'Epoch Master', description: 'Complete 50 prestige resets.', requirement: { type: 'prestigeResets', count: 50 } },
-  prestige100: { key: 'prestige100', label: 'Epoch Sovereign', description: 'Complete 100 prestige resets.', requirement: { type: 'prestigeResets', count: 100 } },
-  essence50: { key: 'essence50', label: 'Essence Spark', description: 'Reach 5 essence.', requirement: { type: 'essence', threshold: '5' } },
-  essence200: { key: 'essence200', label: 'Essence Current', description: 'Reach 20 essence.', requirement: { type: 'essence', threshold: '20' } },
-  essence500: { key: 'essence500', label: 'Essence Stream', description: 'Reach 75 essence.', requirement: { type: 'essence', threshold: '75' } },
-  essence2000: { key: 'essence2000', label: 'Essence Surge', description: 'Reach 250 essence.', requirement: { type: 'essence', threshold: '250' } },
-  essence5000: { key: 'essence5000', label: 'Essence Storm', description: 'Reach 1,000 essence.', requirement: { type: 'essence', threshold: '1000' } },
-  essence20000: { key: 'essence20000', label: 'Essence Tempest', description: 'Reach 5,000 essence.', requirement: { type: 'essence', threshold: '5000' } },
-  permanentLevels1: { key: 'permanentLevels1', label: 'Permanent Spark', description: 'Buy 1 total permanent upgrade level.', requirement: { type: 'permanentUpgradeLevels', count: 1 } },
-  permanentLevels5: { key: 'permanentLevels5', label: 'Permanent Framework', description: 'Buy 5 total permanent upgrade levels.', requirement: { type: 'permanentUpgradeLevels', count: 5 } },
-  permanentLevels15: { key: 'permanentLevels15', label: 'Permanent Engine', description: 'Buy 15 total permanent upgrade levels.', requirement: { type: 'permanentUpgradeLevels', count: 15 } },
-  permanentLevels40: { key: 'permanentLevels40', label: 'Permanent Lattice', description: 'Buy 40 total permanent upgrade levels.', requirement: { type: 'permanentUpgradeLevels', count: 40 } },
-  permanentTypes3: { key: 'permanentTypes3', label: 'Permanent Portfolio', description: 'Own at least 1 level in 3 different permanent upgrades.', requirement: { type: 'permanentUpgradeTypes', count: 3 } },
-  permanentTypes5: { key: 'permanentTypes5', label: 'Permanent Spectrum', description: 'Own at least 1 level in all 5 permanent upgrades.', requirement: { type: 'permanentUpgradeTypes', count: 5 } },
+  firstAscension: { key: 'firstAscension', label: 'Legacy Spark', description: 'Complete your first ascension.', requirement: { type: 'ascensions', count: 1 } },
+  ascensions3: { key: 'ascensions3', label: 'Legacy Current', description: 'Complete 3 ascensions.', requirement: { type: 'ascensions', count: 3 } },
+  ascensions10: { key: 'ascensions10', label: 'Legacy Engine', description: 'Complete 10 ascensions.', requirement: { type: 'ascensions', count: 10 } },
+  ascensions25: { key: 'ascensions25', label: 'Legacy Architect', description: 'Complete 25 ascensions.', requirement: { type: 'ascensions', count: 25 } },
+  ascensions50: { key: 'ascensions50', label: 'Legacy Sovereign', description: 'Complete 50 ascensions.', requirement: { type: 'ascensions', count: 50 } },
+  legacyLevel1: { key: 'legacyLevel1', label: 'Legacy Mark', description: 'Reach Legacy 1.', requirement: { type: 'legacyLevel', threshold: '1' } },
+  legacyLevel5: { key: 'legacyLevel5', label: 'Legacy Engine', description: 'Reach Legacy 5.', requirement: { type: 'legacyLevel', threshold: '5' } },
+  legacyLevel25: { key: 'legacyLevel25', label: 'Legacy Forge', description: 'Reach Legacy 25.', requirement: { type: 'legacyLevel', threshold: '25' } },
+  legacyLevel100: { key: 'legacyLevel100', label: 'Legacy Works', description: 'Reach Legacy 100.', requirement: { type: 'legacyLevel', threshold: '100' } },
+  legacyLevel1000: { key: 'legacyLevel1000', label: 'Legacy Dominion', description: 'Reach Legacy 1,000.', requirement: { type: 'legacyLevel', threshold: '1000' } },
+  legacyLevel1000000: { key: 'legacyLevel1000000', label: 'Legacy Horizon', description: 'Reach Legacy 1,000,000.', requirement: { type: 'legacyLevel', threshold: '1000000' } },
+  legacyNodes1: { key: 'legacyNodes1', label: 'Legacy Node', description: 'Unlock 1 Legacy upgrade.', requirement: { type: 'legacyUpgradeCount', count: 1 } },
+  legacyNodes5: { key: 'legacyNodes5', label: 'Legacy Grid', description: 'Unlock 5 Legacy upgrades.', requirement: { type: 'legacyUpgradeCount', count: 5 } },
+  legacyNodes10: { key: 'legacyNodes10', label: 'Legacy Mesh', description: 'Unlock 10 Legacy upgrades.', requirement: { type: 'legacyUpgradeCount', count: 10 } },
+  legacyNodes19: { key: 'legacyNodes19', label: 'Legacy Crown', description: 'Unlock all 19 Legacy upgrades.', requirement: { type: 'legacyUpgradeCount', count: 19 } },
+  foundryComplete: { key: 'foundryComplete', label: 'Foundry Branch Complete', description: 'Unlock every Foundry Legacy upgrade.', requirement: { type: 'legacyBranchComplete', branch: 'foundry' } },
+  calibrationComplete: { key: 'calibrationComplete', label: 'Calibration Branch Complete', description: 'Unlock every Calibration Legacy upgrade.', requirement: { type: 'legacyBranchComplete', branch: 'calibration' } },
+  archivesComplete: { key: 'archivesComplete', label: 'Archives Branch Complete', description: 'Unlock every Archives Legacy upgrade.', requirement: { type: 'legacyBranchComplete', branch: 'archives' } },
   upgrades10: { key: 'upgrades10', label: 'Workshop Bootstrapped', description: 'Purchase 12 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 12 } },
   upgrades20: { key: 'upgrades20', label: 'Workshop Online', description: 'Purchase 30 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 30 } },
   upgrades28: { key: 'upgrades28', label: 'Workshop Tuned', description: 'Purchase 60 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 60 } },
   upgrades35: { key: 'upgrades35', label: 'Workshop Expanded', description: 'Purchase 90 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 90 } },
-  upgrades38: { key: 'upgrades38', label: 'Workshop Complete', description: 'Purchase all 120 upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 120 } },
+  upgrades38: { key: 'upgrades38', label: 'Workshop Complete', description: 'Purchase all 116 run upgrades in one run.', requirement: { type: 'purchasedUpgrades', count: 116 } },
   offlineCap1h: { key: 'offlineCap1h', label: 'Extended Shift', description: 'Increase offline cap to at least 1 hour.', requirement: { type: 'offlineCapSeconds', seconds: 1 * 60 * 60 } },
+  offlineCap2h: { key: 'offlineCap2h', label: 'Long Shift', description: 'Increase offline cap to at least 2 hours.', requirement: { type: 'offlineCapSeconds', seconds: 2 * 60 * 60 } },
   offlineCap4h: { key: 'offlineCap4h', label: 'Deep Shift', description: 'Increase offline cap to at least 4 hours.', requirement: { type: 'offlineCapSeconds', seconds: 4 * 60 * 60 } },
-  offlineCap12h: { key: 'offlineCap12h', label: 'Long Shift', description: 'Increase offline cap to at least 2 hours.', requirement: { type: 'offlineCapSeconds', seconds: 2 * 60 * 60 } },
-  offlineCap24h: { key: 'offlineCap24h', label: 'Night Shift', description: 'Increase offline cap to at least 6 hours.', requirement: { type: 'offlineCapSeconds', seconds: 6 * 60 * 60 } },
+  offlineCap6h: { key: 'offlineCap6h', label: 'Night Shift', description: 'Increase offline cap to at least 6 hours.', requirement: { type: 'offlineCapSeconds', seconds: 6 * 60 * 60 } },
 }
 
 function assertDecimalString(value: string, context: string): void {
@@ -1154,7 +1560,7 @@ export function validateProgressionConfig(params: {
   generatorOrder: readonly string[]
   upgradeOrder: readonly string[]
   achievementOrder: readonly string[]
-  permanentUpgradeOrder: readonly string[]
+  legacyUpgradeOrder: readonly string[]
   minerSubsystemGeneratorOrder: readonly string[]
   minerSubsystemUpgradeOrder: readonly string[]
 }): void {
@@ -1162,7 +1568,7 @@ export function validateProgressionConfig(params: {
     generatorOrder,
     upgradeOrder,
     achievementOrder,
-    permanentUpgradeOrder,
+    legacyUpgradeOrder,
     minerSubsystemGeneratorOrder,
     minerSubsystemUpgradeOrder,
   } = params
@@ -1228,21 +1634,41 @@ export function validateProgressionConfig(params: {
     }
   }
 
-  for (const key of permanentUpgradeOrder) {
-    const entry = PERMANENT_UPGRADE_CONFIG[key]
+  for (const key of legacyUpgradeOrder) {
+    const entry = LEGACY_UPGRADE_CONFIG[key]
     if (!entry) {
-      throw new Error(`Missing permanent upgrade config for key: ${key}`)
+      throw new Error(`Missing legacy upgrade config for key: ${key}`)
     }
 
-    assertDecimalString(entry.baseCost, `permanent upgrade ${key}.baseCost`)
-    assertDecimalString(entry.growth, `permanent upgrade ${key}.growth`)
-    assertDecimalString(entry.value, `permanent upgrade ${key}.value`)
+    assertDecimalString(entry.cost, `legacy upgrade ${key}.cost`)
+
+    if (!LEGACY_UPGRADE_BRANCHES.includes(entry.branch)) {
+      throw new Error(`Legacy upgrade ${key} has invalid branch ${entry.branch}`)
+    }
+
+    if (entry.requiresLegacyUpgrade && !legacyUpgradeOrder.includes(entry.requiresLegacyUpgrade)) {
+      throw new Error(`Invalid requiresLegacyUpgrade reference for legacy upgrade ${key}`)
+    }
+
+    if (entry.effectType === 'offlineCap') {
+      if (!entry.offlineCapSeconds || entry.offlineCapSeconds <= 0) {
+        throw new Error(`Offline cap legacy upgrade missing positive seconds: ${key}`)
+      }
+      continue
+    }
+
+    if (!entry.value) {
+      throw new Error(`Legacy upgrade ${key} missing value`)
+    }
+
+    assertDecimalString(entry.value, `legacy upgrade ${key}.value`)
   }
 
-  assertDecimalString(PRESTIGE_BALANCE.unlockCredits, 'prestige.unlockCredits')
-  assertDecimalString(PRESTIGE_BALANCE.gainExponent, 'prestige.gainExponent')
-  assertDecimalString(PRESTIGE_BALANCE.productionPerReset, 'prestige.productionPerReset')
-  assertDecimalString(PRESTIGE_BALANCE.gainPerReset, 'prestige.gainPerReset')
+  assertDecimalString(ASCENSION_BALANCE.shardDivisor, 'ascension.shardDivisor')
+  assertDecimalString(
+    ASCENSION_BALANCE.passiveProductionPerLegacyLevel,
+    'ascension.passiveProductionPerLegacyLevel',
+  )
   assertDecimalString(MINER_SUBSYSTEM_CONFIG.multiplierExponent, 'miner subsystem multiplier exponent')
 
   if (!upgradeOrder.includes(MINER_SUBSYSTEM_CONFIG.unlockUpgrade)) {

@@ -33,32 +33,35 @@ import {
   ACHIEVEMENT_DEFS,
   ACHIEVEMENT_ORDER,
   applyOfflineProgress,
-  applyPrestigeReset,
+  applyAscensionReset,
   canBuyGenerator,
+  canPurchaseLegacyUpgrade,
   canBuyMinerSubsystemUpgrade,
   canBuyUpgrade,
-  canPrestige,
+  canAscend,
   createInitialGameState,
   GENERATOR_ORDER,
+  getAscensionGain,
+  getAscensionPassiveMultiplier,
+  getAscensionPassiveMultiplierFromLegacyUpgrades,
+  getLegacyLevelForLifetimeCredits,
+  getLegacyUpgradeCost,
+  getLegacyUpgradeProgressText,
   getMinerOreData,
   getMinerSubsystemGeneratorCost,
   getMinerSubsystemTotalProductionPerSecond,
   getOfflineProgressCapSeconds,
-  getPermanentUpgradeBulkCost,
-  getPrestigeGainForReset,
-  getPrestigeMultiplier,
-  getPrestigeMultiplierFromPermanentUpgrades,
   getTotalProductionPerSecond,
   getUnlockedAchievementCount,
+  LEGACY_UPGRADE_ORDER,
   MINER_SUBSYSTEM_GENERATOR_ORDER,
   MINER_SUBSYSTEM_UPGRADE_ORDER,
-  PERMANENT_UPGRADE_ORDER,
   tickGame,
   UPGRADE_ORDER,
   type AchievementKey,
   type GameState,
-  type PermanentUpgradeKey,
-  type PermanentUpgradesState,
+  type LegacyUpgradeKey,
+  type PurchasedLegacyUpgradesState,
 } from '@/lib/game-engine'
 import { SAFE_AREA_INSETS } from '@/lib/game-config'
 import {
@@ -68,7 +71,7 @@ import {
 } from '@/lib/consts'
 import { formatIdleNumber } from '@/lib/number-format'
 import { MINER_SUBSYSTEM_CONFIG, type SubsystemKey } from '@/lib/progression-config'
-import { PrestigeScreen } from '@/screens/prestige-screen'
+import { AscensionScreen } from '@/screens/ascension-screen'
 import {
   AboutTabView,
   AchievementsTabView,
@@ -120,22 +123,22 @@ function isPrimaryTab(tab: TabKey): tab is 'production' | 'upgrades' | 'stats' {
 function getScreenScrollKey(
   activeTab: TabKey,
   focusedSubsystem: SubsystemKey | null,
-  isPrestigeMode: boolean,
+  isAscensionMode: boolean,
 ): string {
-  if (isPrestigeMode) {
-    return 'prestige'
+  if (isAscensionMode) {
+    return 'ascension'
   }
 
   return `${focusedSubsystem ?? 'main'}:${activeTab}`
 }
 
-function createPermanentUpgradeSnapshot(
-  source: Partial<Record<PermanentUpgradeKey, number>> | undefined,
-): PermanentUpgradesState {
-  return PERMANENT_UPGRADE_ORDER.reduce((accumulator, key) => {
-    accumulator[key] = Math.max(0, Math.floor(source?.[key] ?? 0))
+function createLegacyUpgradeSnapshot(
+  source: Partial<Record<LegacyUpgradeKey, boolean>> | undefined,
+): PurchasedLegacyUpgradesState {
+  return LEGACY_UPGRADE_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = Boolean(source?.[key])
     return accumulator
-  }, {} as PermanentUpgradesState)
+  }, {} as PurchasedLegacyUpgradesState)
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -262,13 +265,14 @@ function App() {
     production: 0,
     upgrades: 0,
   })
-  const [prestigePlan, setPrestigePlan] = useState<{
-    availableEssence: string
-    baseAvailableEssence: string
-    draftUpgrades: PermanentUpgradesState
-    baseUpgrades: PermanentUpgradesState
+  const [ascensionPlan, setAscensionPlan] = useState<{
+    totalAvailableLegacyShards: string
+    remainingLegacyShards: string
+    basePurchasedLegacyUpgrades: PurchasedLegacyUpgradesState
+    draftPurchasedLegacyUpgrades: PurchasedLegacyUpgradesState
   } | null>(null)
   const gameRef = useRef(game)
+  const ascensionPlanRef = useRef(ascensionPlan)
   const topSafeAreaBoundaryRef = useRef<HTMLDivElement | null>(null)
   const knownUnlockedAchievementsRef = useRef<Set<AchievementKey>>(new Set())
   const screenScrollPositionsRef = useRef<Record<string, number>>({})
@@ -286,6 +290,10 @@ function App() {
   useEffect(() => {
     gameRef.current = game
   }, [game])
+
+  useEffect(() => {
+    ascensionPlanRef.current = ascensionPlan
+  }, [ascensionPlan])
 
   const showOfflineProductionToast = useCallback((offlineProgress: OfflineProgressLoadSummary | null) => {
     if (
@@ -359,6 +367,25 @@ function App() {
     await saveGameState(gameRef.current)
   }, [])
 
+  const syncPausedGameClock = useCallback((now = Date.now()): GameState => {
+    const current = gameRef.current
+    if (current.stats.lastTickAtMs === now) {
+      return current
+    }
+
+    const nextState: GameState = {
+      ...current,
+      stats: {
+        ...current.stats,
+        lastTickAtMs: now,
+      },
+    }
+
+    gameRef.current = nextState
+    setGame(nextState)
+    return nextState
+  }, [])
+
   const resetGame = useCallback(() => {
     const now = Date.now()
     const initialState = createInitialGameState(now)
@@ -375,7 +402,7 @@ function App() {
     setNowMs(now)
     setActiveTab('production')
     setFocusedSubsystem(null)
-    setPrestigePlan(null)
+    setAscensionPlan(null)
 
     void (async () => {
       await clearGameSave()
@@ -419,7 +446,7 @@ function App() {
     setNowMs(now)
     setActiveTab('production')
     setFocusedSubsystem(null)
-    setPrestigePlan(null)
+    setAscensionPlan(null)
     toast(`Loaded dev preset: ${preset}`)
 
     void saveGameState(nextState)
@@ -434,7 +461,23 @@ function App() {
     const tickId = window.setInterval(() => {
       const now = Date.now()
       setNowMs(now)
-      setGame((current) => tickGame(current, now))
+      setGame((current) => {
+        if (ascensionPlanRef.current) {
+          if (current.stats.lastTickAtMs === now) {
+            return current
+          }
+
+          return {
+            ...current,
+            stats: {
+              ...current.stats,
+              lastTickAtMs: now,
+            },
+          }
+        }
+
+        return tickGame(current, now)
+      })
     }, gameTickIntervalMs)
 
     return () => {
@@ -463,6 +506,14 @@ function App() {
 
     const applyOfflineProgressOnResume = () => {
       if (document.visibilityState === 'hidden') {
+        return
+      }
+
+      if (ascensionPlanRef.current) {
+        const now = Date.now()
+        const nextState = syncPausedGameClock(now)
+        setNowMs(now)
+        void saveGameState(nextState)
         return
       }
 
@@ -499,6 +550,9 @@ function App() {
 
     const saveOnVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
+        if (ascensionPlanRef.current) {
+          syncPausedGameClock(Date.now())
+        }
         void persistGame()
         return
       }
@@ -525,7 +579,7 @@ function App() {
       window.removeEventListener('pagehide', saveOnPageExit)
       window.removeEventListener('beforeunload', saveOnPageExit)
     }
-  }, [isHydrated, persistGame, showOfflineProductionToast])
+  }, [isHydrated, persistGame, showOfflineProductionToast, syncPausedGameClock])
 
   useEffect(() => {
     const summaryElement = floatingAnchorElement
@@ -566,9 +620,9 @@ function App() {
   }, [activeTab, floatingAnchorElement])
 
   const creditsPerSecond = useMemo(() => getTotalProductionPerSecond(game), [game])
-  const prestigeGain = useMemo(() => getPrestigeGainForReset(game), [game])
-  const prestigeMultiplier = useMemo(() => getPrestigeMultiplier(game), [game])
-  const canPrestigeNow = useMemo(() => canPrestige(game), [game])
+  const ascensionGain = useMemo(() => getAscensionGain(game), [game])
+  const ascensionPassiveMultiplier = useMemo(() => getAscensionPassiveMultiplier(game), [game])
+  const canAscendNow = useMemo(() => canAscend(game), [game])
   const offlineProgressCapSeconds = useMemo(() => getOfflineProgressCapSeconds(game), [game])
   const purchasableUpgradeCount = useMemo(
     () => UPGRADE_ORDER.reduce((count, key) => count + (canBuyUpgrade(game, key) ? 1 : 0), 0),
@@ -602,28 +656,32 @@ function App() {
     )
   }, [game])
   const unlockedAchievementCount = useMemo(() => getUnlockedAchievementCount(game), [game])
-  const plannedPrestigeMultiplier = useMemo(
+  const projectedLegacyLevel = useMemo(
+    () => getLegacyLevelForLifetimeCredits(game.stats.totalCreditsAllResets),
+    [game.stats.totalCreditsAllResets],
+  )
+  const plannedAscensionPassiveMultiplier = useMemo(
     () =>
-      prestigePlan
-        ? getPrestigeMultiplierFromPermanentUpgrades(
-            prestigePlan.draftUpgrades,
-            game.prestige.resets + 1,
+      ascensionPlan
+        ? getAscensionPassiveMultiplierFromLegacyUpgrades(
+            projectedLegacyLevel,
+            ascensionPlan.draftPurchasedLegacyUpgrades,
           )
-        : prestigeMultiplier,
-    [game.prestige.resets, prestigeMultiplier, prestigePlan],
+        : ascensionPassiveMultiplier,
+    [ascensionPassiveMultiplier, ascensionPlan, projectedLegacyLevel],
   )
   const runDuration = Math.max(0, Math.floor((nowMs - game.stats.startedAtMs) / 1_000))
   const overflowTabs = TABS.filter((tab) => !isPrimaryTab(tab.key))
   const isOtherActive = !isPrimaryTab(activeTab)
-  const isPrestigeMode = prestigePlan !== null
+  const isAscensionMode = ascensionPlan !== null
   const isSubsystemFocused = focusedSubsystem !== null
-  const activeScreenScrollKey = getScreenScrollKey(activeTab, focusedSubsystem, isPrestigeMode)
+  const activeScreenScrollKey = getScreenScrollKey(activeTab, focusedSubsystem, isAscensionMode)
   const subsystemHeaderValue =
     focusedSubsystem === 'miners' ? getMinerOreData(game) : new Decimal(0)
   const subsystemHeaderPerSecond =
     focusedSubsystem === 'miners' ? getMinerSubsystemTotalProductionPerSecond(game) : new Decimal(0)
   const shouldShowFloatingSummary =
-    !isPrestigeMode && activeTab !== 'about' && activeTab !== 'help' && showFloatingSummary
+    !isAscensionMode && activeTab !== 'about' && activeTab !== 'help' && showFloatingSummary
 
   useLayoutEffect(() => {
     if (!isHydrated) {
@@ -678,80 +736,88 @@ function App() {
     setIsSectionsOpen(false)
   }, [rememberCurrentScreenScroll])
 
-  const startPrestigePlanning = useCallback(() => {
-    const current = gameRef.current
-    const gain = getPrestigeGainForReset(current)
+  const startAscensionPlanning = useCallback(() => {
+    const now = Date.now()
+    const current = tickGame(gameRef.current, now)
+    gameRef.current = current
+    setGame(current)
+    setNowMs(now)
+
+    const gain = getAscensionGain(current)
     if (gain.lessThanOrEqualTo(0)) {
       return
     }
 
     rememberCurrentScreenScroll()
-    const availableEssence = new Decimal(current.prestige.essence).plus(gain).toString()
-    const baseUpgrades = createPermanentUpgradeSnapshot(current.prestige.permanentUpgrades)
+    const totalAvailableLegacyShards = new Decimal(current.ascension.legacyShards)
+      .plus(gain)
+      .toString()
+    const basePurchasedLegacyUpgrades = createLegacyUpgradeSnapshot(
+      current.ascension.purchasedLegacyUpgrades,
+    )
 
-    setPrestigePlan({
-      availableEssence,
-      baseAvailableEssence: availableEssence,
-      draftUpgrades: { ...baseUpgrades },
-      baseUpgrades: { ...baseUpgrades },
+    setAscensionPlan({
+      totalAvailableLegacyShards,
+      remainingLegacyShards: totalAvailableLegacyShards,
+      basePurchasedLegacyUpgrades: { ...basePurchasedLegacyUpgrades },
+      draftPurchasedLegacyUpgrades: { ...basePurchasedLegacyUpgrades },
     })
   }, [rememberCurrentScreenScroll])
 
-  const cancelPrestigePlanning = useCallback(() => {
-    rememberCurrentScreenScroll()
-    setPrestigePlan(null)
-  }, [rememberCurrentScreenScroll])
-
-  const purchasePermanentUpgrade = useCallback((key: PermanentUpgradeKey, amount: number) => {
-    setPrestigePlan((current) => {
+  const purchaseLegacyUpgrade = useCallback((key: LegacyUpgradeKey) => {
+    setAscensionPlan((current) => {
       if (!current) {
         return current
       }
 
-      const normalizedAmount = Math.max(1, Math.floor(amount))
-      const cost = getPermanentUpgradeBulkCost(current.draftUpgrades, key, normalizedAmount)
-      const available = new Decimal(current.availableEssence)
-      if (available.lessThan(cost)) {
+      if (
+        !canPurchaseLegacyUpgrade(
+          current.draftPurchasedLegacyUpgrades,
+          current.remainingLegacyShards,
+          key,
+        )
+      ) {
         return current
       }
 
+      const cost = getLegacyUpgradeCost(key)
+      const available = new Decimal(current.remainingLegacyShards)
       return {
         ...current,
-        availableEssence: available.minus(cost).toString(),
-        draftUpgrades: {
-          ...current.draftUpgrades,
-          [key]: current.draftUpgrades[key] + normalizedAmount,
+        remainingLegacyShards: available.minus(cost).toString(),
+        draftPurchasedLegacyUpgrades: {
+          ...current.draftPurchasedLegacyUpgrades,
+          [key]: true,
         },
       }
     })
   }, [])
 
-  const resetPrestigeChoices = useCallback(() => {
-    setPrestigePlan((current) => {
+  const resetAscensionChoices = useCallback(() => {
+    setAscensionPlan((current) => {
       if (!current) {
         return current
       }
 
       return {
         ...current,
-        availableEssence: current.baseAvailableEssence,
-        draftUpgrades: { ...current.baseUpgrades },
+        remainingLegacyShards: current.totalAvailableLegacyShards,
+        draftPurchasedLegacyUpgrades: { ...current.basePurchasedLegacyUpgrades },
       }
     })
   }, [])
 
-  const confirmPrestigeReset = useCallback(() => {
-    if (!prestigePlan) {
+  const confirmAscension = useCallback(() => {
+    if (!ascensionPlan) {
       return
     }
 
     const now = Date.now()
-    const nextState = applyPrestigeReset(gameRef.current, now, {
-      remainingEssence: prestigePlan.availableEssence,
-      permanentUpgrades: prestigePlan.draftUpgrades,
+    const nextState = applyAscensionReset(gameRef.current, now, {
+      purchasedLegacyUpgrades: ascensionPlan.draftPurchasedLegacyUpgrades,
     })
     if (nextState === gameRef.current) {
-      setPrestigePlan(null)
+      setAscensionPlan(null)
       return
     }
 
@@ -761,10 +827,10 @@ function App() {
     setNowMs(now)
     setActiveTab('production')
     setFocusedSubsystem(null)
-    setPrestigePlan(null)
+    setAscensionPlan(null)
 
     void saveGameState(nextState)
-  }, [prestigePlan, resetRememberedScreenScroll])
+  }, [ascensionPlan, resetRememberedScreenScroll])
 
   const renderActiveTab = () => {
     const sharedTabProps = {
@@ -794,10 +860,10 @@ function App() {
             {...sharedTabProps}
             runDuration={runDuration}
             offlineProgressCapSeconds={offlineProgressCapSeconds}
-            prestigeMultiplier={prestigeMultiplier}
-            prestigeGain={prestigeGain}
-            canPrestigeNow={canPrestigeNow}
-            onOpenPrestige={startPrestigePlanning}
+            ascensionPassiveMultiplier={ascensionPassiveMultiplier}
+            ascensionGain={ascensionGain}
+            canAscendNow={canAscendNow}
+            onOpenAscension={startAscensionPlanning}
             formatDuration={formatDuration}
             focusedSubsystem="miners"
             onExitSubsystem={exitSubsystem}
@@ -833,10 +899,10 @@ function App() {
             {...sharedTabProps}
             runDuration={runDuration}
             offlineProgressCapSeconds={offlineProgressCapSeconds}
-            prestigeMultiplier={prestigeMultiplier}
-            prestigeGain={prestigeGain}
-            canPrestigeNow={canPrestigeNow}
-            onOpenPrestige={startPrestigePlanning}
+            ascensionPassiveMultiplier={ascensionPassiveMultiplier}
+            ascensionGain={ascensionGain}
+            canAscendNow={canAscendNow}
+            onOpenAscension={startAscensionPlanning}
             formatDuration={formatDuration}
           />
         )
@@ -870,31 +936,36 @@ function App() {
           paddingTop: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
           paddingLeft: `calc(${SAFE_AREA_INSETS.left} + 1rem)`,
           paddingRight: `calc(${SAFE_AREA_INSETS.right} + 1rem)`,
-          paddingBottom: isPrestigeMode
+          paddingBottom: isAscensionMode
             ? `calc(${SAFE_AREA_INSETS.bottom} + 1rem)`
             : `calc(${SAFE_AREA_INSETS.bottom} + 5.25rem)`,
         }}
       >
-        {isPrestigeMode && prestigePlan ? (
-          <PrestigeScreen
-            currentEssence={game.prestige.essence}
-            resetGain={prestigeGain}
-            availableEssence={new Decimal(prestigePlan.availableEssence)}
-            currentMultiplier={prestigeMultiplier}
-            projectedMultiplier={plannedPrestigeMultiplier}
-            permanentUpgrades={prestigePlan.draftUpgrades}
-            getUpgradeCost={(key, amount) =>
-              getPermanentUpgradeBulkCost(prestigePlan.draftUpgrades, key, amount)
-            }
-            canPurchaseUpgrade={(key, amount) =>
-              new Decimal(prestigePlan.availableEssence).greaterThanOrEqualTo(
-                getPermanentUpgradeBulkCost(prestigePlan.draftUpgrades, key, amount),
+        {isAscensionMode && ascensionPlan ? (
+          <AscensionScreen
+            currentShards={game.ascension.legacyShards}
+            ascensionGain={ascensionGain}
+            totalAvailableShards={ascensionPlan.totalAvailableLegacyShards}
+            remainingShards={ascensionPlan.remainingLegacyShards}
+            currentMultiplier={ascensionPassiveMultiplier}
+            projectedMultiplier={plannedAscensionPassiveMultiplier}
+            purchasedLegacyUpgrades={ascensionPlan.draftPurchasedLegacyUpgrades}
+            canPurchaseLegacyUpgrade={(key) =>
+              canPurchaseLegacyUpgrade(
+                ascensionPlan.draftPurchasedLegacyUpgrades,
+                ascensionPlan.remainingLegacyShards,
+                key,
               )
             }
-            onPurchaseUpgrade={purchasePermanentUpgrade}
-            onResetChoices={resetPrestigeChoices}
-            onCancel={cancelPrestigePlanning}
-            onConfirm={confirmPrestigeReset}
+            getLegacyUpgradeProgressText={(key) =>
+              getLegacyUpgradeProgressText(
+                ascensionPlan.draftPurchasedLegacyUpgrades,
+                key,
+              )
+            }
+            onPurchaseLegacyUpgrade={purchaseLegacyUpgrade}
+            onResetChoices={resetAscensionChoices}
+            onConfirm={confirmAscension}
             formatValue={formatIdleNumber}
           />
         ) : (

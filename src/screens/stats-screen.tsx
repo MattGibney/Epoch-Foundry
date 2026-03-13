@@ -1,5 +1,16 @@
 import type Decimal from 'decimal.js'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { type GameState } from '@/lib/game-engine'
 
@@ -20,10 +31,10 @@ interface StatsScreenProps {
   runDuration: number
   offlineProgressCapSeconds: number
   creditsPerSecond: Decimal.Value
-  prestigeMultiplier: Decimal.Value
-  prestigeGain: Decimal.Value
-  canPrestigeNow: boolean
-  onOpenPrestige: () => void
+  ascensionPassiveMultiplier: Decimal.Value
+  ascensionGain: Decimal.Value
+  canAscendNow: boolean
+  onOpenAscension: () => void
   formatDuration: (seconds: number) => string
   formatRenderedCredits: (value: Decimal.Value) => string
   formatIdleNumber: (value: Decimal.Value) => string
@@ -35,10 +46,10 @@ export function StatsScreen({
   runDuration,
   offlineProgressCapSeconds,
   creditsPerSecond,
-  prestigeMultiplier,
-  prestigeGain,
-  canPrestigeNow,
-  onOpenPrestige,
+  ascensionPassiveMultiplier,
+  ascensionGain,
+  canAscendNow,
+  onOpenAscension,
   formatDuration,
   formatRenderedCredits,
   formatIdleNumber,
@@ -81,28 +92,48 @@ export function StatsScreen({
         </div>
       </section>
       <section className="border-t border-border/70 pt-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Prestige</p>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">Ascension</p>
         <div className="mt-2 space-y-1 text-sm">
           <p className="flex items-center justify-between">
-            <span className="text-muted-foreground">Essence</span>
-            <span className="font-mono tabular-nums">{formatIdleNumber(game.prestige.essence)}</span>
+            <span className="text-muted-foreground">Shards</span>
+            <span className="font-mono tabular-nums">
+              {formatIdleNumber(game.ascension.legacyShards)}
+            </span>
           </p>
           <p className="flex items-center justify-between">
-            <span className="text-muted-foreground">Permanent Multiplier</span>
-            <span className="font-mono tabular-nums">x{formatIdleNumber(prestigeMultiplier)}</span>
+            <span className="text-muted-foreground">Permanent Boost</span>
+            <span className="font-mono tabular-nums">
+              x{formatIdleNumber(ascensionPassiveMultiplier)}
+            </span>
           </p>
           <p className="flex items-center justify-between">
-            <span className="text-muted-foreground">Reset Gain</span>
-            <span className="font-mono tabular-nums">+{formatIdleNumber(prestigeGain)}</span>
+            <span className="text-muted-foreground">Shards On Ascend</span>
+            <span className="font-mono tabular-nums">+{formatIdleNumber(ascensionGain)}</span>
           </p>
           <p className="flex items-center justify-between">
-            <span className="text-muted-foreground">Total Resets</span>
-            <span className="font-mono tabular-nums">{game.prestige.resets}</span>
+            <span className="text-muted-foreground">Ascensions</span>
+            <span className="font-mono tabular-nums">{game.ascension.ascensions}</span>
           </p>
         </div>
-        <Button className="mt-4" disabled={!canPrestigeNow} onClick={onOpenPrestige}>
-          Prestige Reset
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button className="mt-4" disabled={!canAscendNow}>
+              Ascend
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Starting an ascension pauses the run and commits you to the ascension flow.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>No</AlertDialogCancel>
+              <AlertDialogAction onClick={onOpenAscension}>Yes, Start Ascension</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </section>
       {subsystemStats ? (
         <section className="border-t border-border/70 pt-4">

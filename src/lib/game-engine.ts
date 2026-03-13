@@ -1,19 +1,21 @@
 import Decimal from 'decimal.js'
 import {
   ACHIEVEMENT_CONFIG,
+  ASCENSION_BALANCE,
   GENERATOR_CONFIG,
+  LEGACY_UPGRADE_BRANCHES,
+  LEGACY_UPGRADE_CONFIG,
   MINER_SUBSYSTEM_CONFIG,
   MINER_SUBSYSTEM_GENERATOR_CONFIG,
   MINER_SUBSYSTEM_UPGRADE_CONFIG,
-  PERMANENT_UPGRADE_CONFIG,
-  PRESTIGE_BALANCE,
   UPGRADE_CONFIG,
   UPGRADE_COST_MULTIPLIER_BY_TYPE,
   validateProgressionConfig,
   type AchievementConfigEntry,
+  type LegacyUpgradeBranch,
+  type LegacyUpgradeConfigEntry,
   type MinerSubsystemGeneratorConfigEntry,
   type MinerSubsystemUpgradeConfigEntry,
-  type PermanentUpgradeConfigEntry,
   type SubsystemKey,
   type UpgradeConfigEntry,
 } from '@/lib/progression-config'
@@ -157,53 +159,47 @@ export const UPGRADE_ORDER = [
   'orbitalExchange',
   'fractalEconomies',
   'causalOverclock',
-  'archiveBatteries',
-  'temporalVaults',
-  'deepArchive',
-  'chronoReserves',
 ] as const
 
 export type RunUpgradeKey = (typeof UPGRADE_ORDER)[number]
 
 export const ACHIEVEMENT_ORDER = [
-  'allCredits2p5e5',
   'allCredits1e6',
-  'allCredits5e6',
-  'allCredits2p5e7',
   'allCredits1e8',
-  'allCredits5e8',
-  'allCredits2p5e9',
   'allCredits1e10',
-  'allCredits5e10',
-  'allCredits2p5e11',
-  'allCredits1e13',
-  'allCredits5e14',
-  'allCredits2p5e16',
+  'allCredits1e12',
+  'allCredits1e15',
   'allCredits1e18',
-  'allCredits5e20',
-  'allCredits2p5e23',
-  'allCredits1e27',
-  'allCredits5e31',
-  'allCredits2p5e37',
-  'allCredits1e45',
-  'allCredits5e52',
-  'allCredits2p5e63',
-  'allCredits1e90',
-  'runCredits2p5e5',
+  'allCredits1e22',
+  'allCredits1e26',
+  'allCredits1e31',
+  'allCredits1e37',
+  'allCredits1e44',
+  'allCredits1e52',
+  'allCredits1e61',
+  'allCredits1e72',
+  'allCredits1e84',
+  'allCredits1e98',
+  'allCredits1e114',
+  'allCredits1e132',
+  'allCredits1e153',
+  'allCredits1e177',
   'runCredits1e6',
-  'runCredits5e6',
-  'runCredits2p5e7',
   'runCredits1e8',
-  'runCredits5e8',
-  'runCredits2p5e9',
   'runCredits1e10',
-  'runCredits5e10',
-  'runCredits2p5e11',
-  'runCredits1e13',
-  'runCredits5e14',
-  'runCredits2p5e16',
+  'runCredits1e12',
+  'runCredits1e15',
   'runCredits1e18',
-  'runCredits5e20',
+  'runCredits1e22',
+  'runCredits1e26',
+  'runCredits1e31',
+  'runCredits1e37',
+  'runCredits1e44',
+  'runCredits1e52',
+  'runCredits1e61',
+  'runCredits1e72',
+  'runCredits1e84',
+  'runCredits1e98',
   'miners100',
   'miners300',
   'miners600',
@@ -314,33 +310,33 @@ export const ACHIEVEMENT_ORDER = [
   'genesisForges3',
   'genesisForges6',
   'genesisForges12',
-  'firstPrestige',
-  'prestige3',
-  'prestige10',
-  'prestige25',
-  'prestige50',
-  'prestige100',
-  'essence50',
-  'essence200',
-  'essence500',
-  'essence2000',
-  'essence5000',
-  'essence20000',
-  'permanentLevels1',
-  'permanentLevels5',
-  'permanentLevels15',
-  'permanentLevels40',
-  'permanentTypes3',
-  'permanentTypes5',
+  'firstAscension',
+  'ascensions3',
+  'ascensions10',
+  'ascensions25',
+  'ascensions50',
+  'legacyLevel1',
+  'legacyLevel5',
+  'legacyLevel25',
+  'legacyLevel100',
+  'legacyLevel1000',
+  'legacyLevel1000000',
+  'legacyNodes1',
+  'legacyNodes5',
+  'legacyNodes10',
+  'legacyNodes19',
+  'foundryComplete',
+  'calibrationComplete',
+  'archivesComplete',
   'upgrades10',
   'upgrades20',
   'upgrades28',
   'upgrades35',
   'upgrades38',
   'offlineCap1h',
-  'offlineCap12h',
+  'offlineCap2h',
   'offlineCap4h',
-  'offlineCap24h',
+  'offlineCap6h',
 ] as const
 
 export type AchievementKey = (typeof ACHIEVEMENT_ORDER)[number]
@@ -442,10 +438,11 @@ export interface GameSettingsState {
   repeatTapScrollDirection: 'topToBottom' | 'bottomToTop'
 }
 
-export interface PrestigeState {
-  resets: number
-  essence: string
-  permanentUpgrades: PermanentUpgradesState
+export interface AscensionState {
+  ascensions: number
+  legacyLevel: string
+  legacyShards: string
+  purchasedLegacyUpgrades: PurchasedLegacyUpgradesState
 }
 
 export interface RandomState {
@@ -474,7 +471,7 @@ export interface GameState {
   buyAmount: number
   stats: StatsState
   settings: GameSettingsState
-  prestige: PrestigeState
+  ascension: AscensionState
   random: RandomState
   subsystems: SubsystemsState
 }
@@ -520,17 +517,31 @@ type MinerSubsystemGeneratorDef = MinerSubsystemGeneratorConfigEntry & {
   key: MinerSubsystemGeneratorKey
 }
 
-export type PermanentUpgradeKey =
-  | 'essenceInfusion'
+export type LegacyUpgradeKey =
+  | 'foundryAwakening'
+  | 'foundryRefraction'
+  | 'foundryResonance'
+  | 'foundryCrowning'
+  | 'bootstrapKindling'
   | 'bootstrapCache'
+  | 'bootstrapVault'
   | 'quantumLattice'
+  | 'latticeCompression'
+  | 'latticeSingularity'
   | 'calibrationMatrix'
+  | 'matrixOverclock'
+  | 'matrixAxiom'
   | 'singularityCore'
+  | 'chronicleReservoirs'
+  | 'archiveBatteries'
+  | 'temporalVaults'
+  | 'deepArchive'
+  | 'chronoReserves'
 
-export type PermanentUpgradesState = Record<PermanentUpgradeKey, number>
+export type PurchasedLegacyUpgradesState = Record<LegacyUpgradeKey, boolean>
 
-type PermanentUpgradeDef = PermanentUpgradeConfigEntry & {
-  key: PermanentUpgradeKey
+type LegacyUpgradeDef = LegacyUpgradeConfigEntry & {
+  key: LegacyUpgradeKey
 }
 
 type GlobalUpgradeDef = UpgradeBaseDef & {
@@ -544,11 +555,6 @@ type GeneratorUpgradeDef = UpgradeBaseDef & {
   multiplier: string
 }
 
-type OfflineCapUpgradeDef = UpgradeBaseDef & {
-  effectType: 'offlineCap'
-  offlineCapSeconds: number
-}
-
 type SubsystemUnlockUpgradeDef = UpgradeBaseDef & {
   effectType: 'subsystemUnlock'
   subsystem: SubsystemKey
@@ -557,17 +563,17 @@ type SubsystemUnlockUpgradeDef = UpgradeBaseDef & {
 type UpgradeDef =
   | GlobalUpgradeDef
   | GeneratorUpgradeDef
-  | OfflineCapUpgradeDef
   | SubsystemUnlockUpgradeDef
 
 const ONE = new Decimal(1)
 const ZERO = new Decimal(0)
 const MAX_TICK_SECONDS = 5
 const BASE_OFFLINE_PROGRESS_CAP_SECONDS = 15 * 60
-const PRESTIGE_UNLOCK_CREDITS = new Decimal(PRESTIGE_BALANCE.unlockCredits)
-const PRESTIGE_GAIN_EXPONENT = new Decimal(PRESTIGE_BALANCE.gainExponent)
-const PRESTIGE_RESET_PRODUCTION_BONUS = new Decimal(PRESTIGE_BALANCE.productionPerReset)
-const PRESTIGE_RESET_GAIN_BONUS = new Decimal(PRESTIGE_BALANCE.gainPerReset)
+const ASCENSION_SHARD_DIVISOR = new Decimal(ASCENSION_BALANCE.shardDivisor)
+const ASCENSION_LEVEL_EXPONENT = ONE.div(3)
+const PASSIVE_PRODUCTION_PER_LEGACY_LEVEL = new Decimal(
+  ASCENSION_BALANCE.passiveProductionPerLegacyLevel,
+)
 const MINER_SUBSYSTEM_MULTIPLIER_EXPONENT = new Decimal(MINER_SUBSYSTEM_CONFIG.multiplierExponent)
 
 export const SUBSYSTEM_UNLOCK_UPGRADES: Record<SubsystemKey, RunUpgradeKey> = {
@@ -578,23 +584,37 @@ export const GENERATOR_SUBSYSTEMS: Partial<Record<GeneratorKey, SubsystemKey>> =
   miners: 'miners',
 }
 
-export const PERMANENT_UPGRADE_ORDER: PermanentUpgradeKey[] = [
-  'essenceInfusion',
+export const LEGACY_UPGRADE_ORDER: LegacyUpgradeKey[] = [
+  'foundryAwakening',
+  'foundryRefraction',
+  'foundryResonance',
+  'foundryCrowning',
+  'bootstrapKindling',
   'bootstrapCache',
+  'bootstrapVault',
   'quantumLattice',
+  'latticeCompression',
+  'latticeSingularity',
   'calibrationMatrix',
+  'matrixOverclock',
+  'matrixAxiom',
   'singularityCore',
+  'chronicleReservoirs',
+  'archiveBatteries',
+  'temporalVaults',
+  'deepArchive',
+  'chronoReserves',
 ]
 
-export const PERMANENT_UPGRADE_DEFS: Record<PermanentUpgradeKey, PermanentUpgradeDef> =
-  PERMANENT_UPGRADE_ORDER.reduce((accumulator, key) => {
-    const entry = PERMANENT_UPGRADE_CONFIG[key]
+export const LEGACY_UPGRADE_DEFS: Record<LegacyUpgradeKey, LegacyUpgradeDef> =
+  LEGACY_UPGRADE_ORDER.reduce((accumulator, key) => {
+    const entry = LEGACY_UPGRADE_CONFIG[key]
     accumulator[key] = {
       ...entry,
       key,
     }
     return accumulator
-  }, {} as Record<PermanentUpgradeKey, PermanentUpgradeDef>)
+  }, {} as Record<LegacyUpgradeKey, LegacyUpgradeDef>)
 
 export const GENERATOR_ORDER: GeneratorKey[] = [
   'miners',
@@ -623,7 +643,7 @@ validateProgressionConfig({
   generatorOrder: GENERATOR_ORDER,
   upgradeOrder: UPGRADE_ORDER,
   achievementOrder: ACHIEVEMENT_ORDER,
-  permanentUpgradeOrder: PERMANENT_UPGRADE_ORDER,
+  legacyUpgradeOrder: LEGACY_UPGRADE_ORDER,
   minerSubsystemGeneratorOrder: MINER_SUBSYSTEM_GENERATOR_ORDER,
   minerSubsystemUpgradeOrder: MINER_SUBSYSTEM_UPGRADE_ORDER,
 })
@@ -709,17 +729,7 @@ export const UPGRADE_DEFS: Record<RunUpgradeKey, UpgradeDef> = UPGRADE_ORDER.red
       return accumulator
     }
 
-    accumulator[key] = {
-      key,
-      label: entry.label,
-      description: entry.description,
-      cost: getConfiguredUpgradeCost(entry),
-      effectType: 'offlineCap',
-      offlineCapSeconds: entry.offlineCapSeconds!,
-      requiresOwned,
-      requiresUpgrade: entry.requiresUpgrade as RunUpgradeKey | undefined,
-    }
-    return accumulator
+    throw new Error(`Unsupported run upgrade effect type for ${key}: ${entry.effectType}`)
   },
   {} as Record<RunUpgradeKey, UpgradeDef>,
 )
@@ -762,14 +772,14 @@ function isAchievementUnlockedFromRequirement(
       return toDecimal(state.stats.totalCredits).greaterThanOrEqualTo(requirement.threshold)
     case 'owned':
       return state.generators[requirement.generator as GeneratorKey] >= requirement.count
-    case 'prestigeResets':
-      return state.prestige.resets >= requirement.count
-    case 'essence':
-      return toDecimal(state.prestige.essence).greaterThanOrEqualTo(requirement.threshold)
-    case 'permanentUpgradeLevels':
-      return getPermanentUpgradeLevelCount(state) >= requirement.count
-    case 'permanentUpgradeTypes':
-      return getPermanentUpgradeTypeCount(state) >= requirement.count
+    case 'ascensions':
+      return state.ascension.ascensions >= requirement.count
+    case 'legacyLevel':
+      return toDecimal(state.ascension.legacyLevel).greaterThanOrEqualTo(requirement.threshold)
+    case 'legacyUpgradeCount':
+      return getPurchasedLegacyUpgradeCount(state) >= requirement.count
+    case 'legacyBranchComplete':
+      return isLegacyBranchComplete(state, requirement.branch)
     case 'purchasedUpgrades':
       return getPurchasedUpgradeCount(state) >= requirement.count
     case 'offlineCapSeconds':
@@ -789,13 +799,13 @@ function getAchievementCategoryFromRequirement(
       return 'Run Credits'
     case 'owned':
       return GENERATOR_DEFS[requirement.generator as GeneratorKey].label
-    case 'prestigeResets':
-      return 'Prestige'
-    case 'essence':
-      return 'Essence'
-    case 'permanentUpgradeLevels':
-    case 'permanentUpgradeTypes':
-      return 'Permanent Upgrades'
+    case 'ascensions':
+      return 'Ascension'
+    case 'legacyLevel':
+      return 'Boost'
+    case 'legacyUpgradeCount':
+    case 'legacyBranchComplete':
+      return 'Ascension Upgrades'
     case 'purchasedUpgrades':
       return 'Upgrades'
     case 'offlineCapSeconds':
@@ -828,19 +838,19 @@ function getAchievementProgressRatioForRequirement(
       return new Decimal(state.generators[requirement.generator as GeneratorKey]).div(
         requirement.count,
       )
-    case 'prestigeResets':
-      return new Decimal(state.prestige.resets).div(requirement.count)
-    case 'essence': {
+    case 'ascensions':
+      return new Decimal(state.ascension.ascensions).div(requirement.count)
+    case 'legacyLevel': {
       const threshold = toDecimal(requirement.threshold)
       if (threshold.lessThanOrEqualTo(0)) {
         return ONE
       }
-      return toDecimal(state.prestige.essence).div(threshold)
+      return toDecimal(state.ascension.legacyLevel).div(threshold)
     }
-    case 'permanentUpgradeLevels':
-      return new Decimal(getPermanentUpgradeLevelCount(state)).div(requirement.count)
-    case 'permanentUpgradeTypes':
-      return new Decimal(getPermanentUpgradeTypeCount(state)).div(requirement.count)
+    case 'legacyUpgradeCount':
+      return new Decimal(getPurchasedLegacyUpgradeCount(state)).div(requirement.count)
+    case 'legacyBranchComplete':
+      return isLegacyBranchComplete(state, requirement.branch) ? ONE : ZERO
     case 'purchasedUpgrades':
       return new Decimal(getPurchasedUpgradeCount(state)).div(requirement.count)
     case 'offlineCapSeconds':
@@ -888,19 +898,26 @@ function getPurchasedUpgradeCount(state: GameState): number {
   )
 }
 
-function getPermanentUpgradeLevelCount(state: GameState): number {
-  return PERMANENT_UPGRADE_ORDER.reduce(
-    (count, key) => count + Math.max(0, Math.floor(state.prestige.permanentUpgrades[key] ?? 0)),
+export function getPurchasedLegacyUpgradeCount(state: GameState): number {
+  return LEGACY_UPGRADE_ORDER.reduce(
+    (count, key) => count + (state.ascension.purchasedLegacyUpgrades[key] ? 1 : 0),
     0,
   )
 }
 
-function getPermanentUpgradeTypeCount(state: GameState): number {
-  return PERMANENT_UPGRADE_ORDER.reduce(
-    (count, key) =>
-      count + (Math.max(0, Math.floor(state.prestige.permanentUpgrades[key] ?? 0)) > 0 ? 1 : 0),
-    0,
-  )
+export function isLegacyBranchComplete(state: GameState, branch: LegacyUpgradeBranch): boolean {
+  return LEGACY_UPGRADE_ORDER
+    .filter((key) => LEGACY_UPGRADE_DEFS[key].branch === branch)
+    .every((key) => state.ascension.purchasedLegacyUpgrades[key])
+}
+
+export function getLegacyUpgradeCountByBranch(
+  state: GameState,
+  branch: LegacyUpgradeBranch,
+): number {
+  return LEGACY_UPGRADE_ORDER.reduce((count, key) => {
+    return count + (LEGACY_UPGRADE_DEFS[key].branch === branch && state.ascension.purchasedLegacyUpgrades[key] ? 1 : 0)
+  }, 0)
 }
 
 function toDecimal(value: Decimal.Value): Decimal {
@@ -983,19 +1000,29 @@ export function getUnlockedAchievementCount(state: GameState): number {
   )
 }
 
-function createInitialPrestigeState(): PrestigeState {
-  return {
-    resets: 0,
-    essence: '0',
-    permanentUpgrades: createInitialPermanentUpgradesState(),
-  }
+export function createInitialPurchasedLegacyUpgradesState(): PurchasedLegacyUpgradesState {
+  return LEGACY_UPGRADE_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = false
+    return accumulator
+  }, {} as PurchasedLegacyUpgradesState)
 }
 
-function createInitialPermanentUpgradesState(): PermanentUpgradesState {
-  return PERMANENT_UPGRADE_ORDER.reduce((accumulator, key) => {
-    accumulator[key] = 0
+function normalizePurchasedLegacyUpgradesState(
+  purchasedLegacyUpgrades: Partial<Record<LegacyUpgradeKey, boolean>> | undefined,
+): PurchasedLegacyUpgradesState {
+  return LEGACY_UPGRADE_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = Boolean(purchasedLegacyUpgrades?.[key])
     return accumulator
-  }, {} as PermanentUpgradesState)
+  }, {} as PurchasedLegacyUpgradesState)
+}
+
+function createInitialAscensionState(): AscensionState {
+  return {
+    ascensions: 0,
+    legacyLevel: '0',
+    legacyShards: '0',
+    purchasedLegacyUpgrades: createInitialPurchasedLegacyUpgradesState(),
+  }
 }
 
 function createInitialRandomState(nowMs = Date.now()): RandomState {
@@ -1072,7 +1099,7 @@ export function createInitialGameState(nowMs = Date.now()): GameState {
       updateFrequency: 'slow',
       repeatTapScrollDirection: 'topToBottom',
     },
-    prestige: createInitialPrestigeState(),
+    ascension: createInitialAscensionState(),
     random: createInitialRandomState(nowMs),
     subsystems: createInitialSubsystemsState(),
   }
@@ -1434,218 +1461,331 @@ export function getMinerSubsystemPurchasedUpgradeCount(state: GameState): number
   )
 }
 
-export function getPrestigeGainForReset(state: GameState): Decimal {
-  const runTotalCredits = toDecimal(state.stats.totalCredits)
-  if (runTotalCredits.lessThan(PRESTIGE_UNLOCK_CREDITS)) {
+export function getLegacyUpgradeCost(key: LegacyUpgradeKey): Decimal {
+  return toDecimal(LEGACY_UPGRADE_DEFS[key].cost)
+}
+
+export function isLegacyUpgradeUnlocked(
+  purchasedLegacyUpgrades: Partial<Record<LegacyUpgradeKey, boolean>> | undefined,
+  key: LegacyUpgradeKey,
+): boolean {
+  const upgrade = LEGACY_UPGRADE_DEFS[key]
+  const normalized = normalizePurchasedLegacyUpgradesState(purchasedLegacyUpgrades)
+  const requiredKey = upgrade.requiresLegacyUpgrade as LegacyUpgradeKey | undefined
+  return !requiredKey || normalized[requiredKey]
+}
+
+export function canPurchaseLegacyUpgrade(
+  purchasedLegacyUpgrades: Partial<Record<LegacyUpgradeKey, boolean>> | undefined,
+  availableLegacyShards: Decimal.Value,
+  key: LegacyUpgradeKey,
+): boolean {
+  const normalized = normalizePurchasedLegacyUpgradesState(purchasedLegacyUpgrades)
+  if (normalized[key] || !isLegacyUpgradeUnlocked(normalized, key)) {
+    return false
+  }
+
+  return new Decimal(availableLegacyShards).greaterThanOrEqualTo(getLegacyUpgradeCost(key))
+}
+
+export function getLegacyUpgradeBranchEntries(branch: LegacyUpgradeBranch): LegacyUpgradeKey[] {
+  return LEGACY_UPGRADE_ORDER.filter((key) => LEGACY_UPGRADE_DEFS[key].branch === branch)
+}
+
+export function getVisibleLegacyUpgradeBranchEntries(
+  branch: LegacyUpgradeBranch,
+  purchasedLegacyUpgrades: Partial<Record<LegacyUpgradeKey, boolean>> | undefined,
+): LegacyUpgradeKey[] {
+  const branchEntries = getLegacyUpgradeBranchEntries(branch)
+  const normalized = normalizePurchasedLegacyUpgradesState(purchasedLegacyUpgrades)
+  const childByParent = new Map<LegacyUpgradeKey, LegacyUpgradeKey>()
+
+  for (const key of branchEntries) {
+    const requiredKey = LEGACY_UPGRADE_DEFS[key].requiresLegacyUpgrade as
+      | LegacyUpgradeKey
+      | undefined
+    if (requiredKey) {
+      childByParent.set(requiredKey, key)
+    }
+  }
+
+  const roots = branchEntries.filter((key) => {
+    return !LEGACY_UPGRADE_DEFS[key].requiresLegacyUpgrade
+  })
+  const visible = new Set<LegacyUpgradeKey>()
+
+  for (const root of roots) {
+    let current: LegacyUpgradeKey | undefined = root
+    while (current) {
+      visible.add(current)
+      if (!normalized[current]) {
+        break
+      }
+      current = childByParent.get(current)
+    }
+  }
+
+  return branchEntries.filter((key) => visible.has(key))
+}
+
+export function getLegacyBranchLabel(branch: LegacyUpgradeBranch): string {
+  switch (branch) {
+    case 'foundry':
+      return 'Foundry'
+    case 'calibration':
+      return 'Calibration'
+    case 'archives':
+      return 'Archives'
+    default:
+      return branch
+  }
+}
+
+export function getLegacyUpgradeBranchOrder(): readonly LegacyUpgradeBranch[] {
+  return LEGACY_UPGRADE_BRANCHES
+}
+
+export function getLegacyUpgradeProgressText(
+  purchasedLegacyUpgrades: Partial<Record<LegacyUpgradeKey, boolean>> | undefined,
+  key: LegacyUpgradeKey,
+): string | null {
+  const definition = LEGACY_UPGRADE_DEFS[key]
+  const requiredKey = definition.requiresLegacyUpgrade as LegacyUpgradeKey | undefined
+  if (!requiredKey) {
+    return null
+  }
+
+  const normalized = normalizePurchasedLegacyUpgradesState(purchasedLegacyUpgrades)
+  if (normalized[requiredKey]) {
+    return null
+  }
+
+  return `Requires ${LEGACY_UPGRADE_DEFS[requiredKey].label}`
+}
+
+export function getLegacyUpgradeEffectSummary(key: LegacyUpgradeKey): string {
+  const definition = LEGACY_UPGRADE_DEFS[key]
+
+  switch (definition.effectType) {
+    case 'productionMultiplier':
+      return `x${definition.value} passive production`
+    case 'startingCredits':
+      return `+${definition.value} starting credits`
+    case 'generatorCostDiscount':
+      return `${toDecimal(1).minus(definition.value ?? 1).times(100).toFixed(0)}% generator cost reduction`
+    case 'runUpgradeCostDiscount':
+      return `${toDecimal(1).minus(definition.value ?? 1).times(100).toFixed(0)}% run-upgrade cost reduction`
+    case 'ascensionGainMultiplier':
+      return `x${definition.value} shard gain`
+    case 'offlineCap':
+      return `+${Math.round((definition.offlineCapSeconds ?? 0) / 60)} minutes offline cap`
+    default:
+      return definition.description
+  }
+}
+
+export function getLegacyLevelForLifetimeCredits(lifetimeCredits: Decimal.Value): Decimal {
+  const credits = toDecimal(lifetimeCredits)
+  if (!credits.isFinite() || credits.lessThan(ASCENSION_SHARD_DIVISOR)) {
     return ZERO
   }
 
-  const baseGain = runTotalCredits.div(PRESTIGE_UNLOCK_CREDITS).pow(PRESTIGE_GAIN_EXPONENT)
-  const resetGainMultiplier = ONE.plus(
-    PRESTIGE_RESET_GAIN_BONUS.times(Math.max(0, state.prestige.resets)),
+  return Decimal.max(ZERO, credits.div(ASCENSION_SHARD_DIVISOR).pow(ASCENSION_LEVEL_EXPONENT).floor())
+}
+
+function getLegacyUpgradeProductionMultiplier(
+  purchasedLegacyUpgrades: Partial<Record<LegacyUpgradeKey, boolean>> | undefined,
+): Decimal {
+  const normalized = normalizePurchasedLegacyUpgradesState(purchasedLegacyUpgrades)
+  return LEGACY_UPGRADE_ORDER.reduce((multiplier, key) => {
+    const upgrade = LEGACY_UPGRADE_DEFS[key]
+    if (!normalized[key] || upgrade.effectType !== 'productionMultiplier') {
+      return multiplier
+    }
+
+    return multiplier.times(upgrade.value ?? 1)
+  }, ONE)
+}
+
+function getGeneratorCostMultiplierFromLegacyUpgrades(
+  purchasedLegacyUpgrades: Partial<Record<LegacyUpgradeKey, boolean>> | undefined,
+): Decimal {
+  const normalized = normalizePurchasedLegacyUpgradesState(purchasedLegacyUpgrades)
+  const costMultiplier = LEGACY_UPGRADE_ORDER.reduce((multiplier, key) => {
+    const upgrade = LEGACY_UPGRADE_DEFS[key]
+    if (!normalized[key] || upgrade.effectType !== 'generatorCostDiscount') {
+      return multiplier
+    }
+
+    return multiplier.times(upgrade.value ?? 1)
+  }, ONE)
+
+  return Decimal.max(new Decimal('0.1'), costMultiplier)
+}
+
+function getRunUpgradeCostMultiplierFromLegacyUpgrades(
+  purchasedLegacyUpgrades: Partial<Record<LegacyUpgradeKey, boolean>> | undefined,
+): Decimal {
+  const normalized = normalizePurchasedLegacyUpgradesState(purchasedLegacyUpgrades)
+  const costMultiplier = LEGACY_UPGRADE_ORDER.reduce((multiplier, key) => {
+    const upgrade = LEGACY_UPGRADE_DEFS[key]
+    if (!normalized[key] || upgrade.effectType !== 'runUpgradeCostDiscount') {
+      return multiplier
+    }
+
+    return multiplier.times(upgrade.value ?? 1)
+  }, ONE)
+
+  return Decimal.max(new Decimal('0.1'), costMultiplier)
+}
+
+function getStartingCreditsFromLegacyUpgrades(
+  purchasedLegacyUpgrades: Partial<Record<LegacyUpgradeKey, boolean>> | undefined,
+): Decimal {
+  const normalized = normalizePurchasedLegacyUpgradesState(purchasedLegacyUpgrades)
+  return LEGACY_UPGRADE_ORDER.reduce((startingCredits, key) => {
+    const upgrade = LEGACY_UPGRADE_DEFS[key]
+    if (!normalized[key] || upgrade.effectType !== 'startingCredits') {
+      return startingCredits
+    }
+
+    return startingCredits.plus(upgrade.value ?? 0)
+  }, ZERO)
+}
+
+function getAscensionGainMultiplierFromLegacyUpgrades(
+  purchasedLegacyUpgrades: Partial<Record<LegacyUpgradeKey, boolean>> | undefined,
+): Decimal {
+  const normalized = normalizePurchasedLegacyUpgradesState(purchasedLegacyUpgrades)
+  return LEGACY_UPGRADE_ORDER.reduce((multiplier, key) => {
+    const upgrade = LEGACY_UPGRADE_DEFS[key]
+    if (!normalized[key] || upgrade.effectType !== 'ascensionGainMultiplier') {
+      return multiplier
+    }
+
+    return multiplier.times(upgrade.value ?? 1)
+  }, ONE)
+}
+
+function getOfflineCapBonusSecondsFromLegacyUpgrades(
+  purchasedLegacyUpgrades: Partial<Record<LegacyUpgradeKey, boolean>> | undefined,
+): number {
+  const normalized = normalizePurchasedLegacyUpgradesState(purchasedLegacyUpgrades)
+  return LEGACY_UPGRADE_ORDER.reduce((totalSeconds, key) => {
+    const upgrade = LEGACY_UPGRADE_DEFS[key]
+    if (!normalized[key] || upgrade.effectType !== 'offlineCap') {
+      return totalSeconds
+    }
+
+    return totalSeconds + (upgrade.offlineCapSeconds ?? 0)
+  }, 0)
+}
+
+function getCreditsFromPreviousRuns(state: GameState): Decimal {
+  return Decimal.max(
+    ZERO,
+    toDecimal(state.stats.totalCreditsAllResets).minus(state.stats.totalCredits),
   )
-  return baseGain
-    .times(resetGainMultiplier)
-    .times(getPrestigeGainMultiplierFromPermanentUpgrades(state.prestige.permanentUpgrades))
+}
+
+function getAscensionLevelFromPreviousRuns(state: GameState): Decimal {
+  return getLegacyLevelForLifetimeCredits(getCreditsFromPreviousRuns(state))
+}
+
+export function getAscensionPassiveMultiplierFromLegacyUpgrades(
+  legacyLevel: Decimal.Value,
+  purchasedLegacyUpgrades: Partial<Record<LegacyUpgradeKey, boolean>> | undefined,
+): Decimal {
+  return ONE.plus(toDecimal(legacyLevel).times(PASSIVE_PRODUCTION_PER_LEGACY_LEVEL)).times(
+    getLegacyUpgradeProductionMultiplier(purchasedLegacyUpgrades),
+  )
+}
+
+export function getAscensionPassiveMultiplier(state: GameState): Decimal {
+  return getAscensionPassiveMultiplierFromLegacyUpgrades(
+    getAscensionLevelFromPreviousRuns(state),
+    state.ascension.purchasedLegacyUpgrades,
+  )
+}
+
+export function getAscensionGain(state: GameState): Decimal {
+  const runCreditShardGain = getLegacyLevelForLifetimeCredits(state.stats.totalCredits)
+  if (runCreditShardGain.lessThanOrEqualTo(0)) {
+    return ZERO
+  }
+
+  return runCreditShardGain
+    .times(getAscensionGainMultiplierFromLegacyUpgrades(state.ascension.purchasedLegacyUpgrades))
     .floor()
 }
 
-export function canPrestige(state: GameState): boolean {
-  return getPrestigeGainForReset(state).greaterThan(0)
+export function canAscend(state: GameState): boolean {
+  return getAscensionGain(state).greaterThan(0)
 }
 
-export function getPrestigeMultiplier(state: GameState): Decimal {
-  return getPrestigeMultiplierFromPermanentUpgrades(
-    state.prestige.permanentUpgrades,
-    state.prestige.resets,
-  )
-}
-
-export function getPrestigeMultiplierFromPermanentUpgrades(
-  permanentUpgrades: PermanentUpgradesState,
-  resetCount = 0,
-): Decimal {
-  let multiplier = ONE.plus(PRESTIGE_RESET_PRODUCTION_BONUS.times(Math.max(0, resetCount)))
-
-  for (const key of PERMANENT_UPGRADE_ORDER) {
-    const upgrade = PERMANENT_UPGRADE_DEFS[key]
-    const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
-    if (level <= 0) {
-      continue
-    }
-
-    if (upgrade.effectType === 'productionAdditive') {
-      multiplier = multiplier.plus(toDecimal(upgrade.value).times(level))
-    }
-  }
-
-  return multiplier
-}
-
-function getGeneratorCostMultiplierFromPermanentUpgrades(
-  permanentUpgrades: PermanentUpgradesState,
-): Decimal {
-  let costMultiplier = ONE
-
-  for (const key of PERMANENT_UPGRADE_ORDER) {
-    const upgrade = PERMANENT_UPGRADE_DEFS[key]
-    if (upgrade.effectType !== 'generatorCostDiscount') {
-      continue
-    }
-
-    const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
-    if (level <= 0) {
-      continue
-    }
-
-    costMultiplier = costMultiplier.times(toDecimal(upgrade.value).pow(level))
-  }
-
-  return Decimal.max(new Decimal('0.1'), costMultiplier)
-}
-
-function getRunUpgradeCostMultiplierFromPermanentUpgrades(
-  permanentUpgrades: PermanentUpgradesState,
-): Decimal {
-  let costMultiplier = ONE
-
-  for (const key of PERMANENT_UPGRADE_ORDER) {
-    const upgrade = PERMANENT_UPGRADE_DEFS[key]
-    if (upgrade.effectType !== 'runUpgradeCostDiscount') {
-      continue
-    }
-
-    const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
-    if (level <= 0) {
-      continue
-    }
-
-    costMultiplier = costMultiplier.times(toDecimal(upgrade.value).pow(level))
-  }
-
-  return Decimal.max(new Decimal('0.1'), costMultiplier)
-}
-
-function getStartingCreditsFromPermanentUpgrades(
-  permanentUpgrades: PermanentUpgradesState,
-): Decimal {
-  let startingCredits = ZERO
-
-  for (const key of PERMANENT_UPGRADE_ORDER) {
-    const upgrade = PERMANENT_UPGRADE_DEFS[key]
-    if (upgrade.effectType !== 'startingCredits') {
-      continue
-    }
-
-    const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
-    if (level <= 0) {
-      continue
-    }
-
-    startingCredits = startingCredits.plus(toDecimal(upgrade.value).times(level))
-  }
-
-  return startingCredits
-}
-
-function getPrestigeGainMultiplierFromPermanentUpgrades(
-  permanentUpgrades: PermanentUpgradesState,
-): Decimal {
-  let multiplier = ONE
-
-  for (const key of PERMANENT_UPGRADE_ORDER) {
-    const upgrade = PERMANENT_UPGRADE_DEFS[key]
-    if (upgrade.effectType !== 'prestigeGainMultiplier') {
-      continue
-    }
-
-    const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
-    if (level <= 0) {
-      continue
-    }
-
-    multiplier = multiplier.times(toDecimal(upgrade.value).pow(level))
-  }
-
-  return multiplier
-}
-
-export function getPermanentUpgradeCost(
-  permanentUpgrades: PermanentUpgradesState,
-  key: PermanentUpgradeKey,
-): Decimal {
-  const level = Math.max(0, Math.floor(permanentUpgrades[key] ?? 0))
-  const upgrade = PERMANENT_UPGRADE_DEFS[key]
-  return toDecimal(upgrade.baseCost).times(toDecimal(upgrade.growth).pow(level)).ceil()
-}
-
-export function getPermanentUpgradeBulkCost(
-  permanentUpgrades: PermanentUpgradesState,
-  key: PermanentUpgradeKey,
-  amount: number,
-): Decimal {
-  const normalizedAmount = Math.max(1, Math.floor(amount))
-  let totalCost = ZERO
-  const draftUpgrades = { ...permanentUpgrades }
-
-  for (let index = 0; index < normalizedAmount; index += 1) {
-    const nextCost = getPermanentUpgradeCost(draftUpgrades, key)
-    totalCost = totalCost.plus(nextCost)
-    draftUpgrades[key] = Math.max(0, Math.floor(draftUpgrades[key] ?? 0)) + 1
-  }
-
-  return totalCost
-}
-
-export function applyPrestigeReset(
+export function applyAscensionReset(
   state: GameState,
   nowMs = Date.now(),
   options?: {
-    remainingEssence?: string
-    permanentUpgrades?: PermanentUpgradesState
+    purchasedLegacyUpgrades?: PurchasedLegacyUpgradesState
   },
 ): GameState {
-  const gainedEssence = getPrestigeGainForReset(state)
-  if (gainedEssence.lessThanOrEqualTo(0)) {
+  const gainedLegacyShards = getAscensionGain(state)
+  if (gainedLegacyShards.lessThanOrEqualTo(0)) {
     return state
   }
 
-  const totalAvailableEssence = toDecimal(state.prestige.essence).plus(gainedEssence)
-  let remainingEssence = totalAvailableEssence
-  if (options?.remainingEssence !== undefined) {
-    try {
-      const parsedRemaining = toDecimal(options.remainingEssence)
-      if (parsedRemaining.greaterThanOrEqualTo(0) && parsedRemaining.lessThanOrEqualTo(totalAvailableEssence)) {
-        remainingEssence = parsedRemaining
-      }
-    } catch {
-      remainingEssence = totalAvailableEssence
+  const basePurchasedLegacyUpgrades = normalizePurchasedLegacyUpgradesState(
+    state.ascension.purchasedLegacyUpgrades,
+  )
+  const normalizedPurchasedLegacyUpgrades = normalizePurchasedLegacyUpgradesState(
+    options?.purchasedLegacyUpgrades ?? state.ascension.purchasedLegacyUpgrades,
+  )
+
+  for (const key of LEGACY_UPGRADE_ORDER) {
+    if (basePurchasedLegacyUpgrades[key]) {
+      normalizedPurchasedLegacyUpgrades[key] = true
     }
   }
 
-  const normalizedPermanentUpgrades = createInitialPermanentUpgradesState()
-  const sourcePermanentUpgrades = options?.permanentUpgrades ?? state.prestige.permanentUpgrades
-  for (const key of PERMANENT_UPGRADE_ORDER) {
-    normalizedPermanentUpgrades[key] = Math.max(0, Math.floor(sourcePermanentUpgrades[key] ?? 0))
+  let spentLegacyShards = ZERO
+  for (const key of LEGACY_UPGRADE_ORDER) {
+    if (!normalizedPurchasedLegacyUpgrades[key] || basePurchasedLegacyUpgrades[key]) {
+      continue
+    }
+
+    if (!isLegacyUpgradeUnlocked(normalizedPurchasedLegacyUpgrades, key)) {
+      return state
+    }
+
+    spentLegacyShards = spentLegacyShards.plus(getLegacyUpgradeCost(key))
   }
 
+  const totalAvailableLegacyShards = toDecimal(state.ascension.legacyShards).plus(gainedLegacyShards)
+  if (spentLegacyShards.greaterThan(totalAvailableLegacyShards)) {
+    return state
+  }
+
+  const projectedLegacyLevel = getLegacyLevelForLifetimeCredits(state.stats.totalCreditsAllResets)
   const initialState = createInitialGameState(nowMs)
   const resetBase: GameState = {
     ...initialState,
-    credits: getStartingCreditsFromPermanentUpgrades(normalizedPermanentUpgrades).toString(),
+    credits: getStartingCreditsFromLegacyUpgrades(normalizedPurchasedLegacyUpgrades).toString(),
     settings: state.settings,
     random: state.random,
     stats: {
       ...initialState.stats,
       totalCreditsAllResets: state.stats.totalCreditsAllResets,
     },
-    prestige: {
-      resets: state.prestige.resets + 1,
-      essence: remainingEssence.toString(),
-      permanentUpgrades: normalizedPermanentUpgrades,
+    ascension: {
+      ascensions: state.ascension.ascensions + 1,
+      legacyLevel: projectedLegacyLevel.toString(),
+      legacyShards: totalAvailableLegacyShards.minus(spentLegacyShards).toString(),
+      purchasedLegacyUpgrades: normalizedPurchasedLegacyUpgrades,
     },
     achievements: state.achievements,
   }
+
   return syncAchievements(resetBase)
 }
 
@@ -1711,7 +1851,9 @@ export function getGeneratorCost(
     state.generators[key],
     amount,
   )
-  return baseCost.times(getGeneratorCostMultiplierFromPermanentUpgrades(state.prestige.permanentUpgrades))
+  return baseCost.times(
+    getGeneratorCostMultiplierFromLegacyUpgrades(state.ascension.purchasedLegacyUpgrades),
+  )
 }
 
 export function canBuyGenerator(
@@ -1798,7 +1940,7 @@ export function getGeneratorProductionPerSecond(
     .times(owned)
     .times(getGeneratorProductionMultiplier(state, generatorKey))
     .times(getGlobalProductionMultiplier(state))
-    .times(getPrestigeMultiplier(state))
+    .times(getAscensionPassiveMultiplier(state))
     .times(subsystemMultiplier)
 }
 
@@ -1810,20 +1952,10 @@ export function getTotalProductionPerSecond(state: GameState): Decimal {
 }
 
 export function getOfflineProgressCapSeconds(state: GameState): number {
-  let capSeconds = BASE_OFFLINE_PROGRESS_CAP_SECONDS
-
-  for (const key of UPGRADE_ORDER) {
-    const upgrade = UPGRADE_DEFS[key]
-    if (!upgrade || !state.purchasedUpgrades[key]) {
-      continue
-    }
-
-    if (upgrade.effectType === 'offlineCap') {
-      capSeconds += upgrade.offlineCapSeconds
-    }
-  }
-
-  return capSeconds
+  return (
+    BASE_OFFLINE_PROGRESS_CAP_SECONDS +
+    getOfflineCapBonusSecondsFromLegacyUpgrades(state.ascension.purchasedLegacyUpgrades)
+  )
 }
 
 export function applyOfflineProgress(state: GameState, nowMs = Date.now()): GameState {
@@ -1938,7 +2070,7 @@ export function getUpgradeCost(state: GameState, key: RunUpgradeKey): Decimal {
   }
 
   return toDecimal(upgrade.cost).times(
-    getRunUpgradeCostMultiplierFromPermanentUpgrades(state.prestige.permanentUpgrades),
+    getRunUpgradeCostMultiplierFromLegacyUpgrades(state.ascension.purchasedLegacyUpgrades),
   )
 }
 

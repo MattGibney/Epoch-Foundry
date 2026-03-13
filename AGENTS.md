@@ -16,7 +16,8 @@
 - Commits merged/pushed to `main` auto-deploy to production; treat `main` changes as release-impacting.
 - Preserve PWA/iOS home-screen support (manifest, service worker registration, iOS web-app meta tags, and touch icons) so installed app behavior remains stable.
 - Keep `App.tsx` focused on app state orchestration and global layout concerns; place tab/screen UI in dedicated screen files, and let each screen compose/select its own header variant.
-- Keep progression balance data (generators, upgrades, achievements, prestige pacing coefficients) in centralized config tables with runtime validation rather than scattering numeric tuning in engine logic.
+- Keep progression balance data (generators, upgrades, achievements, ascension pacing coefficients, and legacy tree data) in centralized config tables with runtime validation rather than scattering numeric tuning in engine logic.
+- When rebalancing progression, prefer strong geometric Cookie Clicker-style ramps for generator costs, milestone ladders, and reset rewards over flatter bespoke curves.
 - When expanding core keyed game schemas (for example generators), update engine types and persistence parsing together; prefer order-driven mappings over hardcoded per-key copies.
 - Include an in-app refresh/update control for installed PWA mode, since iOS home-screen apps do not expose normal browser refresh UI.
 - Prefer mobile-first UI decisions and avoid unnecessary nested card/chrome containers; use spacing and simple dividers when a full card is not needed.
@@ -42,12 +43,15 @@
 - Treat save-data evolution as backward-compatible: when adding new state fields, default missing values during hydration and keep at least one rolling local backup snapshot to reduce accidental progress loss.
 - Keep credit progression calculations in decimal precision internally; apply whole-number rounding only when rendering credit values in the UI.
 - Anchor lifetime credit achievement thresholds to the planned end-of-content horizon rather than the currently implemented midpoint, so new systems do not instantly trivialize the ladder.
-- Stretch single-run credit achievements well beyond the first prestige cycle; they should mark deep run pacing milestones rather than all collapsing in an early reset.
+- Stretch single-run credit achievements well beyond the first ascension cycle; they should mark deep run pacing milestones rather than all collapsing in an early reset.
 - Prefer data-driven achievement definitions so the system scales cleanly to hundreds of achievements without UI/engine rewrites.
 - Keep Home-screen production visualizers as standalone swappable components with data-only inputs so visual styles can be replaced without changing game/screen logic.
 - Keep gameplay randomness deterministic from a persisted run seed (`worldSeed`) and shared RNG utilities; avoid direct `Math.random()` in game systems.
-- Structure progression in two phases: a simple producer-and-prestige opening game first, then a broader systems game after a roughly `10-24` hour unlock.
-- Keep producer-owned-count milestones as stable progression gates; prestige should accelerate income and upgrade affordability, but should not lower the producer counts required to finish ladders or unlock subsystems.
+- Structure progression in two phases: a simple producer-and-ascension opening game first, then a broader systems game after a roughly `10-24` hour unlock.
+- Keep producer-owned-count milestones as stable progression gates; ascension should accelerate income and affordability, but should not lower the producer counts required to finish ladders or unlock subsystems.
+- Model long-term meta progression as a permanent Legacy level plus a finite one-time upgrade tree, not as an infinite repeatable stat shop.
+- Reveal meta-progression trees progressively along purchased chains; show owned nodes and the next unlocks rather than exposing the full future tree up front.
+- Keep ascension UX conceptually narrow: current runs convert into Shards, previous runs determine the passive boost, and deeper derived progression values should stay mostly behind the scenes.
 - Treat producer-specific subsystems as the main phase-two expansion path; later mini-games and economy layers should interconnect with those subsystems rather than sit as isolated side features.
 - Unlock each producer subsystem when the parent producer has completed its main upgrade ladder, so subsystem access reads as the next stage of that producer rather than as a separate side feature.
 - Bootstrap a newly unlocked subsystem with its first producer already owned rather than with free subsystem currency, so the loop starts active without skipping the opening purchase rung.

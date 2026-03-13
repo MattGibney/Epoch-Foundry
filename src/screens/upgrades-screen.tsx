@@ -24,7 +24,6 @@ const UPGRADE_SECTIONS: {
   { effectType: 'generator', heading: 'Generator Upgrades' },
   { effectType: 'subsystemUnlock', heading: 'Subsystem Unlocks' },
   { effectType: 'global', heading: 'Global Upgrades' },
-  { effectType: 'offlineCap', heading: 'Offline Upgrades' },
 ]
 
 interface UpgradesScreenProps {

@@ -18,9 +18,9 @@ interface HomeScreenProps {
 
 const LONG_TERM_GOAL_CATEGORIES = new Set([
   'Lifetime Credits',
-  'Prestige',
-  'Essence',
-  'Permanent Upgrades',
+  'Ascension',
+  'Boost',
+  'Ascension Upgrades',
   'Upgrades',
   'Offline',
 ])

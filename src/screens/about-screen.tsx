@@ -10,8 +10,8 @@ export function AboutScreen() {
       <section className="mx-auto max-w-prose">
         <p className="text-justify text-sm leading-7 text-muted-foreground">
           Epoch Foundry is a long-form idle game about scaling production over repeated runs. Build
-          up credits, optimize upgrade timing, and use prestige to convert each reset into
-          permanent momentum.
+          up credits, optimize upgrade timing, and use ascension to convert lifetime production
+          into Shards and stronger permanent momentum.
         </p>
       </section>
       <section className="space-y-3 border-t border-border/70 pt-6">

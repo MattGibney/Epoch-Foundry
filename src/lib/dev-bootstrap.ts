@@ -1,6 +1,6 @@
 import {
   createInitialGameState,
-  PERMANENT_UPGRADE_ORDER,
+  LEGACY_UPGRADE_ORDER,
   UPGRADE_ORDER,
   type GameState,
 } from '@/lib/game-engine'
@@ -10,6 +10,11 @@ export const DEV_BOOTSTRAP_PRESETS = [
     key: 'fresh',
     label: 'Fresh',
     description: 'New run baseline for early-game checks.',
+  },
+  {
+    key: 'firstAscensionReady',
+    label: 'First Ascension Ready',
+    description: 'Single-run phase-one state with the first ascension available and no legacy spent.',
   },
   {
     key: 'scaled',
@@ -22,9 +27,9 @@ export const DEV_BOOTSTRAP_PRESETS = [
     description: 'Late-run state with deep progression unlocked.',
   },
   {
-    key: 'prestige',
-    label: 'Phase 1 Prestige',
-    description: 'Phase-one reset-planning state with several permanent upgrades.',
+    key: 'ascension',
+    label: 'Phase 1 Ascension',
+    description: 'Phase-one ascension state with a few legacy nodes already unlocked.',
   },
 ] as const
 
@@ -36,9 +41,12 @@ function markRunUpgrades(state: GameState, count: number): void {
   }
 }
 
-function markPermanentUpgrades(state: GameState, levels: Partial<Record<(typeof PERMANENT_UPGRADE_ORDER)[number], number>>): void {
-  for (const key of PERMANENT_UPGRADE_ORDER) {
-    state.prestige.permanentUpgrades[key] = Math.max(0, Math.floor(levels[key] ?? 0))
+function markLegacyUpgrades(
+  state: GameState,
+  purchased: Partial<Record<(typeof LEGACY_UPGRADE_ORDER)[number], boolean>>,
+): void {
+  for (const key of LEGACY_UPGRADE_ORDER) {
+    state.ascension.purchasedLegacyUpgrades[key] = Boolean(purchased[key])
   }
 }
 
@@ -49,6 +57,40 @@ export function createDevBootstrapState(
   const state = createInitialGameState(nowMs)
 
   if (preset === 'fresh') {
+    return state
+  }
+
+  if (preset === 'firstAscensionReady') {
+    state.credits = '2800000'
+    state.generators = {
+      miners: 260,
+      drills: 135,
+      extractors: 60,
+      refineries: 22,
+      megaRigs: 6,
+      orbitalPlatforms: 0,
+      stellarForges: 0,
+      dysonArrays: 0,
+      singularityWells: 0,
+      continuumEngines: 0,
+      voidLathes: 0,
+      entropyReactors: 0,
+      quantumFoundries: 0,
+      darkMatterSmelters: 0,
+      realityKilns: 0,
+      fractalAssemblers: 0,
+      causalLooms: 0,
+      epochMonoliths: 0,
+      omniversalFoundries: 0,
+      genesisForges: 0,
+    }
+    markRunUpgrades(state, 18)
+    state.buyAmount = 100
+    state.stats.totalCredits = '25000000'
+    state.stats.totalCreditsAllResets = '25000000'
+    state.ascension.ascensions = 0
+    state.ascension.legacyLevel = '0'
+    state.ascension.legacyShards = '0'
     return state
   }
 
@@ -111,14 +153,24 @@ export function createDevBootstrapState(
     state.buyAmount = 100
     state.stats.totalCredits = '4.2e74'
     state.stats.totalCreditsAllResets = '1.1e80'
-    state.prestige.resets = 40
-    state.prestige.essence = '650'
-    markPermanentUpgrades(state, {
-      essenceInfusion: 10,
-      bootstrapCache: 8,
-      quantumLattice: 6,
-      calibrationMatrix: 5,
-      singularityCore: 3,
+    state.ascension.ascensions = 18
+    state.ascension.legacyLevel = '2802039330655387119100000'
+    state.ascension.legacyShards = '320'
+    markLegacyUpgrades(state, {
+      foundryAwakening: true,
+      foundryRefraction: true,
+      foundryResonance: true,
+      bootstrapKindling: true,
+      bootstrapCache: true,
+      quantumLattice: true,
+      latticeCompression: true,
+      calibrationMatrix: true,
+      matrixOverclock: true,
+      singularityCore: true,
+      chronicleReservoirs: true,
+      archiveBatteries: true,
+      temporalVaults: true,
+      deepArchive: true,
     })
     state.subsystems.miners = {
       oreData: '3500000',
@@ -204,14 +256,16 @@ export function createDevBootstrapState(
   state.buyAmount = 100
   state.stats.totalCredits = '980000000'
   state.stats.totalCreditsAllResets = '6500000000'
-  state.prestige.resets = 4
-  state.prestige.essence = '90'
-  markPermanentUpgrades(state, {
-    essenceInfusion: 6,
-    bootstrapCache: 4,
-    quantumLattice: 2,
-    calibrationMatrix: 1,
-    singularityCore: 1,
+  state.ascension.ascensions = 3
+  state.ascension.legacyLevel = '10'
+  state.ascension.legacyShards = '4'
+  markLegacyUpgrades(state, {
+    foundryAwakening: true,
+    bootstrapKindling: true,
+    bootstrapCache: true,
+    quantumLattice: true,
+    calibrationMatrix: true,
+    singularityCore: true,
   })
   return state
 }

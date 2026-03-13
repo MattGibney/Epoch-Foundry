@@ -8,14 +8,14 @@ import {
   GENERATOR_ORDER,
   getOfflineProgressCapSeconds,
   getUnlockedAchievementCount,
+  LEGACY_UPGRADE_ORDER,
   MINER_SUBSYSTEM_GENERATOR_ORDER,
   MINER_SUBSYSTEM_UPGRADE_ORDER,
-  PERMANENT_UPGRADE_ORDER,
   type GameState,
   type GeneratorKey,
+  type LegacyUpgradeKey,
   type MinerSubsystemGeneratorKey,
   type MinerSubsystemUpgradeKey,
-  type PermanentUpgradeKey,
   syncAchievements,
   type AchievementKey,
   UPGRADE_ORDER,
@@ -32,7 +32,7 @@ import { type UpdateFrequencyMode } from '@/lib/consts'
 const MAIN_SAVE_SLOT = 'main'
 const BACKUP_SAVE_SLOT = 'backup'
 const SAVE_FORMAT = 'epoch-foundry-save'
-const SAVE_SCHEMA_VERSION = 1
+const SAVE_SCHEMA_VERSION = 2
 
 interface SaveEnvelopeV1 {
   format: string
@@ -127,31 +127,35 @@ function parseSettings(value: unknown): GameState['settings'] {
   }
 }
 
-function parsePrestige(value: unknown): GameState['prestige'] {
+function parseAscension(value: unknown): GameState['ascension'] {
   if (!value || typeof value !== 'object') {
     return {
-      resets: 0,
-      essence: '0',
-      permanentUpgrades: PERMANENT_UPGRADE_ORDER.reduce((accumulator, key) => {
-        accumulator[key] = 0
+      ascensions: 0,
+      legacyLevel: '0',
+      legacyShards: '0',
+      purchasedLegacyUpgrades: LEGACY_UPGRADE_ORDER.reduce((accumulator, key) => {
+        accumulator[key] = false
         return accumulator
-      }, {} as Record<PermanentUpgradeKey, number>),
+      }, {} as Record<LegacyUpgradeKey, boolean>),
     }
   }
 
   const candidate = value as Record<string, unknown>
-  const resets = parseNonNegativeInt(candidate.resets) ?? 0
-  const essence = parseDecimalString(candidate.essence) ?? '0'
-  const permanentUpgradesRaw = candidate.permanentUpgrades as Record<string, unknown> | undefined
-  const permanentUpgrades = PERMANENT_UPGRADE_ORDER.reduce((accumulator, key) => {
-    accumulator[key] = parseNonNegativeInt(permanentUpgradesRaw?.[key]) ?? 0
+  const ascensions = parseNonNegativeInt(candidate.ascensions) ?? 0
+  const legacyLevel = parseDecimalString(candidate.legacyLevel) ?? '0'
+  const legacyShards = parseDecimalString(candidate.legacyShards) ?? '0'
+  const purchasedLegacyUpgradesRaw =
+    candidate.purchasedLegacyUpgrades as Record<string, unknown> | undefined
+  const purchasedLegacyUpgrades = LEGACY_UPGRADE_ORDER.reduce((accumulator, key) => {
+    accumulator[key] = parseBool(purchasedLegacyUpgradesRaw?.[key]) ?? false
     return accumulator
-  }, {} as Record<PermanentUpgradeKey, number>)
+  }, {} as Record<LegacyUpgradeKey, boolean>)
 
   return {
-    resets,
-    essence,
-    permanentUpgrades,
+    ascensions,
+    legacyLevel,
+    legacyShards,
+    purchasedLegacyUpgrades,
   }
 }
 
@@ -242,7 +246,7 @@ function parseModernState(value: unknown): GameState | null {
   const purchasedUpgrades = candidate.purchasedUpgrades as Record<string, unknown> | undefined
   const buyAmount = parseNonNegativeInt(candidate.buyAmount)
   const settings = parseSettings(candidate.settings)
-  const prestige = parsePrestige(candidate.prestige)
+  const ascension = parseAscension(candidate.ascension)
 
   if (!credits) {
     return null
@@ -305,7 +309,7 @@ function parseModernState(value: unknown): GameState | null {
       totalCreditsAllResets,
     },
     settings,
-    prestige,
+    ascension,
     random: {
       worldSeed,
     },
@@ -313,40 +317,6 @@ function parseModernState(value: unknown): GameState | null {
   }
 
   return parsedState
-}
-
-function parseLegacyState(value: unknown): GameState | null {
-  if (!value || typeof value !== 'object') {
-    return null
-  }
-
-  const candidate = value as Record<string, unknown>
-  const initial = createInitialGameState(Date.now())
-
-  const directCredits = parseDecimalString(candidate.total)
-  const resources = candidate.resources as Record<string, unknown> | undefined
-  const resourceCredits = parseDecimalString(resources?.credits)
-  const recoveredCredits = resourceCredits ?? directCredits
-
-  if (!recoveredCredits) {
-    return null
-  }
-
-  initial.credits = recoveredCredits
-  initial.stats.totalCredits = recoveredCredits
-  initial.stats.totalCreditsAllResets = recoveredCredits
-
-  const legacyGenerators = candidate.generators as Record<string, unknown> | undefined
-  const legacyMiners = parseNonNegativeInt(legacyGenerators?.miners)
-  if (legacyMiners !== null) {
-    initial.generators.miners = Math.max(initial.generators.miners, legacyMiners)
-  }
-
-  return initial
-}
-
-function parseState(value: unknown): GameState | null {
-  return parseModernState(value) ?? parseLegacyState(value)
 }
 
 function parseStateFromEnvelope(envelope: SaveSlotPayload | null): GameState | null {
@@ -357,14 +327,13 @@ function parseStateFromEnvelope(envelope: SaveSlotPayload | null): GameState | n
   const saveEnvelope = envelope as Partial<SaveEnvelopeV1>
   if (
     saveEnvelope.format !== SAVE_FORMAT ||
-    typeof saveEnvelope.schemaVersion !== 'number' ||
-    saveEnvelope.schemaVersion > SAVE_SCHEMA_VERSION ||
+    saveEnvelope.schemaVersion !== SAVE_SCHEMA_VERSION ||
     !Number.isFinite(saveEnvelope.savedAtMs)
   ) {
     return null
   }
 
-  return parseState(saveEnvelope.state)
+  return parseModernState(saveEnvelope.state)
 }
 
 function createSaveEnvelope(state: GameState): SaveEnvelopeV1 {

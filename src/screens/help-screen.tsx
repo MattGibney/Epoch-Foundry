@@ -13,7 +13,7 @@ export function HelpScreen() {
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>Buy producers to increase credits per second.</p>
           <p>Buy upgrades to multiply producer and global output.</p>
-          <p>Prestige to reset your run and gain permanent essence multipliers.</p>
+          <p>Ascend to reset your run, convert the current run into Shards, and strengthen your permanent boost.</p>
         </div>
       </section>
 
@@ -33,8 +33,8 @@ export function HelpScreen() {
             tier dependencies and global multipliers.
           </p>
           <p>
-            <span className="font-medium text-foreground">Prestige:</span> resets the run and
-            opens a prestige phase where essence is spent on permanent upgrades.
+            <span className="font-medium text-foreground">Ascension:</span> resets the run and
+            opens a planning phase where current-run credits convert into Shards that buy one-time permanent upgrades.
           </p>
           <p>
             <span className="font-medium text-foreground">Achievements:</span> long-term goals
@@ -48,7 +48,7 @@ export function HelpScreen() {
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>Progress is saved automatically to IndexedDB.</p>
           <p>Offline production is applied on load up to your current cap.</p>
-          <p>Offline cap starts at 15 minutes and can be expanded to 6 hours via upgrades.</p>
+          <p>Offline cap starts at 15 minutes and can be expanded permanently to 6 hours via ascension upgrades.</p>
         </div>
       </section>
 
@@ -56,7 +56,7 @@ export function HelpScreen() {
         <h2 className="text-base font-semibold">Long-Term Progression</h2>
         <p className="text-sm leading-7 text-muted-foreground">
           Progression is designed around repeated runs: push production, unlock stronger
-          multipliers, and time prestige resets to compound permanent growth.
+          multipliers, and time ascensions to turn strong runs into Shards and stronger future boosts.
         </p>
       </section>
     </div>
