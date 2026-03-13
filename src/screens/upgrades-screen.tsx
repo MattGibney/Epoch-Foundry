@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import Decimal from 'decimal.js'
 
 import { UpgradeListItem } from '@/components/game/upgrade-list-item'
+import { useAnimatedPresenceKeys } from '@/components/game/use-animated-presence-keys'
 import { useRecentPurchaseKeys } from '@/components/game/use-recent-purchase-keys'
 import { UNKNOWN_PRODUCER_REVEAL_RATIO } from '@/lib/consts'
 import {
@@ -121,6 +122,7 @@ export function UpgradesScreen({
   }
 
   const visibleUpgradeKeys = UPGRADE_ORDER.filter((key) => visible.has(key))
+  const renderedUpgradeEntries = useAnimatedPresenceKeys(visibleUpgradeKeys)
   const scrollTargetKey =
     repeatTapScrollDirection === 'bottomToTop'
       ? [...visibleUpgradeKeys].reverse().find((key) => canBuyUpgrade(game, key)) ?? null
@@ -147,7 +149,7 @@ export function UpgradesScreen({
     0,
   )
 
-  const renderUpgradeItem = (key: RunUpgradeKey) => {
+  const renderUpgradeItem = (key: RunUpgradeKey, isExiting = false) => {
     const definition = UPGRADE_DEFS[key]
     const purchased = game.purchasedUpgrades[key]
     const canBuy = canBuyUpgrade(game, key)
@@ -194,6 +196,7 @@ export function UpgradesScreen({
         }}
         recentlyPurchased={Boolean(recentPurchaseKeys[key])}
         purchaseFeedbackToken={recentPurchaseKeys[key] ? key : null}
+        isExiting={isExiting}
         unavailableContent={
           <div className="flex h-full flex-col justify-center space-y-1.5 text-center">
             <p className="text-xs text-muted-foreground">{isUnlocked ? 'Credits' : 'Requires'}</p>
@@ -245,11 +248,11 @@ export function UpgradesScreen({
         </p>
       </section>
         {UPGRADE_SECTIONS.map((section) => {
-          const sectionUpgrades = visibleUpgradeKeys.filter(
-            (key) => UPGRADE_DEFS[key].effectType === section.effectType,
+          const renderedSectionEntries = renderedUpgradeEntries.filter(
+            (entry) => UPGRADE_DEFS[entry.key].effectType === section.effectType,
           )
 
-          if (sectionUpgrades.length === 0) {
+          if (renderedSectionEntries.length === 0) {
             return null
           }
 
@@ -258,11 +261,16 @@ export function UpgradesScreen({
               <h3 className="border-b border-border/70 pb-2 text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
                 {section.heading}
               </h3>
-              <div>{sectionUpgrades.map((key) => renderUpgradeItem(key))}</div>
+              <div>
+                {renderedSectionEntries.map((entry) =>
+                  renderUpgradeItem(entry.key, entry.isExiting),
+                )}
+              </div>
             </section>
           )
         })}
         {!game.settings.showPurchasedUpgrades &&
+          renderedUpgradeEntries.length === 0 &&
           UPGRADE_ORDER.every((key) => game.purchasedUpgrades[key]) && (
             <section className="py-3">
               <p className="text-sm text-muted-foreground">

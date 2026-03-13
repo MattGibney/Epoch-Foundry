@@ -6,6 +6,7 @@ import {
   type ProducerListEntry,
 } from '@/components/game/producer-list'
 import { UpgradeListItem } from '@/components/game/upgrade-list-item'
+import { useAnimatedPresenceKeys } from '@/components/game/use-animated-presence-keys'
 import { useRecentPurchaseKeys } from '@/components/game/use-recent-purchase-keys'
 import { UNKNOWN_PRODUCER_REVEAL_RATIO } from '@/lib/consts'
 import { MINER_SUBSYSTEM_CONFIG } from '@/lib/progression-config'
@@ -280,6 +281,7 @@ export function MinerSubsystemUpgradesScreen({
   const visibleUpgradeKeys = isUnlocked
     ? getVisibleMinerUpgradeKeys(game, maxRevealedProducerIndex, recentPurchaseKeys)
     : []
+  const renderedUpgradeEntries = useAnimatedPresenceKeys(visibleUpgradeKeys)
   const scrollTargetKey =
     repeatTapScrollDirection === 'bottomToTop'
       ? [...visibleUpgradeKeys].reverse().find((key) => canBuyMinerSubsystemUpgrade(game, key)) ?? null
@@ -318,8 +320,9 @@ export function MinerSubsystemUpgradesScreen({
           </p>
         </div>
 
-        <div className="divide-y divide-border/70">
-          {visibleUpgradeKeys.map((key) => {
+        <div>
+          {renderedUpgradeEntries.map((entry) => {
+            const key = entry.key
             const definition = MINER_SUBSYSTEM_UPGRADE_DEFS[key]
             const purchased = game.subsystems.miners.purchasedUpgrades[key]
             const isUnlocked = isMinerSubsystemUpgradeUnlocked(game, key)
@@ -352,6 +355,7 @@ export function MinerSubsystemUpgradesScreen({
                 }}
                 recentlyPurchased={Boolean(recentPurchaseKeys[key])}
                 purchaseFeedbackToken={recentPurchaseKeys[key] ? key : null}
+                isExiting={entry.isExiting}
                 unavailableContent={
                   <div className="flex h-full flex-col justify-center space-y-1.5 text-center">
                     <p className="text-xs text-muted-foreground">
@@ -409,6 +413,7 @@ export function MinerSubsystemUpgradesScreen({
         </div>
 
         {!game.settings.showPurchasedUpgrades &&
+          renderedUpgradeEntries.length === 0 &&
           MINER_SUBSYSTEM_UPGRADE_ORDER.every(
             (key) => game.subsystems.miners.purchasedUpgrades[key],
           ) && (
