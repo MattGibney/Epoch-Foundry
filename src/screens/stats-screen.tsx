@@ -1,4 +1,4 @@
-import type Decimal from 'decimal.js'
+import Decimal from 'decimal.js'
 
 import {
   AlertDialog,
@@ -33,6 +33,7 @@ interface StatsScreenProps {
   creditsPerSecond: Decimal.Value
   ascensionPassiveMultiplier: Decimal.Value
   ascensionGain: Decimal.Value
+  nextAscensionGainTargetCredits: Decimal.Value
   canAscendNow: boolean
   onOpenAscension: () => void
   formatDuration: (seconds: number) => string
@@ -48,6 +49,7 @@ export function StatsScreen({
   creditsPerSecond,
   ascensionPassiveMultiplier,
   ascensionGain,
+  nextAscensionGainTargetCredits,
   canAscendNow,
   onOpenAscension,
   formatDuration,
@@ -55,6 +57,14 @@ export function StatsScreen({
   formatIdleNumber,
   subsystemStats,
 }: StatsScreenProps) {
+  const runCredits = new Decimal(game.stats.totalCredits)
+  const ascensionGainValue = new Decimal(ascensionGain)
+  const nextAscensionTarget = new Decimal(nextAscensionGainTargetCredits)
+  const ascensionProgressRatio = nextAscensionTarget.lessThanOrEqualTo(0)
+    ? 1
+    : Decimal.min(1, runCredits.div(nextAscensionTarget)).toNumber()
+  const creditsUntilNextAscensionGain = Decimal.max(0, nextAscensionTarget.minus(runCredits))
+
   return (
     <div className="space-y-6">
       <section>
@@ -110,6 +120,28 @@ export function StatsScreen({
             <span className="text-muted-foreground">Shards On Ascend</span>
             <span className="font-mono tabular-nums">+{formatIdleNumber(ascensionGain)}</span>
           </p>
+          <div className="pt-1.5">
+            <p className="flex items-center justify-between">
+              <span className="text-muted-foreground">
+                {ascensionGainValue.greaterThan(0) ? 'Next Shard Target' : 'First Shard Target'}
+              </span>
+              <span className="font-mono tabular-nums">
+                {formatRenderedCredits(nextAscensionTarget)}
+              </span>
+            </p>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-foreground/60 transition-[width] duration-300"
+                style={{ width: `${ascensionProgressRatio * 100}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              <span className="font-mono tabular-nums">
+                {formatRenderedCredits(creditsUntilNextAscensionGain)}
+              </span>{' '}
+              run credits to next Shard
+            </p>
+          </div>
           <p className="flex items-center justify-between">
             <span className="text-muted-foreground">Ascensions</span>
             <span className="font-mono tabular-nums">{game.ascension.ascensions}</span>

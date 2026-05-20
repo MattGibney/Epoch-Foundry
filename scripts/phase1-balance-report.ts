@@ -8,7 +8,7 @@ import {
   UPGRADE_CONFIG,
 } from '../src/lib/progression-config.ts'
 
-const PHASE_ONE_GENERATORS = [
+const OPENING_LADDER_GENERATORS = [
   'miners',
   'drills',
   'extractors',
@@ -34,7 +34,7 @@ const LATE_LADDER_GENERATORS = [
   'genesisForges',
 ] as const
 
-const ACHIEVEMENT_ALIGNMENT_THRESHOLDS = {
+const OWNED_ACHIEVEMENT_THRESHOLDS = {
   miners: [10, 25, 50, 100, 200, 350],
   drills: [10, 25, 50, 100, 200, 350],
   extractors: [10, 25, 50, 100, 200, 350],
@@ -46,7 +46,7 @@ const ACHIEVEMENT_ALIGNMENT_THRESHOLDS = {
   singularityWells: [4, 10, 20, 40, 80, 140],
 } as const
 
-const PAYBACK_TARGETS_SECONDS: Record<(typeof PHASE_ONE_GENERATORS)[number], number> = {
+const PAYBACK_TARGETS_SECONDS: Record<(typeof OPENING_LADDER_GENERATORS)[number], number> = {
   miners: 15,
   drills: 16,
   extractors: 20,
@@ -78,8 +78,8 @@ function getLegacyLevelForLifetimeCredits(totalCredits: Decimal.Value): Decimal 
 
 const failures: string[] = []
 
-console.log('Phase 1 generator payback')
-for (const key of PHASE_ONE_GENERATORS) {
+console.log('Opening generator payback')
+for (const key of OPENING_LADDER_GENERATORS) {
   const generator = GENERATOR_CONFIG[key]
   const paybackSeconds = new Decimal(generator.baseCost).div(generator.baseProduction)
   const paybackRounded = paybackSeconds.toDecimalPlaces(2)
@@ -94,8 +94,8 @@ for (const key of PHASE_ONE_GENERATORS) {
   }
 }
 
-console.log('\nPhase 1 upgrade depth')
-for (const key of PHASE_ONE_GENERATORS) {
+console.log('\nOpening upgrade depth')
+for (const key of OPENING_LADDER_GENERATORS) {
   const upgrades = Object.values(UPGRADE_CONFIG).filter(
     (upgrade) => upgrade.effectType === 'generator' && upgrade.target === key,
   )
@@ -167,8 +167,8 @@ for (const requiredKey of ['bootstrapCache', 'calibrationMatrix', 'singularityCo
   }
 }
 
-console.log('\nAchievement alignment')
-for (const [generatorKey, expectedThresholds] of Object.entries(ACHIEVEMENT_ALIGNMENT_THRESHOLDS)) {
+console.log('\nOwned achievement thresholds')
+for (const [generatorKey, expectedThresholds] of Object.entries(OWNED_ACHIEVEMENT_THRESHOLDS)) {
   const thresholds = Object.values(ACHIEVEMENT_CONFIG)
     .filter(
       (achievement) =>
@@ -182,7 +182,7 @@ for (const [generatorKey, expectedThresholds] of Object.entries(ACHIEVEMENT_ALIG
 
   if (thresholds.join(',') !== expectedThresholds.join(',')) {
     failures.push(
-      `${GENERATOR_CONFIG[generatorKey].label} achievement thresholds ${thresholds.join(',')} do not match ${expectedThresholds.join(',')}`,
+      `${GENERATOR_CONFIG[generatorKey].label} owned achievement thresholds ${thresholds.join(',')} do not match ${expectedThresholds.join(',')}`,
     )
   }
 }

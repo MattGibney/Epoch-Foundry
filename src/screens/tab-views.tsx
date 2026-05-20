@@ -212,6 +212,7 @@ interface StatsTabViewProps extends CommonTabProps {
   offlineProgressCapSeconds: number
   ascensionPassiveMultiplier: Decimal
   ascensionGain: Decimal
+  nextAscensionGainTargetCredits: Decimal
   canAscendNow: boolean
   onOpenAscension: () => void
   formatDuration: (seconds: number) => string
@@ -259,6 +260,7 @@ export function StatsTabView(props: StatsTabViewProps) {
           creditsPerSecond={props.creditsPerSecond}
           ascensionPassiveMultiplier={props.ascensionPassiveMultiplier}
           ascensionGain={props.ascensionGain}
+          nextAscensionGainTargetCredits={props.nextAscensionGainTargetCredits}
           canAscendNow={props.canAscendNow}
           onOpenAscension={props.onOpenAscension}
           formatDuration={props.formatDuration}

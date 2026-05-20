@@ -341,7 +341,7 @@ export const ACHIEVEMENT_ORDER = [
 
 export type AchievementKey = (typeof ACHIEVEMENT_ORDER)[number]
 
-export const BUY_AMOUNT_OPTIONS = [1, 10, 100] as const
+export const BUY_AMOUNT_OPTIONS = [1, 10, 100, 1000] as const
 
 export const MINER_SUBSYSTEM_UPGRADE_ORDER = [
   'scoutTraining',
@@ -1717,6 +1717,26 @@ export function getAscensionGain(state: GameState): Decimal {
   return runCreditShardGain
     .times(getAscensionGainMultiplierFromLegacyUpgrades(state.ascension.purchasedLegacyUpgrades))
     .floor()
+}
+
+export function getNextAscensionGainTargetCredits(state: GameState): Decimal {
+  const gainMultiplier = getAscensionGainMultiplierFromLegacyUpgrades(
+    state.ascension.purchasedLegacyUpgrades,
+  )
+  if (gainMultiplier.lessThanOrEqualTo(0)) {
+    return ASCENSION_SHARD_DIVISOR
+  }
+
+  const currentBaseLevel = getLegacyLevelForLifetimeCredits(state.stats.totalCredits)
+  const nextDisplayedGain = getAscensionGain(state).plus(1)
+  let requiredBaseLevel = nextDisplayedGain.div(gainMultiplier).ceil()
+
+  if (requiredBaseLevel.lessThanOrEqualTo(currentBaseLevel)) {
+    requiredBaseLevel = currentBaseLevel.plus(1)
+  }
+
+  requiredBaseLevel = Decimal.max(ONE, requiredBaseLevel)
+  return ASCENSION_SHARD_DIVISOR.times(requiredBaseLevel.pow(3))
 }
 
 export function canAscend(state: GameState): boolean {

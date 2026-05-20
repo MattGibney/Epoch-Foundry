@@ -50,6 +50,7 @@ import {
   getMinerOreData,
   getMinerSubsystemGeneratorCost,
   getMinerSubsystemTotalProductionPerSecond,
+  getNextAscensionGainTargetCredits,
   getOfflineProgressCapSeconds,
   getTotalProductionPerSecond,
   getUnlockedAchievementCount,
@@ -356,9 +357,16 @@ function App() {
       return
     }
 
+    const unlockedLabels = newlyUnlocked.map((key) => ACHIEVEMENT_DEFS[key].label)
+    if (unlockedLabels.length === 1) {
+      toast(`Achievement Unlocked: ${unlockedLabels[0]}`)
+    } else {
+      toast(`${unlockedLabels.length} Achievements Unlocked`, {
+        description: unlockedLabels.slice(0, 3).join(', '),
+      })
+    }
+
     for (const key of newlyUnlocked) {
-      const achievement = ACHIEVEMENT_DEFS[key]
-      toast(`Achievement Unlocked: ${achievement.label}`)
       knownUnlocked.add(key)
     }
   }, [game.achievements, isHydrated])
@@ -621,6 +629,10 @@ function App() {
 
   const creditsPerSecond = useMemo(() => getTotalProductionPerSecond(game), [game])
   const ascensionGain = useMemo(() => getAscensionGain(game), [game])
+  const nextAscensionGainTargetCredits = useMemo(
+    () => getNextAscensionGainTargetCredits(game),
+    [game],
+  )
   const ascensionPassiveMultiplier = useMemo(() => getAscensionPassiveMultiplier(game), [game])
   const canAscendNow = useMemo(() => canAscend(game), [game])
   const offlineProgressCapSeconds = useMemo(() => getOfflineProgressCapSeconds(game), [game])
@@ -862,6 +874,7 @@ function App() {
             offlineProgressCapSeconds={offlineProgressCapSeconds}
             ascensionPassiveMultiplier={ascensionPassiveMultiplier}
             ascensionGain={ascensionGain}
+            nextAscensionGainTargetCredits={nextAscensionGainTargetCredits}
             canAscendNow={canAscendNow}
             onOpenAscension={startAscensionPlanning}
             formatDuration={formatDuration}
@@ -901,6 +914,7 @@ function App() {
             offlineProgressCapSeconds={offlineProgressCapSeconds}
             ascensionPassiveMultiplier={ascensionPassiveMultiplier}
             ascensionGain={ascensionGain}
+            nextAscensionGainTargetCredits={nextAscensionGainTargetCredits}
             canAscendNow={canAscendNow}
             onOpenAscension={startAscensionPlanning}
             formatDuration={formatDuration}

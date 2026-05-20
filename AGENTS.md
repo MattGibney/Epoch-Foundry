@@ -46,6 +46,7 @@
 - Preserve scroll position per in-app screen while navigating between tabs or subsystem views, but reset remembered scroll positions on full app reloads and hard run resets.
 - Keep list-level production controls reachable while scrolling long producer ladders; prefer sticky option/filter affordances over forcing users back to the top.
 - Apply offline progress immediately on load with an explicit cap; use late-game upgrades to extend that cap rather than removing it outright.
+- Keep offline-cap upgrade totals aligned with Help copy and offline-cap achievement thresholds so cap milestones unlock one at a time and communicate the actual ceiling.
 - Treat save-data evolution as backward-compatible: when adding new state fields, default missing values during hydration and keep at least one rolling local backup snapshot to reduce accidental progress loss.
 - Keep credit progression calculations in decimal precision internally; apply whole-number rounding only when rendering credit values in the UI.
 - Anchor lifetime credit achievement thresholds to the planned end-of-content horizon rather than the currently implemented midpoint, so new systems do not instantly trivialize the ladder.
